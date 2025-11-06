@@ -1,0 +1,60 @@
+.v-time-picker-controls__time__separator {
+  padding-top: 25px;
+}
+
+@media (max-width: 600px) {
+  .v-time-picker-controls__time__btn {
+    &.v-btn--density-default {
+      &.v-btn {
+        font-size: 20px;
+        width: 40px;
+        height: 40px;
+        &.v-time-picker-controls__time--with-ampm__btn,
+        &.v-time-picker-controls__time--with-seconds__btn {
+          width: 40px;
+          height: 40px;
+          min-width: unset;
+        }
+        &.v-time-picker-controls__time--with-seconds__btn {
+          font-size: 20px;
+        }
+      }
+    }
+  }
+
+  .v-time-picker {
+    &.v-picker {
+      min-width: unset;
+    }
+  }
+  .v-time-picker-controls__time {
+    align-items: center;
+  }
+
+  .v-time-picker-controls__ampm {
+    align-self: flex-start;
+  }
+
+  .v-time-picker-controls__ampm__btn {
+    &.v-btn {
+      &.v-btn--density-default {
+        min-width: 30px;
+        height: 25px;
+        font-size: 12px;
+      }
+    }
+  }
+
+  .v-time-picker-controls__time__separator {
+    font-size: 25px;
+    height: 20px;
+    width: 24px;
+    text-align: center;
+    padding-top: 0;
+    &.v-time-picker-controls--with-seconds__time__separator {
+      height: 20px;
+      width: 24px;
+      font-size: 25px;
+    }
+  }
+}
