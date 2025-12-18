@@ -1,3 +1,7 @@
+/**
+ * Open Dental Dashboard Router
+ * Vercel Pro Deployment Test - 2025-12-17
+ */
 import { createRouter, createWebHistory } from 'vue-router';
 import MainRoutes from './MainRoutes';
 import PublicRoutes from './PublicRoutes';
