@@ -25,9 +25,6 @@ function validate() {
 </script>
 
 <template>
-  <h4 class="text-h4 my-4 mb-8 font-weight-regular text-medium-emphasis">
-    Enter your email address below and we'll send you password reset OTP.
-  </h4>
   <v-form ref="logform" lazy-validation v-model="valid" action="/starter" @submit.prevent="validate" class="mt-7 loginForm">
     <v-text-field
       v-model="email"
@@ -45,6 +42,6 @@ function validate() {
   </v-form>
   <div class="mt-5 text-end">
     <v-divider />
-    <v-btn variant="plain" to="/login1" class="mt-2 text-capitalize mr-n2">Already have an account?</v-btn>
+    <v-btn variant="plain" to="/login" class="mt-2 text-capitalize mr-n2">Already have an account?</v-btn>
   </div>
 </template>

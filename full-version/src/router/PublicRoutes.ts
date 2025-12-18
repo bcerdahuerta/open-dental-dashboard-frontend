@@ -19,7 +19,17 @@ const PublicRoutes = {
     {
       name: 'Authentication',
       path: '/login',
-      component: () => import('@/views/authentication/LoginPage.vue')
+      component: () => import('@/views/authentication/auth3/LoginPage3.vue')
+    },
+    {
+      name: 'Register',
+      path: '/register',
+      component: () => import('@/views/authentication/auth3/RegisterPage3.vue')
+    },
+    {
+      name: 'ForgotPassword',
+      path: '/forgot-password',
+      component: () => import('@/views/authentication/auth3/ForgotPwd3.vue')
     },
     {
       name: 'ContactUs',
@@ -36,26 +46,27 @@ const PublicRoutes = {
       path: '/faq',
       component: () => import('@/views/pages/landingpage/FAQs.vue')
     },
-    {
-      name: 'Login',
-      path: '/login1',
-      component: () => import('@/views/authentication/auth1/LoginPage1.vue')
-    },
-    {
-      name: 'Captcha',
-      path: '/captcha',
-      component: () => import('@/views/authentication/auth1/LoginPage1.vue')
-    },
-    {
-      name: 'Register',
-      path: '/register1',
-      component: () => import('@/views/authentication/auth1/RegisterPage1.vue')
-    },
-    {
-      name: 'Forgot Password',
-      path: '/forgot-pwd1',
-      component: () => import('@/views/authentication/auth1/ForgotPwd1.vue')
-    },
+    // Demo paths disabled to enforce standard auth routes
+    // {
+    //   name: 'Login',
+    //   path: '/login1',
+    //   component: () => import('@/views/authentication/auth1/LoginPage1.vue')
+    // },
+    // {
+    //   name: 'Captcha',
+    //   path: '/captcha',
+    //   component: () => import('@/views/authentication/auth1/LoginPage1.vue')
+    // },
+    // {
+    //   name: 'Register',
+    //   path: '/register1',
+    //   component: () => import('@/views/authentication/auth1/RegisterPage1.vue')
+    // },
+    // {
+    //   name: 'Forgot Password',
+    //   path: '/forgot-pwd1',
+    //   component: () => import('@/views/authentication/auth1/ForgotPwd1.vue')
+    // },
     {
       name: 'Check Mail',
       path: '/check-mail1',
@@ -71,21 +82,21 @@ const PublicRoutes = {
       path: '/code-verify1',
       component: () => import('@/views/authentication/auth1/CodeVerification1.vue')
     },
-    {
-      name: 'Login 3',
-      path: '/login3',
-      component: () => import('@/views/authentication/auth3/LoginPage3.vue')
-    },
-    {
-      name: 'Register 3',
-      path: '/register3',
-      component: () => import('@/views/authentication/auth3/RegisterPage3.vue')
-    },
-    {
-      name: 'Forgot Password 3',
-      path: '/forgot-pwd3',
-      component: () => import('@/views/authentication/auth3/ForgotPwd3.vue')
-    },
+    // {
+    //   name: 'Login 3',
+    //   path: '/login3',
+    //   component: () => import('@/views/authentication/auth3/LoginPage3.vue')
+    // },
+    // {
+    //   name: 'Register 3',
+    //   path: '/register3',
+    //   component: () => import('@/views/authentication/auth3/RegisterPage3.vue')
+    // },
+    // {
+    //   name: 'Forgot Password 3',
+    //   path: '/forgot-pwd3',
+    //   component: () => import('@/views/authentication/auth3/ForgotPwd3.vue')
+    // },
     {
       name: 'Check Mail 3',
       path: '/check-mail3',

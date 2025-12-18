@@ -10,12 +10,12 @@ import { useAuthStore } from '@/stores/auth';
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    MainRoutes,
+    PublicRoutes,
     {
       path: '/:pathMatch(.*)*',
       component: () => import('@/views/pages/maintenance/error/Error404Page.vue')
-    },
-    MainRoutes,
-    PublicRoutes
+    }
   ]
 });
 
@@ -37,7 +37,7 @@ interface AuthStore {
 router.beforeEach(async (to, from, next) => {
   // redirect to login page if not logged in and trying to access a restricted page
   // All public authentication pages that don't require login
-  const publicPages = ['/', '/login', '/register1', '/forgot-pwd1', '/check-mail1', '/reset-pwd1', '/code-verify1'];
+  const publicPages = ['/', '/login', '/register', '/forgot-password', '/register1', '/forgot-pwd1', '/check-mail1', '/reset-pwd1', '/code-verify1'];
   const auth: AuthStore = useAuthStore();
 
   const isPublicPage = publicPages.includes(to.path);

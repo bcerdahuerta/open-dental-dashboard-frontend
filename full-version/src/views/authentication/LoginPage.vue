@@ -32,54 +32,23 @@ createApp(component).use(VueReCaptcha, { siteKey: '6LeCprcaAAAAAOD0aEK7WpfHc__Cy
 </script>
 
 <template>
-  <v-row class="h-screen" no-gutters>
-    <!---Left Part-->
-    <v-col cols="12" lg="7" xl="7" class="d-flex align-center bg-lightprimary">
-      <v-container>
-        <div class="pa-0 pa-sm-12">
-          <v-row justify="center">
-            <v-col cols="12" lg="10" xl="6" md="7">
-              <v-card elevation="0" class="loginBox">
-                <v-card variant="outlined">
-                  <v-card-text class="pa-9">
-                    <!---Left Part Logo -->
-                    <v-row>
-                      <v-col cols="12" md="7" sm="7" order-sm="first" order="last" class="text-sm-start text-center">
-                        <h2 class="text-secondary text-h2">Hi, Welcome Back</h2>
-                        <h4 class="text-disabled text-h4">Login in to your account</h4>
-                      </v-col>
-                      <v-col class="text-sm-end text-center" sm="5" cols="12">
-                        <Logo />
-                      </v-col>
-                    </v-row>
-                    <!---Left Part Logo -->
-
-                    <!---Left Part Form-->
-                    <AuthLogin />
-                    <!---Left Part Form-->
-                  </v-card-text>
-                </v-card>
-              </v-card>
-            </v-col>
-          </v-row>
-        </div>
-      </v-container>
+  <v-row class="h-screen bg-lightprimary" justify="center" align="center" no-gutters>
+    <v-col cols="12" sm="8" md="6" lg="4">
+      <v-card elevation="0" class="loginBox">
+        <v-card variant="outlined">
+          <v-card-text class="pa-9">
+            <!--- Logo & Title -->
+            <div class="text-center mb-6">
+              <Logo />
+              <h2 class="text-secondary text-h2 mt-4">Hi, Welcome Back</h2>
+              <h4 class="text-disabled text-h4 mt-2">Login in to your account</h4>
+            </div>
+            <!--- Form -->
+            <AuthLogin />
+          </v-card-text>
+        </v-card>
+      </v-card>
     </v-col>
-    <!---Left Part-->
-    <!---Right Part-->
-    <v-col cols="12" lg="5" xl="5" class="d-none d-lg-flex align-end justify-center bgpattern position-relative">
-      <v-container>
-        <div class="pa-10">
-          <v-row justify="center">
-            <v-col cols="12" xl="11">
-              <div class="cardAnimation" />
-              <TextSlider />
-            </v-col>
-          </v-row>
-        </div>
-      </v-container>
-    </v-col>
-    <!---Right Part-->
   </v-row>
 </template>
 <style lang="scss">

@@ -4,38 +4,23 @@ import AuthRegister from '../authForms/AuthRegister.vue';
 </script>
 
 <template>
-  <v-row class="h-screen" no-gutters>
-    <!---Left Part-->
-    <v-col cols="12" class="d-flex align-center bg-lightprimary">
-      <v-container>
-        <div class="pa-4 pa-sm-12">
-          <v-row justify="center">
-            <v-col cols="12" lg="10" xl="6" md="7">
-              <v-card elevation="0" class="loginBox">
-                <v-card variant="outlined">
-                  <v-card-text class="pa-9">
-                    <!---Left Part Logo -->
-                    <v-row>
-                      <v-col cols="12" class="text-center">
-                        <Logo />
-                        <h2 class="text-secondary text-h2 mt-8">Sign up</h2>
-                        <h4 class="text-disabled text-h4 mt-3">Enter credentials to continue</h4>
-                      </v-col>
-                    </v-row>
-                    <!---Left Part Logo -->
-
-                    <!---Left Part Form-->
-                    <AuthRegister />
-                    <!---Left Part Form-->
-                  </v-card-text>
-                </v-card>
-              </v-card>
-            </v-col>
-          </v-row>
-        </div>
-      </v-container>
+  <v-row class="h-screen bg-lightprimary" justify="center" align="center" no-gutters>
+    <v-col cols="12" sm="8" md="6" lg="4">
+      <v-card elevation="0" class="loginBox">
+        <v-card variant="outlined">
+          <v-card-text class="pa-9">
+            <!--- Logo & Title -->
+            <div class="text-center mb-6">
+              <Logo />
+              <h2 class="text-secondary text-h2 mt-4">Sign up</h2>
+              <h4 class="text-disabled text-h4 mt-2">Enter credentials to continue</h4>
+            </div>
+            <!--- Form -->
+            <AuthRegister />
+          </v-card-text>
+        </v-card>
+      </v-card>
     </v-col>
-    <!---Left Part-->
   </v-row>
 </template>
 <style lang="scss">
