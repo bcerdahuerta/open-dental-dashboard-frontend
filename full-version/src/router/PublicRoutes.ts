@@ -6,10 +6,16 @@ const PublicRoutes = {
   },
   children: [
     {
-      name: 'Landingpage',
+      // Redirect root to login for private enterprise dashboard behavior
       path: '/',
-      component: () => import('@/views/pages/landingpage/LandingPage.vue')
+      redirect: '/login'
     },
+    // Landing page disabled - kept for potential future use
+    // {
+    //   name: 'Landingpage',
+    //   path: '/landing',
+    //   component: () => import('@/views/pages/landingpage/LandingPage.vue')
+    // },
     {
       name: 'Authentication',
       path: '/login',
