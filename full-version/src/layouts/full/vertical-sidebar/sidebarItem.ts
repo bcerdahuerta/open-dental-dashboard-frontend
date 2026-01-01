@@ -14,6 +14,12 @@ export interface menu {
   icon?: any;
   to?: string;
   children?: menu[];
+  divider?: boolean;
+  chip?: string;
+  chipColor?: string;
+  disabled?: boolean;
+  type?: string;
+  subCaption?: string;
 }
 
 const sidebarItem: menu[] = [
