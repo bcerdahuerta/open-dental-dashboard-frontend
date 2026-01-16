@@ -16,7 +16,7 @@ import UiParentCard from '@/components/shared/UiParentCard.vue';
 
 const page = ref({ title: 'Client Management' });
 const breadcrumbs = ref([
-  { text: 'Dashboard', disabled: false, href: '#' },
-  { text: 'Client Management', disabled: true, href: '#' }
+  { title: 'Dashboard', disabled: false, href: '#' },
+  { title: 'Client Management', disabled: true, href: '#' }
 ]);
 </script>
