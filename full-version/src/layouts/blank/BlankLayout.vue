@@ -1,7 +1,8 @@
 // ===============================|| Blank Layout ||=============================== //
 <template>
   <v-locale-provider :rtl="customizer.isRtl">
-    <v-app :theme="customizer.actTheme" :class="[customizer.actTheme, customizer.fontTheme, customizer.inputBg ? 'inputWithbg' : '']">
+    <!-- Force PurpleTheme (light) for auth pages, independent of dashboard theme -->
+    <v-app theme="PurpleTheme" :class="['PurpleTheme', customizer.fontTheme, customizer.inputBg ? 'inputWithbg' : '']">
       <RouterView />
     </v-app>
   </v-locale-provider>

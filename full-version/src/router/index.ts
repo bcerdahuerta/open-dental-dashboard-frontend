@@ -48,13 +48,8 @@ router.beforeEach(async (to, from, next) => {
     auth.returnUrl = to.fullPath; // Save the intended page
     next('/login');
   } else if (auth.user && to.path === '/login') {
-    // User logged in and trying to access the login page
-    next({
-      query: {
-        ...to.query,
-        redirect: auth.returnUrl !== '/' ? to.fullPath : undefined
-      }
-    });
+    // User already logged in, redirect to dashboard
+    next('/dashboard/default');
   } else {
     // All other scenarios, either public page or authorized access
     next();

@@ -1,26 +1,24 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useCustomizerStore } from '../../../stores/customizer';
 // Icon Imports
-import { AccessPointIcon, BellIcon, SettingsIcon, LanguageIcon, SearchIcon, Menu2Icon } from 'vue-tabler-icons';
+import { BellIcon, SettingsIcon, Menu2Icon, SunIcon, MoonIcon } from 'vue-tabler-icons';
 
 // dropdown imports
-import LanguageDD from './LanguageDD.vue';
 import NotificationDD from './NotificationDD.vue';
 import ProfileDD from './ProfileDD.vue';
-import MegaMenuDD from './MegaMenuDD.vue';
-import Searchbar from './SearchBarPanel.vue';
 
 const customizer = useCustomizerStore();
-const showSearch = ref(false);
 const priority = ref(customizer.setHorizontalLayout ? 0 : 0);
-function searchbox() {
-  showSearch.value = !showSearch.value;
-}
 watch(priority, (newPriority) => {
-  // yes, console.log() is a side effect
   priority.value = newPriority;
 });
+
+// Theme toggle logic
+const isDarkTheme = computed(() => customizer.actTheme === 'DarkPurpleTheme');
+const toggleTheme = () => {
+  customizer.SET_THEME(isDarkTheme.value ? 'PurpleTheme' : 'DarkPurpleTheme');
+};
 </script>
 
 <template>
@@ -48,71 +46,29 @@ watch(priority, (newPriority) => {
       <Menu2Icon size="20" stroke-width="1.5" />
     </v-btn>
 
-    <!-- search mobile -->
-    <v-btn
-      class="hidden-lg-and-up text-secondary ms-3"
-      color="lightsecondary"
-      icon
-      rounded="sm"
-      variant="flat"
-      size="small"
-      @click="searchbox"
-    >
-      <SearchIcon size="17" stroke-width="1.5" />
-    </v-btn>
-
-    <v-sheet v-if="showSearch" class="search-sheet v-col-12">
-      <Searchbar :closesearch="searchbox" />
-    </v-sheet>
-
-    <!-- ---------------------------------------------- -->
-    <!-- Search part -->
-    <!-- ---------------------------------------------- -->
-    <v-sheet class="mx-3 v-col-3 v-col-xl-2 v-col-lg-4 d-none d-lg-block">
-      <Searchbar />
-    </v-sheet>
-
-    <!---/Search part -->
 
     <v-spacer />
+
+    <!-- ---------------------------------------------- -->
+    <!-- Theme Toggle -->
+    <!-- ---------------------------------------------- -->
+    <v-btn
+      icon
+      class="text-secondary"
+      color="lightsecondary"
+      rounded="sm"
+      size="small"
+      variant="flat"
+      @click="toggleTheme"
+    >
+      <SunIcon v-if="isDarkTheme" stroke-width="1.5" size="22" />
+      <MoonIcon v-else stroke-width="1.5" size="22" />
+    </v-btn>
     <!-- ---------------------------------------------- -->
     <!---right part -->
     <!-- ---------------------------------------------- -->
 
-    <!-- ---------------------------------------------- -->
-    <!-- Messages -->
-    <!-- ---------------------------------------------- -->
-    <v-menu :close-on-content-click="false">
-      <template #activator="{ props }">
-        <v-btn
-          icon
-          class="text-secondary hidden-sm-and-down"
-          color="lightsecondary"
-          rounded="sm"
-          size="small"
-          variant="flat"
-          v-bind="props"
-        >
-          <AccessPointIcon stroke-width="1.5" size="22" />
-        </v-btn>
-      </template>
-      <v-sheet width="900" height="395" elevation="12" rounded="md" class="pa-4">
-        <MegaMenuDD />
-      </v-sheet>
-    </v-menu>
-    <!-- ---------------------------------------------- -->
-    <!-- translate -->
-    <!-- ---------------------------------------------- -->
-    <v-menu :close-on-content-click="false" location="bottom">
-      <template #activator="{ props }">
-        <v-btn icon class="text-primary ms-3" color="lightprimary" rounded="sm" size="small" variant="flat" v-bind="props">
-          <LanguageIcon stroke-width="1.5" size="22" />
-        </v-btn>
-      </template>
-      <v-sheet rounded="md" width="200" elevation="12">
-        <LanguageDD />
-      </v-sheet>
-    </v-menu>
+
 
     <!-- ---------------------------------------------- -->
     <!-- Notification -->

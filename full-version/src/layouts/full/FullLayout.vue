@@ -5,7 +5,8 @@ import VerticalSidebarVue from './vertical-sidebar/VerticalSidebar.vue';
 import VerticalHeaderVue from './vertical-header/VerticalHeader.vue';
 import HorizontalHeader from './horizontal-header/HorizontalHeader.vue';
 import HorizontalSidebar from './horizontal-sidebar/HorizontalSidebar.vue';
-import Customizer from './customizer/CustomizerPanel.vue';
+// Customizer disabled - users should use the header theme toggle instead
+// import Customizer from './customizer/CustomizerPanel.vue';
 import FooterPanel from './footer/FooterPanel.vue';
 import { useCustomizerStore } from '../../stores/customizer';
 import { DirAttrSet } from '@/utils/utils';
@@ -37,7 +38,8 @@ watch(
         customizer.inputBg ? 'inputWithbg' : ''
       ]"
     >
-      <Customizer />
+      <!-- Customizer disabled - users should use the header theme toggle instead -->
+      <!-- <Customizer /> -->
       <VerticalSidebarVue v-if="!customizer.setHorizontalLayout" />
       <VerticalHeaderVue v-if="!customizer.setHorizontalLayout" />
       <HorizontalHeader v-if="customizer.setHorizontalLayout" />
@@ -47,6 +49,7 @@ watch(
         <v-container fluid class="page-wrapper">
           <div :class="customizer.boxed ? 'maxWidth' : ''">
             <RouterView />
+            <!-- Customizer button disabled
             <v-btn
               class="customizer-btn"
               size="large"
@@ -57,6 +60,7 @@ watch(
             >
               <SettingsIcon class="icon" />
             </v-btn>
+            -->
           </div>
         </v-container>
         <v-container fluid class="pt-0">

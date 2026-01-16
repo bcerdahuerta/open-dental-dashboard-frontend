@@ -6,7 +6,7 @@ import sidebarItems from './sidebarItem';
 import NavGroup from './NavGroup/NavGroup.vue';
 import NavItem from './NavItem/NavItem.vue';
 import NavCollapse from './NavCollapse/NavCollapse.vue';
-import ExtraBox from './extrabox/ExtraBox.vue';
+
 import Logo from '../logo/LogoMain.vue';
 
 // Access customizer store
@@ -53,9 +53,7 @@ const appVersion = import.meta.env.VITE_APP_VERSION;
           <!---End Single Item-->
         </template>
       </v-list>
-      <div class="pa-4">
-        <ExtraBox />
-      </div>
+
       <div class="pa-4 text-center">
         <v-chip color="inputBorder" size="small">{{ appVersion }}</v-chip>
       </div>
