@@ -1,10 +1,12 @@
 import {
   DashboardIcon,
   ActivityIcon,
-  SearchIcon,
-  ChartBarIcon,
+  ListCheckIcon,
   BuildingArchIcon,
-  RobotIcon,
+  BuildingIcon,
+  ArrowsTransferDownIcon,
+  TemplateIcon,
+  UsersIcon,
   ClipboardListIcon
 } from 'vue-tabler-icons';
 
@@ -24,44 +26,21 @@ export interface menu {
 
 const sidebarItem: menu[] = [
   { header: 'Overview' },
-  {
-    title: 'Operations Hub',
-    icon: DashboardIcon,
-    to: '/dashboard/default'
-  },
-  { header: 'Live Stream' },
-  {
-    title: 'Live Activity',
-    icon: ActivityIcon,
-    to: '/operations/live-activity'
-  },
-  {
-    title: 'Patient Search',
-    icon: SearchIcon,
-    to: '/operations/patient-search'
-  },
-  { header: 'Analytics' },
-  {
-    title: 'Reports',
-    icon: ChartBarIcon,
-    to: '/analytics/reports'
-  },
-  { header: 'Administration' },
-  {
-    title: 'Client Management',
-    icon: BuildingArchIcon,
-    to: '/admin/clients'
-  },
-  {
-    title: 'Bot Operations',
-    icon: RobotIcon,
-    to: '/admin/bot-ops'
-  },
-  {
-    title: 'System Logs',
-    icon: ClipboardListIcon,
-    to: '/admin/logs'
-  }
+  { title: 'Operations Hub', icon: DashboardIcon, to: '/dashboard/default' },
+
+  { header: 'Writeback' },
+  { title: 'Live Activity', icon: ActivityIcon, to: '/writeback/live' },
+  { title: 'Job Queue', icon: ListCheckIcon, to: '/writeback/queue', chip: 'New', chipColor: 'primary' },
+
+  { header: 'Management' },
+  { title: 'Clients', icon: BuildingArchIcon, to: '/admin/clients' },
+  { title: 'Clinics', icon: BuildingIcon, to: '/admin/clinics' },
+  { title: 'Pipelines', icon: ArrowsTransferDownIcon, to: '/admin/pipelines' },
+
+  { header: 'Configuration' },
+  { title: 'Templates', icon: TemplateIcon, to: '/admin/templates' },
+  { title: 'Users', icon: UsersIcon, to: '/admin/users' },
+  { title: 'System Logs', icon: ClipboardListIcon, to: '/admin/logs' }
 ];
 
 export default sidebarItem;

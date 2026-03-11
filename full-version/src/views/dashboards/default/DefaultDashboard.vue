@@ -1,57 +1,78 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, onUnmounted, computed } from 'vue';
+import { storeToRefs } from 'pinia';
 import {
-  CircleCheckIcon,
   ClockIcon,
-  DatabaseIcon,
-  AlertTriangleIcon
+  LoaderIcon,
+  CircleCheckIcon,
+  AlertCircleIcon,
 } from 'vue-tabler-icons';
+import { useWritebackStore } from '@/stores/writeback';
 
-// Import dental dashboard components
-import LiveActivityFeed from '@/components/dashboards/dental/LiveActivityFeed.vue';
-import VerificationMixChart from '@/components/dashboards/dental/VerificationMixChart.vue';
+const writebackStore = useWritebackStore();
+const { queueStats } = storeToRefs(writebackStore);
 
-// KPI Card mock data
-const kpiCards = ref([
+// Computed stat cards driven by live data
+const statsCards = computed(() => [
   {
-    title: 'Daily Volume',
-    value: 124,
-    subtitle: 'Verifications Today',
-    color: 'primary',
-    bgColor: 'lightprimary',
-    icon: CircleCheckIcon
-  },
-  {
-    title: 'QA Pending',
-    value: 18,
-    subtitle: 'Waiting for QA',
+    title: 'Pending',
+    value: queueStats.value.PENDING,
+    subtitle: 'Waiting in queue',
     color: 'warning',
     bgColor: 'lightwarning',
-    icon: ClockIcon
+    icon: ClockIcon,
   },
   {
-    title: 'Writeback Queue',
-    value: 5,
-    subtitle: 'Ready for Open Dental',
-    color: 'secondary',
-    bgColor: 'lightsecondary',
-    icon: DatabaseIcon
+    title: 'Active',
+    value:
+      queueStats.value.POLLING +
+      queueStats.value.EXTRACTING +
+      queueStats.value.EXECUTING,
+    subtitle: 'Currently processing',
+    color: 'primary',
+    bgColor: 'lightprimary',
+    icon: LoaderIcon,
   },
   {
-    title: 'Critical Errors',
-    value: 3,
-    subtitle: 'Not Found / Failed',
+    title: 'Done',
+    value: queueStats.value.DONE,
+    subtitle: 'Successfully written back',
+    color: 'success',
+    bgColor: 'lightsuccess',
+    icon: CircleCheckIcon,
+  },
+  {
+    title: 'Failed',
+    value: queueStats.value.FAILED,
+    subtitle: 'Errors requiring attention',
     color: 'error',
     bgColor: 'lighterror',
-    icon: AlertTriangleIcon
-  }
+    icon: AlertCircleIcon,
+  },
 ]);
+
+// Auto-refresh every 5 seconds
+let statsInterval: ReturnType<typeof setInterval> | null = null;
+
+onMounted(() => {
+  writebackStore.fetchQueueStats();
+  statsInterval = setInterval(() => {
+    writebackStore.fetchQueueStats();
+  }, 5000);
+});
+
+onUnmounted(() => {
+  if (statsInterval) {
+    clearInterval(statsInterval);
+    statsInterval = null;
+  }
+});
 </script>
 
 <template>
   <v-row>
-    <!-- KPI Cards Row -->
-    <v-col v-for="(card, index) in kpiCards" :key="index" cols="12" sm="6" lg="3">
+    <!-- Live Stats Cards -->
+    <v-col v-for="(card, index) in statsCards" :key="index" cols="12" sm="6" lg="3">
       <v-card variant="outlined" :class="`bg-${card.bgColor}`">
         <v-card-text>
           <div class="d-flex align-center justify-space-between">
@@ -71,14 +92,28 @@ const kpiCards = ref([
       </v-card>
     </v-col>
 
-    <!-- Live Activity Feed (Table) -->
-    <v-col cols="12" lg="8">
-      <LiveActivityFeed />
-    </v-col>
-
-    <!-- Verification Mix Chart -->
-    <v-col cols="12" lg="4">
-      <VerificationMixChart />
+    <!-- Total Jobs Summary -->
+    <v-col cols="12">
+      <v-card variant="outlined">
+        <v-card-text class="d-flex align-center justify-space-between pa-4">
+          <div class="d-flex align-center ga-3">
+            <v-chip color="primary" variant="tonal" size="small">
+              Total: {{ queueStats.total }}
+            </v-chip>
+            <span class="text-body-2 text-medium-emphasis">
+              Jobs processed through the writeback pipeline
+            </span>
+          </div>
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            to="/writeback/live"
+          >
+            View Live Activity
+          </v-btn>
+        </v-card-text>
+      </v-card>
     </v-col>
   </v-row>
 </template>

@@ -12,39 +12,55 @@ const MainRoutes = {
       component: () => import('@/views/dashboards/default/DefaultDashboard.vue')
     },
     {
-      name: 'Analytics',
-      path: '/dashboard/analytics',
-      component: () => import('@/views/dashboards/analytics/AnalyticsDashboard.vue')
-    },
-    {
-      name: 'LiveActivity',
-      path: '/operations/live-activity',
-      component: () => import('@/views/operations/LiveActivity.vue')
-    },
-    {
-      name: 'PatientSearch',
-      path: '/operations/patient-search',
-      component: () => import('@/views/operations/PatientSearch.vue')
-    },
-    {
-      name: 'Reports',
-      path: '/analytics/reports',
-      component: () => import('@/views/analytics/Reports.vue')
-    },
-    {
       name: 'ClientManagement',
       path: '/admin/clients',
       component: () => import('@/views/admin/ClientList.vue')
     },
     {
-      name: 'BotOperations',
-      path: '/admin/bot-ops',
-      component: () => import('@/views/admin/BotOperations.vue')
+      name: 'ClinicManagement',
+      path: '/admin/clinics',
+      component: () => import('@/views/admin/ClinicList.vue')
+    },
+    {
+      name: 'Pipelines',
+      path: '/admin/pipelines',
+      component: () => import('@/views/admin/PipelineList.vue')
+    },
+    {
+      name: 'Templates',
+      path: '/admin/templates',
+      component: () => import('@/views/admin/TemplateList.vue')
+    },
+    {
+      name: 'Users',
+      path: '/admin/users',
+      component: () => import('@/views/admin/UserApproval.vue')
     },
     {
       name: 'SystemLogs',
       path: '/admin/logs',
       component: () => import('@/views/admin/SystemLogs.vue')
+    },
+    {
+      name: 'WritebackLive',
+      path: '/writeback/live',
+      component: () => import('@/views/writeback/LiveActivity.vue')
+    },
+    {
+      name: 'WritebackQueue',
+      path: '/writeback/queue',
+      component: () => import('@/views/writeback/JobQueue.vue')
+    },
+    {
+      name: 'ClinicDetail',
+      path: '/admin/clinics/:id',
+      component: () => import('@/views/admin/ClinicDetail.vue')
+    },
+
+    {
+      name: 'UserProfile',
+      path: '/profile',
+      component: () => import('@/views/profile/UserProfile.vue')
     }
   ]
 };

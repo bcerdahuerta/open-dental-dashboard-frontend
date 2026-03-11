@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useCustomizerStore } from '../../../stores/customizer';
+import { useAuthStore } from '@/stores/auth';
+import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
 // Icon Imports
 import { BellIcon, SettingsIcon, Menu2Icon, SunIcon, MoonIcon } from 'vue-tabler-icons';
 
@@ -9,6 +12,9 @@ import NotificationDD from './NotificationDD.vue';
 import ProfileDD from './ProfileDD.vue';
 
 const customizer = useCustomizerStore();
+const authStore = useAuthStore();
+const { user } = storeToRefs(authStore);
+
 const priority = ref(customizer.setHorizontalLayout ? 0 : 0);
 watch(priority, (newPriority) => {
   priority.value = newPriority;
@@ -19,6 +25,33 @@ const isDarkTheme = computed(() => customizer.actTheme === 'DarkPurpleTheme');
 const toggleTheme = () => {
   customizer.SET_THEME(isDarkTheme.value ? 'PurpleTheme' : 'DarkPurpleTheme');
 };
+
+// Pending badge count for admin users
+const pendingCount = ref(0);
+const isAdmin = computed(() => user.value?.role === 'admin');
+const apiUrl = import.meta.env.VITE_API_URL;
+let badgeInterval: ReturnType<typeof setInterval> | null = null;
+
+async function fetchBadgeCount() {
+  if (!isAdmin.value) return;
+  try {
+    const res = await fetchWrapper.get(`${apiUrl}/users/pending/count`);
+    pendingCount.value = res.count;
+  } catch {
+    // Silent fail
+  }
+}
+
+onMounted(() => {
+  if (isAdmin.value) {
+    fetchBadgeCount();
+    badgeInterval = setInterval(fetchBadgeCount, 60_000);
+  }
+});
+
+onUnmounted(() => {
+  if (badgeInterval) clearInterval(badgeInterval);
+});
 </script>
 
 <template>
@@ -46,12 +79,9 @@ const toggleTheme = () => {
       <Menu2Icon size="20" stroke-width="1.5" />
     </v-btn>
 
-
     <v-spacer />
 
-    <!-- ---------------------------------------------- -->
     <!-- Theme Toggle -->
-    <!-- ---------------------------------------------- -->
     <v-btn
       icon
       class="text-secondary"
@@ -64,19 +94,20 @@ const toggleTheme = () => {
       <SunIcon v-if="isDarkTheme" stroke-width="1.5" size="22" />
       <MoonIcon v-else stroke-width="1.5" size="22" />
     </v-btn>
-    <!-- ---------------------------------------------- -->
-    <!---right part -->
-    <!-- ---------------------------------------------- -->
 
-
-
-    <!-- ---------------------------------------------- -->
     <!-- Notification -->
-    <!-- ---------------------------------------------- -->
     <v-menu :close-on-content-click="false">
       <template #activator="{ props }">
         <v-btn icon class="text-secondary mx-3" color="lightsecondary" rounded="sm" size="small" variant="flat" v-bind="props">
-          <BellIcon stroke-width="1.5" size="22" />
+          <v-badge
+            v-if="isAdmin && pendingCount > 0"
+            :content="pendingCount"
+            color="error"
+            floating
+          >
+            <BellIcon stroke-width="1.5" size="22" />
+          </v-badge>
+          <BellIcon v-else stroke-width="1.5" size="22" />
         </v-btn>
       </template>
       <v-sheet rounded="md" width="330" elevation="12">
@@ -84,14 +115,12 @@ const toggleTheme = () => {
       </v-sheet>
     </v-menu>
 
-    <!-- ---------------------------------------------- -->
     <!-- User Profile -->
-    <!-- ---------------------------------------------- -->
     <v-menu :close-on-content-click="false">
       <template #activator="{ props }">
         <v-btn class="profileBtn text-primary" color="lightprimary" variant="flat" rounded="pill" v-bind="props">
           <v-avatar size="30" class="me-2 py-2">
-            <img src="@/assets/images/profile/user-round.svg" alt="Julia" />
+            <img src="@/assets/images/profile/user-round.svg" alt="User" />
           </v-avatar>
           <SettingsIcon stroke-width="1.5" />
         </v-btn>

@@ -1,121 +1,122 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import Google from '@/assets/images/auth/social-google.svg';
-const checkbox = ref(false);
-const show1 = ref(false);
-const password = ref('');
-const email = ref('');
-const Regform = ref();
-const firstname = ref('');
-const lastname = ref('');
-// Password validation rules
-const passwordRules = ref([
-  (v: string) => !!v || 'Password is required',
-  (v: string) => v === v.trim() || 'Password cannot start or end with spaces',
-  (v: string) => v.length <= 10 || 'Password must be less than 10 characters'
-]);
-// Email validation rules
-const emailRules = ref([
-  (v: string) => !!v.trim() || 'E-mail is required',
-  (v: string) => {
-    const trimmedEmail = v.trim();
-    return !/\s/.test(trimmedEmail) || 'E-mail must not contain spaces';
-  },
-  (v: string) => /.+@.+\..+/.test(v.trim()) || 'E-mail must be valid'
-]);
 
-function validate() {
-  Regform.value.validate();
+const apiUrl = import.meta.env.VITE_API_URL;
+
+const email = ref('');
+const password = ref('');
+const displayName = ref('');
+const showPassword = ref(false);
+const loading = ref(false);
+const error = ref('');
+const success = ref(false);
+
+const emailRules = [
+  (v: string) => !!v.trim() || 'Email is required',
+  (v: string) => /.+@.+\..+/.test(v.trim()) || 'Must be a valid email'
+];
+
+const passwordRules = [
+  (v: string) => !!v || 'Password is required',
+  (v: string) => v.length >= 8 || 'Password must be at least 8 characters'
+];
+
+async function register() {
+  error.value = '';
+  if (!email.value || !password.value || password.value.length < 8) return;
+
+  loading.value = true;
+  try {
+    const resp = await fetch(`${apiUrl}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.value.trim(),
+        password: password.value,
+        display_name: displayName.value.trim() || undefined
+      })
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) {
+      throw new Error(data.message || 'Registration failed');
+    }
+
+    success.value = true;
+  } catch (e: any) {
+    error.value = e.message || 'Registration failed. Please try again.';
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 
 <template>
-  <div class="mt-4"></div>
-  <v-form ref="Regform" lazy-validation action="/dashboards/analytical" class="mt-7 loginForm">
-    <v-row>
-      <v-col cols="12" sm="6">
-        <v-text-field
-          v-model="firstname"
-          density="comfortable"
-          hide-details="auto"
-          variant="outlined"
-          color="primary"
-          label="Firstname"
-        ></v-text-field>
-      </v-col>
-      <v-col cols="12" sm="6">
-        <v-text-field
-          v-model="lastname"
-          density="comfortable"
-          hide-details="auto"
-          variant="outlined"
-          color="primary"
-          label="Lastname"
-        ></v-text-field>
-      </v-col>
-    </v-row>
+  <!-- Success State -->
+  <div v-if="success" class="text-center py-6">
+    <v-icon size="64" color="success" class="mb-4">mdi-check-circle-outline</v-icon>
+    <h3 class="text-h4 mb-2">Registration Submitted</h3>
+    <p class="text-medium-emphasis mb-6">
+      Your account is awaiting admin approval. You will be able to log in once approved.
+    </p>
+    <v-btn color="primary" variant="flat" to="/login">Back to Login</v-btn>
+  </div>
+
+  <!-- Registration Form -->
+  <v-form v-else class="mt-5" @submit.prevent="register">
+    <v-alert v-if="error" type="error" variant="tonal" class="mb-4" closable @click:close="error = ''">
+      {{ error }}
+    </v-alert>
+
+    <v-text-field
+      v-model="displayName"
+      label="Display Name (optional)"
+      variant="outlined"
+      color="primary"
+      density="comfortable"
+      hide-details="auto"
+      class="mb-4"
+    />
+
     <v-text-field
       v-model="email"
       :rules="emailRules"
-      label="Email Address / Username"
-      class="mt-4 mb-4"
-      required
-      density="comfortable"
-      hide-details="auto"
+      label="Email Address"
       variant="outlined"
       color="primary"
-      @input="email"
-    ></v-text-field>
+      density="comfortable"
+      hide-details="auto"
+      class="mb-4"
+    />
+
     <v-text-field
       v-model="password"
       :rules="passwordRules"
       label="Password"
-      required
-      density="comfortable"
       variant="outlined"
       color="primary"
+      density="comfortable"
       hide-details="auto"
-      :append-inner-icon="show1 ? '$eye' : '$eyeOff'"
-      :type="show1 ? 'text' : 'password'"
-      @click:append-inner="show1 = !show1"
-      class="pwdInput"
-      @input="password"
-    ></v-text-field>
+      :type="showPassword ? 'text' : 'password'"
+      :append-inner-icon="showPassword ? '$eye' : '$eyeOff'"
+      @click:append-inner="showPassword = !showPassword"
+      class="mb-6"
+    />
 
-    <div class="d-sm-inline-flex align-center mt-2 mb-7 mb-sm-0 font-weight-bold">
-      <v-checkbox
-        v-model="checkbox"
-        :rules="[(v: any) => !!v || 'You must agree to continue!']"
-        label="Agree with?"
-        required
-        color="primary"
-        class="ms-n2"
-        hide-details
-      ></v-checkbox>
-      <router-link to="/privacy-policy" class="ms-1 text-lightText">Terms and Condition</router-link>
-    </div>
-    <v-btn color="secondary" block class="mt-2" variant="flat" size="large" @click="validate()">Sign Up</v-btn>
+    <v-btn
+      color="secondary"
+      variant="flat"
+      block
+      size="large"
+      type="submit"
+      :loading="loading"
+    >
+      Sign Up
+    </v-btn>
   </v-form>
+
   <div class="mt-5 text-end">
     <v-divider />
     <v-btn variant="plain" to="/login" class="mt-2 text-capitalize mr-n2">Already have an account?</v-btn>
   </div>
 </template>
-<style lang="scss">
-.custom-devider {
-  border-color: rgba(0, 0, 0, 0.08) !important;
-}
-.googleBtn {
-  border-color: rgba(0, 0, 0, 0.08);
-  margin: 30px 0 20px 0;
-}
-.outlinedInput .v-field {
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: none;
-}
-.orbtn {
-  padding: 2px 40px;
-  border-color: rgba(0, 0, 0, 0.08);
-  margin: 20px 15px;
-}
-</style>

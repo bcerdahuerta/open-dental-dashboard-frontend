@@ -7,61 +7,52 @@ export const fetchWrapper = {
   delete: request('DELETE')
 };
 
-interface temp {
-  method: string;
-  headers: Record<string, string>;
-  body?: string;
-}
-
-interface UserData {
-  username: string;
-  password: string;
-}
-
 function request(method: string) {
-  return (url: string, body?: object) => {
-    const requestOptions: temp = {
+  return async (url: string, body?: object) => {
+    const authStore = useAuthStore();
+
+    let requestOptions: RequestInit = {
       method,
-      headers: authHeader(url)
+      headers: authHeader(url, authStore.access_token)
     };
     if (body) {
-      requestOptions.headers['Content-Type'] = 'application/json';
+      (requestOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
       requestOptions.body = JSON.stringify(body);
     }
-    return fetch(url, requestOptions).then(handleResponse);
+
+    let response = await fetch(url, requestOptions);
+
+    if (response.status === 401 && authStore.user) {
+      try {
+        await authStore.refresh();
+        requestOptions.headers = authHeader(url, authStore.access_token);
+        response = await fetch(url, requestOptions);
+      } catch (e) {
+        return Promise.reject('Session expired');
+      }
+    }
+
+    return handleResponse(response);
   };
 }
 
-// helper functions
-
-function authHeader(url: string): Record<string, string> {
-  // return auth header with jwt if user is logged in and request is to the api url
-  const { user } = useAuthStore();
-  const isLoggedIn = !!user?.token;
+function authHeader(url: string, token: string | null): Record<string, string> {
   const isApiUrl = url.startsWith(import.meta.env.VITE_API_URL);
-  if (isLoggedIn && isApiUrl) {
-    return { Authorization: `Bearer ${user.token}` };
+  if (token && isApiUrl) {
+    return { Authorization: `Bearer ${token}` };
   } else {
     return {};
   }
 }
 
-function handleResponse(response: Response): Promise<UserData> {
-  return response.text().then((text: string) => {
-    const data = text && JSON.parse(text);
+async function handleResponse(response: Response) {
+  const text = await response.text();
+  const data = text && JSON.parse(text);
 
-    if (!response.ok) {
-      const { user, logout } = useAuthStore();
-      if ([401, 403].includes(response.status) && user) {
-        // auto logout if 401 Unauthorized or 403 Forbidden response returned from api
-        logout();
-      }
+  if (!response.ok) {
+    const error = (data && data.message) || response.statusText;
+    return Promise.reject(error);
+  }
 
-      const error: string = (data && data.message) || response.statusText;
-      return Promise.reject(error);
-    }
-
-    // Ensure data is of type UserData
-    return data as UserData;
-  });
+  return data?.data !== undefined ? data.data : data;
 }
