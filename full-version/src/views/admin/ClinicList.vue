@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useClinicStore, type ClinicCreate } from '@/stores/clinics';
 import { useClientStore } from '@/stores/clients';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
-import { PlusIcon, SettingsIcon } from 'vue-tabler-icons';
+import { PlusIcon, SettingsIcon, LockIcon } from 'vue-tabler-icons';
 
 const route = useRoute();
 const router = useRouter();
@@ -17,23 +17,23 @@ const { clients } = storeToRefs(clientStore);
 const selectedClientId = ref<string | null>((route.query.client_id as string) || null);
 const dialog = ref(false);
 const valid = ref(false);
+const saving = ref(false);
 const snackbar = ref(false);
 const snackbarMsg = ref('');
 const snackbarColor = ref('success');
+const showCustomerKey = ref(false);
 
 const formData = ref<ClinicCreate>({
   client_id: '',
   clinic_name: '',
   ccc_clinic_id: '',
-  clinic_num: undefined,
   spreadsheet_id: '',
-  folder_id: '',
-  images_folder_id: 131
+  customer_key: '',
+  od_api_base_url: '',
 });
 
 const headers = [
   { title: 'Clinic Name', key: 'clinic_name', sortable: true },
-  { title: 'Clinic Num', key: 'clinic_num', sortable: true },
   { title: 'Status', key: 'is_active', sortable: true },
   { title: 'Created', key: 'created_at', sortable: true },
   { title: 'Actions', key: 'actions', sortable: false, align: 'center' as const }
@@ -57,29 +57,59 @@ function openAdd() {
     client_id: selectedClientId.value || '',
     clinic_name: '',
     ccc_clinic_id: '',
-    clinic_num: undefined,
     spreadsheet_id: '',
-    folder_id: '',
-    images_folder_id: 131
+    customer_key: '',
+    od_api_base_url: '',
   };
+  showCustomerKey.value = false;
   dialog.value = true;
 }
 
 async function saveClinic() {
   if (!valid.value) return;
+  saving.value = true;
   try {
-    const payload: any = { ...formData.value };
-    // Clean empty strings
-    if (!payload.ccc_clinic_id) delete payload.ccc_clinic_id;
-    if (!payload.clinic_num) delete payload.clinic_num;
-    if (!payload.spreadsheet_id) delete payload.spreadsheet_id;
-    if (!payload.folder_id) delete payload.folder_id;
+    // Build clinic payload (exclude OD credential fields)
+    const payload: any = {
+      client_id: formData.value.client_id,
+      clinic_name: formData.value.clinic_name,
+    };
+    if (formData.value.ccc_clinic_id) payload.ccc_clinic_id = formData.value.ccc_clinic_id;
+    if (formData.value.spreadsheet_id) payload.spreadsheet_id = formData.value.spreadsheet_id;
 
-    await clinicStore.createClinic(payload);
+    const newClinic = await clinicStore.createClinic(payload);
+    const newClinicId = newClinic.id;
+
+    // Auto-save OD credentials silently
+    if (formData.value.customer_key) {
+      // Developer key — universal, never shown in UI
+      await clinicStore.upsertCredential(newClinicId, {
+        credential_type: 'opendental_api',
+        key_name: 'developer_key',
+        value: 'Y1vEmpYZfv85ipRR'
+      });
+      // Customer key from user input
+      await clinicStore.upsertCredential(newClinicId, {
+        credential_type: 'opendental_api',
+        key_name: 'customer_key',
+        value: formData.value.customer_key
+      });
+    }
+    // Optional base URL override
+    if (formData.value.od_api_base_url) {
+      await clinicStore.upsertCredential(newClinicId, {
+        credential_type: 'opendental_api',
+        key_name: 'base_url',
+        value: formData.value.od_api_base_url
+      });
+    }
+
     dialog.value = false;
     showSnackbar('Clinic created successfully', 'success');
   } catch (err: any) {
     showSnackbar(err.message || 'Failed to create clinic', 'error');
+  } finally {
+    saving.value = false;
   }
 }
 
@@ -196,17 +226,6 @@ watch(selectedClientId, (newVal) => {
           />
 
           <v-text-field
-            v-model.number="formData.clinic_num"
-            label="OD Clinic Num"
-            type="number"
-            variant="outlined"
-            color="primary"
-            hide-details="auto"
-            placeholder="Open Dental ClinicNum (optional)"
-            class="mb-4"
-          />
-
-          <v-text-field
             v-model="formData.ccc_clinic_id"
             label="CCC Clinic ID"
             variant="outlined"
@@ -226,31 +245,42 @@ watch(selectedClientId, (newVal) => {
             class="mb-4"
           />
 
+          <v-divider class="my-4" />
+
+          <h4 class="text-h6 d-flex align-center mb-3">
+            <LockIcon size="18" stroke-width="1.5" class="mr-2 text-primary" />
+            OD API Connection
+          </h4>
+
           <v-text-field
-            v-model="formData.folder_id"
-            label="Folder ID"
+            v-model="formData.customer_key"
+            label="Customer Key"
+            :type="showCustomerKey ? 'text' : 'password'"
+            :append-inner-icon="showCustomerKey ? 'mdi-eye-off' : 'mdi-eye'"
+            @click:append-inner="showCustomerKey = !showCustomerKey"
+            :rules="[(v: string) => !!v || 'Customer Key is required for OD API']"
+            required
             variant="outlined"
             color="primary"
             hide-details="auto"
-            placeholder="Override (inherits from client)"
+            placeholder="Paste customer key from OD"
             class="mb-4"
           />
 
           <v-text-field
-            v-model.number="formData.images_folder_id"
-            label="Images Folder ID"
-            type="number"
+            v-model="formData.od_api_base_url"
+            label="OD API Base URL"
             variant="outlined"
             color="primary"
             hide-details="auto"
-            placeholder="Default: 131"
+            placeholder="Default: https://api.opendental.com/api/v1"
           />
         </v-form>
       </v-card-text>
       <v-card-actions class="pa-4">
         <v-spacer />
         <v-btn color="secondary" variant="tonal" @click="dialog = false">Cancel</v-btn>
-        <v-btn color="primary" variant="flat" :disabled="!valid" :loading="loading" @click="saveClinic">Save</v-btn>
+        <v-btn color="primary" variant="flat" :disabled="!valid" :loading="saving" @click="saveClinic">Save</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

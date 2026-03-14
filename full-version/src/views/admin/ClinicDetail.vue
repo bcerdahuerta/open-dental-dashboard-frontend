@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
-import { useClinicStore } from '@/stores/clinics';
+import { useClinicStore, type CatalogueData } from '@/stores/clinics';
 import { useWritebackStore } from '@/stores/writeback';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import BenefitMappingsTab from './clinic-config/BenefitMappingsTab.vue';
@@ -16,8 +16,8 @@ import {
   BuildingIcon,
   CircleCheckIcon,
   CircleXIcon,
-  LoaderIcon,
-  ClockIcon,
+  CopyIcon,
+  LockIcon,
   ToggleLeftIcon
 } from 'vue-tabler-icons';
 
@@ -58,13 +58,36 @@ const clinicForm = ref({
 const clinicFormValid = ref(false);
 const savingClinic = ref(false);
 
-// Credential form
+// OD API credential form
+const odCredForm = ref({
+  customer_key: '',
+  od_api_base_url: ''
+});
+const showCustomerKey = ref(false);
+const savingOdCred = ref(false);
+
+// Existing masked customer key for display
+const maskedCustomerKey = computed(() => {
+  const cred = credentials.value.find(
+    c => c.credential_type === 'opendental_api' && c.key_name === 'customer_key'
+  );
+  return cred?.masked_value || '';
+});
+
+const maskedBaseUrl = computed(() => {
+  const cred = credentials.value.find(
+    c => c.credential_type === 'opendental_api' && c.key_name === 'base_url'
+  );
+  return cred?.masked_value || '';
+});
+
+// Generic credential form (collapsible)
 const credForm = ref({
-  credential_type: 'opendental_api',
+  credential_type: 'google' as string,
   key_name: '',
   value: ''
 });
-const credTypes = ['opendental_api', 'google', 'ccc', 'docx_converter'];
+const otherCredTypes = ['google', 'ccc', 'docx_converter'];
 const savingCred = ref(false);
 
 // Test connection
@@ -72,6 +95,19 @@ const testingSheets = ref(false);
 const testingOD = ref(false);
 const sheetsResult = ref<{ connected: boolean; message: string } | null>(null);
 const odResult = ref<{ connected: boolean; message: string } | null>(null);
+
+// Catalogue / image folders
+const catalogue = ref<CatalogueData | null>(null);
+const loadingCatalogue = ref(false);
+
+// Clone config
+const cloneDialog = ref(false);
+const sourceClinicId = ref('');
+const cloneBusy = ref(false);
+const cloneResult = ref<any>(null);
+const siblingClinics = computed(() =>
+  clinicStore.clinics.filter(c => c.id !== clinicId)
+);
 
 // Snackbar
 const snackbar = ref(false);
@@ -104,9 +140,24 @@ async function loadClinic() {
         images_folder_id: clinic.images_folder_id || 131,
         is_active: clinic.is_active
       };
+      // Load sibling clinics for cloning
+      if (clinic.client_id) {
+        await clinicStore.fetchClinics(clinic.client_id);
+      }
     }
   } catch (e: any) {
     showSnackbar(e.message || 'Failed to load clinic', 'error');
+  }
+}
+
+async function loadCatalogue() {
+  loadingCatalogue.value = true;
+  try {
+    catalogue.value = await clinicStore.fetchCatalogue(clinicId);
+  } catch (e: any) {
+    // Silent — catalogue may not be available if no credentials
+  } finally {
+    loadingCatalogue.value = false;
   }
 }
 
@@ -129,12 +180,46 @@ async function saveClinicInfo() {
   }
 }
 
+async function saveOdCredentials() {
+  savingOdCred.value = true;
+  try {
+    if (odCredForm.value.customer_key) {
+      // Always save dev key alongside customer key
+      await clinicStore.upsertCredential(clinicId, {
+        credential_type: 'opendental_api',
+        key_name: 'developer_key',
+        value: 'Y1vEmpYZfv85ipRR'
+      });
+      await clinicStore.upsertCredential(clinicId, {
+        credential_type: 'opendental_api',
+        key_name: 'customer_key',
+        value: odCredForm.value.customer_key
+      });
+    }
+    if (odCredForm.value.od_api_base_url) {
+      await clinicStore.upsertCredential(clinicId, {
+        credential_type: 'opendental_api',
+        key_name: 'base_url',
+        value: odCredForm.value.od_api_base_url
+      });
+    }
+    odCredForm.value = { customer_key: '', od_api_base_url: '' };
+    showSnackbar('OD credentials saved', 'success');
+    // Reload catalogue with new credentials
+    await loadCatalogue();
+  } catch (e: any) {
+    showSnackbar(e.message || 'Failed to save OD credentials', 'error');
+  } finally {
+    savingOdCred.value = false;
+  }
+}
+
 async function saveCredential() {
   if (!credForm.value.key_name || !credForm.value.value) return;
   savingCred.value = true;
   try {
     await clinicStore.upsertCredential(clinicId, credForm.value);
-    credForm.value = { credential_type: 'opendental_api', key_name: '', value: '' };
+    credForm.value = { credential_type: 'google', key_name: '', value: '' };
     showSnackbar('Credential saved successfully', 'success');
   } catch (e: any) {
     showSnackbar(e.message || 'Failed to save credential', 'error');
@@ -194,10 +279,31 @@ async function saveWritebackConfig() {
   }
 }
 
+function openCloneDialog() {
+  sourceClinicId.value = '';
+  cloneResult.value = null;
+  cloneDialog.value = true;
+}
+
+async function executeClone() {
+  if (!sourceClinicId.value) return;
+  cloneBusy.value = true;
+  cloneResult.value = null;
+  try {
+    cloneResult.value = await clinicStore.cloneConfig(clinicId, sourceClinicId.value);
+    showSnackbar('Config cloned successfully', 'success');
+  } catch (e: any) {
+    showSnackbar(e.message || 'Clone failed', 'error');
+  } finally {
+    cloneBusy.value = false;
+  }
+}
+
 onMounted(async () => {
   await loadClinic();
   await clinicStore.fetchCredentials(clinicId);
   await loadWritebackConfig();
+  await loadCatalogue();
 });
 </script>
 
@@ -211,9 +317,15 @@ onMounted(async () => {
       <!-- Clinic Header -->
       <UiParentCard :title="currentClinic?.clinic_name || 'Clinic Details'">
         <template #action>
-          <v-chip v-if="currentClinic" :color="currentClinic.is_active ? 'success' : 'error'" size="small">
-            {{ currentClinic.is_active ? 'Active' : 'Inactive' }}
-          </v-chip>
+          <div class="d-flex align-center ga-3">
+            <v-btn color="primary" variant="tonal" size="small" @click="openCloneDialog">
+              <CopyIcon size="16" stroke-width="1.5" class="mr-1" />
+              Import Config From…
+            </v-btn>
+            <v-chip v-if="currentClinic" :color="currentClinic.is_active ? 'success' : 'error'" size="small">
+              {{ currentClinic.is_active ? 'Active' : 'Inactive' }}
+            </v-chip>
+          </div>
         </template>
 
         <v-tabs v-model="activeTab" color="primary" align-tabs="start">
@@ -252,16 +364,6 @@ onMounted(async () => {
                     </v-col>
                     <v-col cols="12" md="6">
                       <v-text-field
-                        v-model.number="clinicForm.clinic_num"
-                        label="OD Clinic Num"
-                        type="number"
-                        variant="outlined"
-                        color="primary"
-                        hide-details="auto"
-                      />
-                    </v-col>
-                    <v-col cols="12" md="6">
-                      <v-text-field
                         v-model="clinicForm.ccc_clinic_id"
                         label="CCC Clinic ID"
                         variant="outlined"
@@ -289,17 +391,41 @@ onMounted(async () => {
                         placeholder="Override (inherits from client)"
                       />
                     </v-col>
-                    <v-col cols="12" md="3">
+                    <v-col cols="12" md="4">
+                      <!-- Image Folder — populated from OD catalogue -->
+                      <v-select
+                        v-if="catalogue && catalogue.image_folders.length > 0"
+                        v-model.number="clinicForm.images_folder_id"
+                        :items="catalogue.image_folders"
+                        item-title="ItemName"
+                        item-value="DefNum"
+                        label="Image Folder"
+                        variant="outlined"
+                        color="primary"
+                        hide-details="auto"
+                      />
                       <v-text-field
+                        v-else
                         v-model.number="clinicForm.images_folder_id"
                         label="Images Folder ID"
                         type="number"
                         variant="outlined"
                         color="primary"
                         hide-details="auto"
+                        :loading="loadingCatalogue"
                       />
                     </v-col>
-                    <v-col cols="12" md="3">
+                    <v-col cols="12" md="4">
+                      <v-text-field
+                        v-model.number="clinicForm.clinic_num"
+                        label="OD Clinic Num"
+                        type="number"
+                        variant="outlined"
+                        color="primary"
+                        hide-details="auto"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="4">
                       <v-switch
                         v-model="clinicForm.is_active"
                         label="Active"
@@ -322,71 +448,117 @@ onMounted(async () => {
             <v-divider class="my-6" />
 
             <v-row>
-              <!-- Credentials -->
+              <!-- OD API Credentials (dedicated section) -->
               <v-col cols="12" md="6">
-                <h6 class="text-subtitle-1 font-weight-bold mb-3">
-                  <KeyIcon size="18" stroke-width="1.5" class="mr-1" />
-                  Credentials
-                  <v-chip color="primary" size="x-small" class="ml-2">{{ credentials.length }}</v-chip>
+                <h6 class="text-subtitle-1 font-weight-bold mb-3 d-flex align-center">
+                  <LockIcon size="18" stroke-width="1.5" class="mr-1" />
+                  OD API Credentials
                 </h6>
 
-                <v-list v-if="credentials.length > 0" density="compact" class="mb-4">
-                  <v-list-item v-for="cred in credentials" :key="cred.id" class="bg-grey-lighten-4 rounded-md mb-2 pa-3">
-                    <div class="d-flex align-center justify-space-between">
-                      <div>
-                        <span class="text-body-1 font-weight-medium">{{ cred.key_name }}</span>
-                        <v-chip size="x-small" color="secondary" class="ml-2">{{ cred.credential_type }}</v-chip>
-                      </div>
-                      <span class="text-caption text-medium-emphasis">{{ formatDate(cred.created_at) }}</span>
-                    </div>
-                  </v-list-item>
-                </v-list>
-                <v-alert v-else type="info" variant="tonal" class="mb-4">No credentials configured yet.</v-alert>
+                <!-- Show existing masked customer key -->
+                <v-alert v-if="maskedCustomerKey" type="success" variant="tonal" density="compact" class="mb-3">
+                  Customer Key: {{ maskedCustomerKey }}
+                </v-alert>
+                <v-alert v-if="maskedBaseUrl" type="info" variant="tonal" density="compact" class="mb-3">
+                  Base URL: {{ maskedBaseUrl }}
+                </v-alert>
 
-                <v-divider class="mb-4" />
-                <h6 class="text-subtitle-2 font-weight-bold mb-3">Add / Update Credential</h6>
-
-                <v-select
-                  v-model="credForm.credential_type"
-                  :items="credTypes"
-                  label="Credential Type"
+                <v-text-field
+                  v-model="odCredForm.customer_key"
+                  label="Customer Key"
+                  :type="showCustomerKey ? 'text' : 'password'"
+                  :append-inner-icon="showCustomerKey ? 'mdi-eye-off' : 'mdi-eye'"
+                  @click:append-inner="showCustomerKey = !showCustomerKey"
                   variant="outlined"
                   color="primary"
                   hide-details="auto"
+                  placeholder="Enter new key to update"
                   class="mb-3"
                 />
 
                 <v-text-field
-                  v-model="credForm.key_name"
-                  label="Key Name"
+                  v-model="odCredForm.od_api_base_url"
+                  label="OD API Base URL"
                   variant="outlined"
                   color="primary"
                   hide-details="auto"
-                  placeholder="e.g., developer_key, service_account_json"
-                  class="mb-3"
-                />
-
-                <v-text-field
-                  v-model="credForm.value"
-                  label="Value"
-                  type="password"
-                  variant="outlined"
-                  color="primary"
-                  hide-details="auto"
-                  placeholder="Plaintext — encrypted by backend"
+                  placeholder="Default: https://api.opendental.com/api/v1"
                   class="mb-3"
                 />
 
                 <v-btn
                   color="primary"
                   variant="flat"
-                  :loading="savingCred"
-                  :disabled="!credForm.key_name || !credForm.value"
-                  @click="saveCredential"
+                  :loading="savingOdCred"
+                  :disabled="!odCredForm.customer_key && !odCredForm.od_api_base_url"
+                  @click="saveOdCredentials"
                 >
                   <KeyIcon size="18" stroke-width="1.5" class="mr-1" />
-                  Save Credential
+                  Save OD Credentials
                 </v-btn>
+
+                <!-- Other Credentials (collapsible) -->
+                <v-expansion-panels class="mt-5" variant="accordion">
+                  <v-expansion-panel title="Other Credentials (Google, CCC, DOCX)">
+                    <v-expansion-panel-text>
+                      <v-list v-if="credentials.length > 0" density="compact" class="mb-4">
+                        <v-list-item
+                          v-for="cred in credentials.filter(c => c.credential_type !== 'opendental_api')"
+                          :key="cred.id"
+                          class="bg-grey-lighten-4 rounded-md mb-2 pa-3"
+                        >
+                          <div class="d-flex align-center justify-space-between">
+                            <div>
+                              <span class="text-body-1 font-weight-medium">{{ cred.key_name }}</span>
+                              <v-chip size="x-small" color="secondary" class="ml-2">{{ cred.credential_type }}</v-chip>
+                              <span class="text-caption text-medium-emphasis ml-2">{{ cred.masked_value }}</span>
+                            </div>
+                            <span class="text-caption text-medium-emphasis">{{ formatDate(cred.created_at) }}</span>
+                          </div>
+                        </v-list-item>
+                      </v-list>
+
+                      <v-select
+                        v-model="credForm.credential_type"
+                        :items="otherCredTypes"
+                        label="Credential Type"
+                        variant="outlined"
+                        color="primary"
+                        hide-details="auto"
+                        class="mb-3"
+                      />
+                      <v-text-field
+                        v-model="credForm.key_name"
+                        label="Key Name"
+                        variant="outlined"
+                        color="primary"
+                        hide-details="auto"
+                        placeholder="e.g., service_account_json"
+                        class="mb-3"
+                      />
+                      <v-text-field
+                        v-model="credForm.value"
+                        label="Value"
+                        type="password"
+                        variant="outlined"
+                        color="primary"
+                        hide-details="auto"
+                        placeholder="Plaintext — encrypted by backend"
+                        class="mb-3"
+                      />
+                      <v-btn
+                        color="primary"
+                        variant="flat"
+                        :loading="savingCred"
+                        :disabled="!credForm.key_name || !credForm.value"
+                        @click="saveCredential"
+                      >
+                        <KeyIcon size="18" stroke-width="1.5" class="mr-1" />
+                        Save Credential
+                      </v-btn>
+                    </v-expansion-panel-text>
+                  </v-expansion-panel>
+                </v-expansion-panels>
               </v-col>
 
               <!-- Test Connection -->
@@ -557,6 +729,70 @@ onMounted(async () => {
       </UiParentCard>
     </v-col>
   </v-row>
+
+  <!-- Clone Config Dialog -->
+  <v-dialog v-model="cloneDialog" max-width="550" persistent>
+    <v-card>
+      <v-card-title class="text-h5 bg-lightprimary pa-4">Import Config From Another Clinic</v-card-title>
+      <v-card-text class="pa-4">
+        <v-alert type="info" variant="tonal" class="mb-4" density="compact">
+          This will copy <strong>benefit mappings</strong>, <strong>frequency mappings</strong>, and
+          <strong>age limit mappings</strong> from the source clinic to this clinic.
+          Existing mappings in this clinic will be replaced.
+        </v-alert>
+
+        <v-select
+          v-model="sourceClinicId"
+          :items="siblingClinics"
+          item-title="clinic_name"
+          item-value="id"
+          label="Source Clinic"
+          variant="outlined"
+          color="primary"
+          hide-details="auto"
+          class="mb-4"
+        />
+
+        <!-- Clone result -->
+        <v-alert v-if="cloneResult" :type="cloneResult.skipped > 0 || cloneResult.unmatched > 0 ? 'warning' : 'success'" variant="tonal" class="mt-4">
+          <div class="text-body-2">
+            <strong>Cloned:</strong>
+            {{ cloneResult.benefits }} benefits,
+            {{ cloneResult.frequencies }} frequencies,
+            {{ cloneResult.age_limits }} age limits.
+            <v-chip size="x-small" :color="cloneResult.shared_db ? 'success' : 'info'" class="ml-2">
+              {{ cloneResult.shared_db ? 'Shared DB ✓' : 'Separate DB — IDs remapped' }}
+            </v-chip>
+          </div>
+          <div v-if="cloneResult.skipped > 0" class="mt-2 text-body-2">
+            ⚠ {{ cloneResult.skipped }} mappings skipped (no matching catalogue entry in target clinic).
+          </div>
+          <div v-if="cloneResult.unmatched > 0" class="mt-2 text-body-2">
+            <strong>Unmatched catalogue items:</strong>
+            <ul class="ml-4 mt-1">
+              <li v-for="(item, i) in cloneResult.unmatched_items" :key="i">
+                {{ item.type }}: "{{ item.source_name }}" (ID {{ item.source_id }})
+              </li>
+            </ul>
+          </div>
+        </v-alert>
+      </v-card-text>
+      <v-card-actions class="pa-4 pt-0">
+        <v-spacer />
+        <v-btn variant="tonal" color="secondary" @click="cloneDialog = false">Close</v-btn>
+        <v-btn
+          v-if="!cloneResult"
+          variant="flat"
+          color="primary"
+          :disabled="!sourceClinicId"
+          :loading="cloneBusy"
+          @click="executeClone"
+        >
+          Clone Config
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 
   <!-- Snackbar -->
   <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="4000" location="bottom right">

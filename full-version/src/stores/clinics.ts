@@ -10,10 +10,10 @@ export interface ClinicCreate {
     client_id: string;
     clinic_name: string;
     ccc_clinic_id?: string;
-    clinic_num?: number;
     spreadsheet_id?: string;
-    folder_id?: string;
-    images_folder_id?: number;
+    // OD API connection — only used in create flow, not sent to clinic CRUD
+    customer_key?: string;
+    od_api_base_url?: string;
 }
 
 export interface ClinicItem {
@@ -33,7 +33,14 @@ export interface CredentialItem {
     id: string;
     credential_type: string;
     key_name: string;
+    masked_value: string;
     created_at: string;
+}
+
+export interface CatalogueData {
+    covcats: { CovCatNum: number; Description: string; DefaultPercent: number; CovOrder: number }[];
+    codegroups: { CodeGroupNum: number; GroupName: string; ProcCodes: string; CodeGroupFixed: number }[];
+    image_folders: { DefNum: number; ItemName: string; ItemOrder: number }[];
 }
 
 export const useClinicStore = defineStore('clinics', () => {
@@ -128,6 +135,14 @@ export const useClinicStore = defineStore('clinics', () => {
         }
     }
 
+    async function fetchCatalogue(clinicId: string): Promise<CatalogueData> {
+        return await fetchWrapper.get(`${clinicsUrl}/${clinicId}/catalogue`);
+    }
+
+    async function cloneConfig(targetClinicId: string, sourceClinicId: string) {
+        return await fetchWrapper.post(`${clinicsUrl}/${targetClinicId}/clone-config`, { source_clinic_id: sourceClinicId });
+    }
+
     // --- Config API Methods ---
 
     async function fetchBenefitMappings(clinicId: string) {
@@ -174,6 +189,7 @@ export const useClinicStore = defineStore('clinics', () => {
         clinics, currentClinic, credentials, loading, error,
         fetchClinics, fetchClinic, createClinic, updateClinic,
         fetchCredentials, upsertCredential, testConnection,
+        fetchCatalogue, cloneConfig,
         fetchBenefitMappings, saveBenefitMappings,
         fetchFrequencyMappings, saveFrequencyMappings,
         fetchAgeLimitMappings, saveAgeLimitMappings,
