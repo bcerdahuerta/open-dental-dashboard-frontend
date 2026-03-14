@@ -14,9 +14,9 @@ import { RouterLink } from 'vue-router';
   align-items: center;
 }
 .logo-img {
-  /* Larger horizontal logo - must be readable and prominent */
-  height: 60px;
+  height: 36px;
   width: auto;
+  max-width: 100%;
   object-fit: contain;
 }
 .logo-white {
