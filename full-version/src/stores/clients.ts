@@ -7,9 +7,8 @@ const baseUrl = `${import.meta.env.VITE_API_URL}/clients`;
 export interface ClientCreate {
     client_name: string;
     product_type: string;
-    spreadsheet_id?: string;
-    folder_id?: string;
-    ccc_id?: string;
+    slack_webhook?: string;
+    slack_qa_ids?: string;
     days_in_advance?: number;
 }
 
@@ -18,9 +17,8 @@ export interface ClientItem {
     client_name: string;
     product_type: string;
     is_active: boolean;
-    ccc_id: string | null;
-    spreadsheet_id: string | null;
-    folder_id: string | null;
+    slack_webhook: string | null;
+    slack_qa_ids: string | null;
     days_in_advance: number;
     created_at: string;
     updated_at: string;

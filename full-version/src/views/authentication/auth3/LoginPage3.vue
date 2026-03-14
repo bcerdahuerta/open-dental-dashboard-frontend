@@ -17,6 +17,14 @@ import AuthLogin from '../authForms/AuthLogin.vue';
             </div>
             
             <AuthLogin />
+            
+            <div class="mt-5 text-center">
+              <v-divider class="mb-4" />
+              <span class="text-disabled">Don't have an account?</span>
+              <router-link to="/register" class="text-primary text-decoration-none font-weight-medium ml-1">
+                Sign Up
+              </router-link>
+            </div>
           </v-card-text>
         </v-card>
       </v-card>

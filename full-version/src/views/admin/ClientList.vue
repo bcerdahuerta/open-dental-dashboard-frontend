@@ -30,9 +30,8 @@ const productTypes = ['Lunna', 'Diva', 'Custom'];
 const formData = ref<ClientCreate>({
   client_name: '',
   product_type: 'Lunna',
-  spreadsheet_id: '',
-  folder_id: '',
-  ccc_id: '',
+  slack_webhook: '',
+  slack_qa_ids: '',
   days_in_advance: 3
 });
 
@@ -55,9 +54,8 @@ function resetForm() {
   formData.value = {
     client_name: '',
     product_type: 'Lunna',
-    spreadsheet_id: '',
-    folder_id: '',
-    ccc_id: '',
+    slack_webhook: '',
+    slack_qa_ids: '',
     days_in_advance: 3
   };
   editMode.value = false;
@@ -75,9 +73,8 @@ function openEdit(item: any) {
   formData.value = {
     client_name: item.client_name || '',
     product_type: item.product_type || 'Lunna',
-    spreadsheet_id: item.spreadsheet_id || '',
-    folder_id: item.folder_id || '',
-    ccc_id: item.ccc_id || '',
+    slack_webhook: item.slack_webhook || '',
+    slack_qa_ids: item.slack_qa_ids || '',
     days_in_advance: item.days_in_advance || 3
   };
   dialog.value = true;
@@ -88,9 +85,8 @@ async function saveClient() {
   try {
     const payload: any = { ...formData.value };
     // Clean empty strings to null
-    if (!payload.spreadsheet_id) delete payload.spreadsheet_id;
-    if (!payload.folder_id) delete payload.folder_id;
-    if (!payload.ccc_id) delete payload.ccc_id;
+    if (!payload.slack_webhook) delete payload.slack_webhook;
+    if (!payload.slack_qa_ids) delete payload.slack_qa_ids;
 
     if (editMode.value && editClientId.value) {
       await clientStore.updateClient(editClientId.value, payload);
@@ -205,32 +201,22 @@ onMounted(() => {
           />
 
           <v-text-field
-            v-model="formData.spreadsheet_id"
-            label="Spreadsheet ID"
+            v-model="formData.slack_webhook"
+            label="Slack Webhook URL"
             variant="outlined"
             color="primary"
             hide-details="auto"
-            placeholder="Google Sheet ID (optional)"
+            placeholder="https://hooks.slack.com/..."
             class="mb-4"
           />
 
           <v-text-field
-            v-model="formData.folder_id"
-            label="Folder ID"
+            v-model="formData.slack_qa_ids"
+            label="Slack QA User IDs"
             variant="outlined"
             color="primary"
             hide-details="auto"
-            placeholder="Google Drive folder ID (optional)"
-            class="mb-4"
-          />
-
-          <v-text-field
-            v-model="formData.ccc_id"
-            label="CCC ID"
-            variant="outlined"
-            color="primary"
-            hide-details="auto"
-            placeholder="CCC identifier (optional)"
+            placeholder="U01ABC,U02DEF"
             class="mb-4"
           />
 

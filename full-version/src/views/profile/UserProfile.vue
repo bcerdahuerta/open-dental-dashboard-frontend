@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/auth';
 import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
@@ -9,6 +9,15 @@ import { UserIcon, LockIcon } from 'vue-tabler-icons';
 const apiUrl = import.meta.env.VITE_API_URL;
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
+
+const userInitials = computed(() => {
+  const name = user.value?.display_name || user.value?.email || '';
+  if (!name) return '?';
+  const parts = name.split(/[\s@]+/);
+  return parts.length >= 2
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : name.substring(0, 2).toUpperCase();
+});
 
 // Profile form
 const displayName = ref(user.value?.display_name || '');
@@ -91,8 +100,8 @@ async function changePassword() {
         </template>
 
         <div class="d-flex align-center mb-6">
-          <v-avatar color="lightprimary" size="64" class="mr-4">
-            <UserIcon size="32" stroke-width="1.5" class="text-primary" />
+          <v-avatar color="primary" variant="tonal" size="64" class="mr-4">
+            <span class="text-h4 font-weight-medium">{{ userInitials }}</span>
           </v-avatar>
           <div>
             <h4 class="text-h5">{{ user?.display_name || 'User' }}</h4>

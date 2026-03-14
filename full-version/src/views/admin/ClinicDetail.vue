@@ -222,6 +222,7 @@ onMounted(async () => {
           <v-tab value="frequencies">Frequencies</v-tab>
           <v-tab value="age-limits">Age Limits</v-tab>
           <v-tab value="pipeline">Pipeline</v-tab>
+          <v-tab value="writeback">Writeback</v-tab>
         </v-tabs>
 
         <v-divider />
@@ -452,88 +453,6 @@ onMounted(async () => {
                 </div>
               </v-col>
             </v-row>
-
-            <v-divider class="my-6" />
-
-            <!-- Writeback Configuration -->
-            <h6 class="text-subtitle-1 font-weight-bold mb-4">
-              <ClockIcon size="18" stroke-width="1.5" class="mr-1" />
-              Writeback Configuration
-            </h6>
-
-            <v-row>
-              <v-col cols="12" md="4">
-                <v-select
-                  v-model="writebackForm.writeback_mode"
-                  :items="['automatic', 'manual']"
-                  label="Writeback Mode"
-                  variant="outlined"
-                  color="primary"
-                  hide-details="auto"
-                >
-                  <template v-slot:item="{ item, props: itemProps }">
-                    <v-list-item v-bind="itemProps">
-                      <template v-slot:prepend>
-                        <v-chip
-                          :color="item.value === 'automatic' ? 'success' : 'info'"
-                          size="x-small"
-                          class="mr-2"
-                        >
-                          {{ item.value === 'automatic' ? 'Auto' : 'Manual' }}
-                        </v-chip>
-                      </template>
-                    </v-list-item>
-                  </template>
-                </v-select>
-              </v-col>
-              <v-col cols="12" md="4">
-                <v-select
-                  v-model="writebackForm.timezone"
-                  :items="timezones"
-                  label="Timezone"
-                  variant="outlined"
-                  color="primary"
-                  hide-details="auto"
-                />
-              </v-col>
-            </v-row>
-
-            <v-row v-if="writebackForm.writeback_mode === 'automatic'" class="mt-2">
-              <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="writebackForm.quiet_start"
-                  label="Quiet Start (HH:MM)"
-                  type="time"
-                  variant="outlined"
-                  color="primary"
-                  hide-details="auto"
-                  placeholder="e.g. 22:00"
-                />
-              </v-col>
-              <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="writebackForm.quiet_end"
-                  label="Quiet End (HH:MM)"
-                  type="time"
-                  variant="outlined"
-                  color="primary"
-                  hide-details="auto"
-                  placeholder="e.g. 06:00"
-                />
-              </v-col>
-              <v-col cols="12" md="4" class="d-flex align-center">
-                <v-alert type="info" variant="tonal" density="compact" class="w-100">
-                  Auto-enqueue is paused during quiet hours.
-                </v-alert>
-              </v-col>
-            </v-row>
-
-            <div class="mt-4">
-              <v-btn color="primary" variant="flat" :loading="savingWbConfig" @click="saveWritebackConfig">
-                <SaveIcon size="18" stroke-width="1.5" class="mr-1" />
-                Save Config
-              </v-btn>
-            </div>
           </v-window-item>
 
           <!-- Benefits Tab -->
@@ -554,6 +473,85 @@ onMounted(async () => {
           <!-- Pipeline Tab -->
           <v-window-item value="pipeline">
             <PipelineStepsTab :clinic-id="clinicId" :client-id="currentClinic?.client_id" />
+          </v-window-item>
+
+          <!-- Writeback Tab -->
+          <v-window-item value="writeback">
+            <div class="pa-2">
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-select
+                    v-model="writebackForm.writeback_mode"
+                    :items="['automatic', 'manual']"
+                    label="Writeback Mode"
+                    variant="outlined"
+                    color="primary"
+                    hide-details="auto"
+                  >
+                    <template v-slot:item="{ item, props: itemProps }">
+                      <v-list-item v-bind="itemProps">
+                        <template v-slot:prepend>
+                          <v-chip
+                            :color="item.value === 'automatic' ? 'success' : 'info'"
+                            size="x-small"
+                            class="mr-2"
+                          >
+                            {{ item.value === 'automatic' ? 'Auto' : 'Manual' }}
+                          </v-chip>
+                        </template>
+                      </v-list-item>
+                    </template>
+                  </v-select>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-select
+                    v-model="writebackForm.timezone"
+                    :items="timezones"
+                    label="Timezone"
+                    variant="outlined"
+                    color="primary"
+                    hide-details="auto"
+                  />
+                </v-col>
+              </v-row>
+
+              <v-row v-if="writebackForm.writeback_mode === 'automatic'" class="mt-2">
+                <v-col cols="12" md="4">
+                  <v-text-field
+                    v-model="writebackForm.quiet_start"
+                    label="Quiet Start (HH:MM)"
+                    type="time"
+                    variant="outlined"
+                    color="primary"
+                    hide-details="auto"
+                    placeholder="e.g. 22:00"
+                  />
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field
+                    v-model="writebackForm.quiet_end"
+                    label="Quiet End (HH:MM)"
+                    type="time"
+                    variant="outlined"
+                    color="primary"
+                    hide-details="auto"
+                    placeholder="e.g. 06:00"
+                  />
+                </v-col>
+                <v-col cols="12" md="4" class="d-flex align-center">
+                  <v-alert type="info" variant="tonal" density="compact" class="w-100">
+                    Auto-enqueue is paused during quiet hours.
+                  </v-alert>
+                </v-col>
+              </v-row>
+
+              <div class="mt-4">
+                <v-btn color="primary" variant="flat" :loading="savingWbConfig" @click="saveWritebackConfig">
+                  <SaveIcon size="18" stroke-width="1.5" class="mr-1" />
+                  Save Config
+                </v-btn>
+              </div>
+            </div>
           </v-window-item>
         </v-window>
       </UiParentCard>

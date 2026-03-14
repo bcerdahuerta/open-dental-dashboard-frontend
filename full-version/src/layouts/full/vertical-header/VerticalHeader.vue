@@ -15,6 +15,15 @@ const customizer = useCustomizerStore();
 const authStore = useAuthStore();
 const { user } = storeToRefs(authStore);
 
+const userInitials = computed(() => {
+  const name = user.value?.display_name || user.value?.email || '';
+  if (!name) return '?';
+  const parts = name.split(/[\s@]+/);
+  return parts.length >= 2
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : name.substring(0, 2).toUpperCase();
+});
+
 const priority = ref(customizer.setHorizontalLayout ? 0 : 0);
 watch(priority, (newPriority) => {
   priority.value = newPriority;
@@ -119,8 +128,8 @@ onUnmounted(() => {
     <v-menu :close-on-content-click="false">
       <template #activator="{ props }">
         <v-btn class="profileBtn text-primary" color="lightprimary" variant="flat" rounded="pill" v-bind="props">
-          <v-avatar size="30" class="me-2 py-2">
-            <img src="@/assets/images/profile/user-round.svg" alt="User" />
+          <v-avatar size="30" color="primary" variant="tonal" class="me-2 py-2">
+            <span class="text-subtitle-2 font-weight-medium">{{ userInitials }}</span>
           </v-avatar>
           <SettingsIcon stroke-width="1.5" />
         </v-btn>
