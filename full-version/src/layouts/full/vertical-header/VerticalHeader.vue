@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useCustomizerStore } from '../../../stores/customizer';
 import { useAuthStore } from '@/stores/auth';
@@ -40,6 +41,11 @@ const pendingCount = ref(0);
 const isAdmin = computed(() => user.value?.role === 'admin');
 const apiUrl = import.meta.env.VITE_API_URL;
 let badgeInterval: ReturnType<typeof setInterval> | null = null;
+const route = useRoute();
+
+const showBadge = computed(() => 
+  isAdmin.value && pendingCount.value > 0 && route.path !== '/admin/users'
+);
 
 async function fetchBadgeCount() {
   if (!isAdmin.value) return;
@@ -109,7 +115,7 @@ onUnmounted(() => {
       <template #activator="{ props }">
         <v-btn icon class="text-secondary mx-3" color="lightsecondary" rounded="sm" size="small" variant="flat" v-bind="props">
           <v-badge
-            v-if="isAdmin && pendingCount > 0"
+            v-if="showBadge"
             :content="pendingCount"
             color="error"
             floating

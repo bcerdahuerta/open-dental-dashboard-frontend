@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/stores/auth';
 import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
@@ -13,6 +13,15 @@ const pendingCount = ref(0);
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 const isAdmin = computed(() => user.value?.role === 'admin');
+const dismissed = ref(false);
+
+function dismiss() {
+  dismissed.value = true;
+}
+
+watch(pendingCount, (newCount, oldCount) => {
+  if (newCount > oldCount) dismissed.value = false;
+});
 
 async function fetchPendingCount() {
   if (!isAdmin.value) return;
@@ -38,9 +47,20 @@ onUnmounted(() => {
 
 <template>
   <div class="pa-4">
-    <h5 class="text-h5 mb-3">Notifications</h5>
+    <div class="d-flex align-center justify-space-between mb-3">
+      <h5 class="text-h5">Notifications</h5>
+      <v-btn
+        v-if="isAdmin && pendingCount > 0 && !dismissed"
+        variant="text"
+        color="primary"
+        size="small"
+        @click="dismiss"
+      >
+        Mark all read
+      </v-btn>
+    </div>
 
-    <template v-if="isAdmin && pendingCount > 0">
+    <template v-if="isAdmin && pendingCount > 0 && !dismissed">
       <v-list density="compact" nav>
         <v-list-item to="/admin/users" class="bg-lightwarning rounded-md">
           <template #prepend>

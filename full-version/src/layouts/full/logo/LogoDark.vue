@@ -1,7 +1,7 @@
 <template>
   <div class="logo-container">
     <RouterLink to="/dashboard/default">
-      <img src="@/assets/images/logos/dental-robot-logo.svg" alt="Dental Robot" class="logo-img" />
+      <img src="@/assets/images/logos/dentalrobot-logo.png" alt="Dental Robot" class="logo-img" />
     </RouterLink>
   </div>
 </template>
