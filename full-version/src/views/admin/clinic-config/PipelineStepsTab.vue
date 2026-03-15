@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useClinicStore } from '@/stores/clinics';
+import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
 import {
   PlusIcon,
   DeviceFloppyIcon as SaveIcon,
   EditIcon,
   ToggleLeftIcon,
+  InfoCircleIcon,
+  SettingsIcon,
 } from 'vue-tabler-icons';
 
 const props = defineProps<{ clinicId: string; clientId?: string }>();
@@ -72,6 +75,16 @@ const conditionField = ref('');
 const conditionOp = ref('exists');
 const conditionValue = ref('');
 const conditionValues = ref('');
+
+// Step Guide dialog
+const guideDialog = ref(false);
+const guideLoading = ref(false);
+const guideData = ref<Record<string, any> | null>(null);
+
+// Seed defaults
+const seeding = ref(false);
+
+const apiUrl = import.meta.env.VITE_API_URL;
 
 async function loadProfiles() {
   if (!props.clientId) return;
@@ -230,6 +243,39 @@ async function createNewProfile() {
 }
 
 onMounted(loadProfiles);
+
+async function seedDefaults() {
+  if (!props.clientId) return;
+  seeding.value = true;
+  try {
+    const result = await fetchWrapper.post(`${apiUrl}/pipeline/${props.clientId}/seed-defaults`, {});
+    const data = result.data || result;
+    snackbarMsg.value = `${data.created_count} profiles created, ${data.skipped_count} skipped`;
+    snackbarColor.value = 'success';
+    snackbar.value = true;
+    await loadProfiles();
+  } catch (e: any) {
+    snackbarMsg.value = e.message || 'Failed to seed profiles';
+    snackbarColor.value = 'error';
+    snackbar.value = true;
+  } finally {
+    seeding.value = false;
+  }
+}
+
+async function openGuideDialog(stepType: string) {
+  guideLoading.value = true;
+  guideDialog.value = true;
+  guideData.value = null;
+  try {
+    const result = await fetchWrapper.get(`${apiUrl}/pipeline/step-guide/${stepType}`);
+    guideData.value = result.data || result;
+  } catch (e: any) {
+    guideData.value = { title: stepType, description: 'Failed to load guide.' };
+  } finally {
+    guideLoading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -237,6 +283,10 @@ onMounted(loadProfiles);
     <div class="d-flex align-center justify-space-between mb-4">
       <h6 class="text-h6 font-weight-bold">Pipeline Configuration</h6>
       <div class="d-flex ga-2">
+        <v-btn color="warning" variant="tonal" size="small" :loading="seeding" @click="seedDefaults">
+          <SettingsIcon size="16" stroke-width="1.5" class="mr-1" />
+          Load Default Profiles
+        </v-btn>
         <v-btn color="secondary" variant="tonal" size="small" @click="newProfileDialog = true">
           <PlusIcon size="16" stroke-width="1.5" class="mr-1" />
           New Profile
@@ -278,6 +328,7 @@ onMounted(loadProfiles);
               <tr>
                 <th style="width: 50px">#</th>
                 <th>Step Type</th>
+                <th style="width: 40px" class="text-center">ℹ️</th>
                 <th style="width: 140px">On Failure</th>
                 <th style="width: 110px" class="text-center">Condition</th>
                 <th style="width: 100px" class="text-center">Enabled</th>
@@ -295,6 +346,11 @@ onMounted(loadProfiles);
                     density="compact"
                     hide-details
                   />
+                </td>
+                <td class="text-center">
+                  <v-btn icon variant="text" color="info" size="x-small" @click="openGuideDialog(step.step_type)">
+                    <InfoCircleIcon size="16" stroke-width="1.5" />
+                  </v-btn>
                 </td>
                 <td>
                   <v-select
@@ -465,6 +521,48 @@ onMounted(loadProfiles);
           >
             Create
           </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Step Guide Dialog -->
+    <v-dialog v-model="guideDialog" max-width="600">
+      <v-card>
+        <v-card-title class="text-h6">
+          <InfoCircleIcon size="20" class="mr-2" />
+          {{ guideData?.title || 'Loading...' }}
+        </v-card-title>
+        <v-card-text>
+          <v-progress-circular v-if="guideLoading" indeterminate color="primary" class="d-block mx-auto my-4" />
+          <template v-else-if="guideData">
+            <div class="text-body-1 mb-4">{{ guideData.description }}</div>
+
+            <div v-if="guideData.when_to_use" class="mb-3">
+              <div class="text-subtitle-2 font-weight-bold text-primary mb-1">When to Use</div>
+              <div class="text-body-2">{{ guideData.when_to_use }}</div>
+            </div>
+
+            <div v-if="guideData.config_fields && Object.keys(guideData.config_fields).length > 0" class="mb-3">
+              <div class="text-subtitle-2 font-weight-bold text-primary mb-1">Config Fields</div>
+              <v-table density="compact" class="rounded border">
+                <tbody>
+                  <tr v-for="(desc, key) in guideData.config_fields" :key="key">
+                    <td class="font-weight-medium" style="font-family: monospace">{{ key }}</td>
+                    <td class="text-body-2">{{ desc }}</td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </div>
+
+            <div v-if="guideData.condition_example" class="mb-3">
+              <div class="text-subtitle-2 font-weight-bold text-primary mb-1">Example Condition</div>
+              <v-code class="text-body-2 pa-2 rounded">{{ JSON.stringify(guideData.condition_example, null, 2) }}</v-code>
+            </div>
+          </template>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="guideDialog = false">Close</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

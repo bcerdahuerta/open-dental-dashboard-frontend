@@ -18,7 +18,8 @@ import {
   CircleXIcon,
   CopyIcon,
   LockIcon,
-  ToggleLeftIcon
+  ToggleLeftIcon,
+  FileImportIcon,
 } from 'vue-tabler-icons';
 
 const route = useRoute();
@@ -42,6 +43,11 @@ const writebackForm = ref({
   include_not_found: false,
 });
 const savingWbConfig = ref(false);
+
+// YAML import
+const yamlImportDialog = ref(false);
+const yamlImporting = ref(false);
+const yamlImportResult = ref<Record<string, any> | null>(null);
 const timezones = [
   'America/New_York',
   'America/Chicago',
@@ -309,6 +315,37 @@ onMounted(async () => {
   await loadWritebackConfig();
   await loadCatalogue();
 });
+
+async function importYamlFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (!input.files?.length) return;
+
+  yamlImporting.value = true;
+  yamlImportResult.value = null;
+
+  try {
+    const file = input.files[0];
+    const yamlContent = await file.text();
+
+    const { fetchWrapper: fw } = await import('@/utils/helpers/fetch-wrapper');
+    const apiUrl = import.meta.env.VITE_API_URL;
+
+    const result = await fw.post(`${apiUrl}/admin/import-legacy-config`, {
+      yaml_content: yamlContent,
+      client_id: currentClinic.value?.client_id || '',
+      clinic_id: clinicId,
+    });
+
+    yamlImportResult.value = result.data || result;
+    showSnackbar('YAML config imported successfully', 'success');
+    await loadClinic();
+  } catch (e: any) {
+    showSnackbar(e.message || 'Import failed', 'error');
+  } finally {
+    yamlImporting.value = false;
+    input.value = '';  // Reset file input
+  }
+}
 </script>
 
 <template>
@@ -325,6 +362,10 @@ onMounted(async () => {
             <v-btn color="primary" variant="tonal" size="small" @click="openCloneDialog">
               <CopyIcon size="16" stroke-width="1.5" class="mr-1" />
               Import Config From…
+            </v-btn>
+            <v-btn color="secondary" variant="tonal" size="small" @click="yamlImportDialog = true">
+              <FileImportIcon size="16" stroke-width="1.5" class="mr-1" />
+              Import YAML
             </v-btn>
             <v-chip v-if="currentClinic" :color="currentClinic.is_active ? 'success' : 'error'" size="small">
               {{ currentClinic.is_active ? 'Active' : 'Inactive' }}
@@ -814,6 +855,41 @@ onMounted(async () => {
         >
           Clone Config
         </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- YAML Import Dialog -->
+  <v-dialog v-model="yamlImportDialog" max-width="500">
+    <v-card>
+      <v-card-title class="text-h6">
+        <FileImportIcon size="20" class="mr-2" />
+        Import Legacy YAML Config
+      </v-card-title>
+      <v-card-text>
+        <p class="text-body-2 mb-4">Select a legacy <code>config.yaml</code> file to import credentials and settings into this clinic.</p>
+        <input
+          type="file"
+          accept=".yaml,.yml"
+          @change="importYamlFile"
+          :disabled="yamlImporting"
+          style="width: 100%"
+        />
+        <v-progress-linear v-if="yamlImporting" indeterminate color="primary" class="mt-3" />
+
+        <v-alert v-if="yamlImportResult" type="success" variant="tonal" class="mt-4" density="compact">
+          <div class="text-subtitle-2 font-weight-bold mb-1">Import Summary</div>
+          <div v-if="yamlImportResult.clinic_name" class="text-body-2">Clinic: {{ yamlImportResult.clinic_name }}</div>
+          <div v-if="yamlImportResult.spreadsheet_id" class="text-body-2">Spreadsheet: {{ yamlImportResult.spreadsheet_id }}</div>
+          <div v-if="yamlImportResult.credentials_imported?.length" class="text-body-2">Credentials: {{ yamlImportResult.credentials_imported.join(', ') }}</div>
+          <div v-if="yamlImportResult.warnings?.length" class="text-body-2 text-warning mt-1">
+            Warnings: {{ yamlImportResult.warnings.join('; ') }}
+          </div>
+        </v-alert>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn variant="text" @click="yamlImportDialog = false">Close</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
