@@ -49,7 +49,6 @@ const timezones = [
 const clinicForm = ref({
   clinic_name: '',
   ccc_clinic_id: '',
-  clinic_num: null as number | null,
   spreadsheet_id: '',
   folder_id: '',
   images_folder_id: 131,
@@ -60,8 +59,7 @@ const savingClinic = ref(false);
 
 // OD API credential form
 const odCredForm = ref({
-  customer_key: '',
-  od_api_base_url: ''
+  customer_key: ''
 });
 const showCustomerKey = ref(false);
 const savingOdCred = ref(false);
@@ -134,7 +132,6 @@ async function loadClinic() {
       clinicForm.value = {
         clinic_name: clinic.clinic_name || '',
         ccc_clinic_id: clinic.ccc_clinic_id || '',
-        clinic_num: clinic.clinic_num,
         spreadsheet_id: clinic.spreadsheet_id || '',
         folder_id: clinic.folder_id || '',
         images_folder_id: clinic.images_folder_id || 131,
@@ -196,14 +193,13 @@ async function saveOdCredentials() {
         value: odCredForm.value.customer_key
       });
     }
-    if (odCredForm.value.od_api_base_url) {
-      await clinicStore.upsertCredential(clinicId, {
-        credential_type: 'opendental_api',
-        key_name: 'base_url',
-        value: odCredForm.value.od_api_base_url
-      });
-    }
-    odCredForm.value = { customer_key: '', od_api_base_url: '' };
+    // Auto-save base_url (always the same)
+    await clinicStore.upsertCredential(clinicId, {
+      credential_type: 'opendental_api',
+      key_name: 'base_url',
+      value: 'https://api.opendental.com/api/v1'
+    });
+    odCredForm.value = { customer_key: '' };
     showSnackbar('OD credentials saved', 'success');
     // Reload catalogue with new credentials
     await loadCatalogue();
@@ -391,35 +387,14 @@ onMounted(async () => {
                         placeholder="Override (inherits from client)"
                       />
                     </v-col>
-                    <v-col cols="12" md="4">
+                    <v-col cols="12" md="4" v-if="catalogue?.image_folders?.length">
                       <!-- Image Folder — populated from OD catalogue -->
                       <v-select
-                        v-if="catalogue && catalogue.image_folders.length > 0"
                         v-model.number="clinicForm.images_folder_id"
                         :items="catalogue.image_folders"
                         item-title="ItemName"
                         item-value="DefNum"
                         label="Image Folder"
-                        variant="outlined"
-                        color="primary"
-                        hide-details="auto"
-                      />
-                      <v-text-field
-                        v-else
-                        v-model.number="clinicForm.images_folder_id"
-                        label="Images Folder ID"
-                        type="number"
-                        variant="outlined"
-                        color="primary"
-                        hide-details="auto"
-                        :loading="loadingCatalogue"
-                      />
-                    </v-col>
-                    <v-col cols="12" md="4">
-                      <v-text-field
-                        v-model.number="clinicForm.clinic_num"
-                        label="OD Clinic Num"
-                        type="number"
                         variant="outlined"
                         color="primary"
                         hide-details="auto"
@@ -476,21 +451,11 @@ onMounted(async () => {
                   class="mb-3"
                 />
 
-                <v-text-field
-                  v-model="odCredForm.od_api_base_url"
-                  label="OD API Base URL"
-                  variant="outlined"
-                  color="primary"
-                  hide-details="auto"
-                  placeholder="Default: https://api.opendental.com/api/v1"
-                  class="mb-3"
-                />
-
                 <v-btn
                   color="primary"
                   variant="flat"
                   :loading="savingOdCred"
-                  :disabled="!odCredForm.customer_key && !odCredForm.od_api_base_url"
+                  :disabled="!odCredForm.customer_key"
                   @click="saveOdCredentials"
                 >
                   <KeyIcon size="18" stroke-width="1.5" class="mr-1" />
