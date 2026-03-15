@@ -35,7 +35,11 @@ const writebackForm = ref({
   writeback_mode: 'manual',
   quiet_start: null as string | null,
   quiet_end: null as string | null,
-  timezone: 'America/Chicago'
+  timezone: 'America/Chicago',
+  audit_column: 'Update Status',
+  upload_column: 'Upload Status',
+  upload_done_value: 'Done By DR',
+  include_not_found: false,
 });
 const savingWbConfig = ref(false);
 const timezones = [
@@ -251,7 +255,11 @@ async function loadWritebackConfig() {
       writeback_mode: cfg.writeback_mode || 'manual',
       quiet_start: cfg.quiet_start || null,
       quiet_end: cfg.quiet_end || null,
-      timezone: cfg.timezone || 'America/Chicago'
+      timezone: cfg.timezone || 'America/Chicago',
+      audit_column: cfg.audit_column || 'Update Status',
+      upload_column: cfg.upload_column || 'Upload Status',
+      upload_done_value: cfg.upload_done_value || 'Done By DR',
+      include_not_found: cfg.include_not_found || false,
     };
   } catch (e: any) {
     // Use defaults
@@ -646,6 +654,57 @@ onMounted(async () => {
                     :items="timezones"
                     label="Timezone"
                     variant="outlined"
+                    color="primary"
+                    hide-details="auto"
+                  />
+                </v-col>
+              </v-row>
+
+              <!-- Column Mapping Section -->
+              <v-divider class="my-4" />
+              <div class="text-subtitle-2 font-weight-bold mb-2">Spreadsheet Column Mapping</div>
+
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field
+                    v-model="writebackForm.audit_column"
+                    label="QA Green-Light Column"
+                    variant="outlined"
+                    color="primary"
+                    hide-details="auto"
+                    hint="Column where QA marks rows as ready (e.g. 'Update Status')"
+                    persistent-hint
+                  />
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field
+                    v-model="writebackForm.upload_column"
+                    label="Completion Marker Column"
+                    variant="outlined"
+                    color="primary"
+                    hide-details="auto"
+                    hint="Column where system writes 'Done By DR' after success"
+                    persistent-hint
+                  />
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field
+                    v-model="writebackForm.upload_done_value"
+                    label="Done Value"
+                    variant="outlined"
+                    color="primary"
+                    hide-details="auto"
+                    hint="Value written to completion column (default 'Done By DR')"
+                    persistent-hint
+                  />
+                </v-col>
+              </v-row>
+
+              <v-row class="mt-1">
+                <v-col cols="12" md="4">
+                  <v-switch
+                    v-model="writebackForm.include_not_found"
+                    label="Include 'Not Found' rows as ready"
                     color="primary"
                     hide-details="auto"
                   />

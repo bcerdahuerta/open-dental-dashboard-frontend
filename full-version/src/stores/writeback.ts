@@ -133,7 +133,16 @@ export const useWritebackStore = defineStore('writeback', () => {
         try {
             return await fetchWrapper.get(`${baseUrl}/config/${clinicId}`);
         } catch (err: any) {
-            return { writeback_mode: 'manual', quiet_start: null, quiet_end: null, timezone: 'America/Chicago' };
+            return {
+                writeback_mode: 'manual',
+                quiet_start: null,
+                quiet_end: null,
+                timezone: 'America/Chicago',
+                audit_column: 'Update Status',
+                upload_column: 'Upload Status',
+                upload_done_value: 'Done By DR',
+                include_not_found: false,
+            };
         }
     }
 
@@ -142,6 +151,10 @@ export const useWritebackStore = defineStore('writeback', () => {
         quiet_start?: string | null;
         quiet_end?: string | null;
         timezone?: string;
+        audit_column?: string;
+        upload_column?: string;
+        upload_done_value?: string;
+        include_not_found?: boolean;
     }) {
         try {
             return await fetchWrapper.put(`${baseUrl}/config/${clinicId}`, data);
