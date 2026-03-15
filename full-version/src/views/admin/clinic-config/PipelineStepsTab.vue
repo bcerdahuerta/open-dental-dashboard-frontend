@@ -19,7 +19,7 @@ const STEP_TYPES = [
   'update_fee_schedule', 'change_apt_color', 'update_appointment_tags',
   'update_provider', 'update_verification_dates', 'render_note',
   'subscriber_note', 'create_commlog', 'upload_document',
-  'drop_plan', 'create_ins_adjustment',
+  'drop_plan', 'create_ins_adjustment', 'update_insverify', 'update_spreadsheet_column',
 ];
 
 const FAILURE_OPTIONS = ['HALT', 'SKIP', 'CONTINUE', 'RETRY_3'];
@@ -31,12 +31,15 @@ interface StepRow {
   on_failure: string;
   is_enabled: boolean;
   step_config: Record<string, any>;
+  run_condition: Record<string, any> | null;
 }
 
 interface ProfileItem {
   id: string;
   profile_name: string;
   is_default: boolean;
+  verification_type?: string;
+  target_status?: string;
 }
 
 const profiles = ref<ProfileItem[]>([]);
@@ -58,7 +61,17 @@ const configError = ref('');
 // New profile dialog
 const newProfileDialog = ref(false);
 const newProfileName = ref('');
+const newProfileVerificationType = ref('ELG');
+const newProfileTargetStatus = ref('');
 const creatingProfile = ref(false);
+
+// Condition dialog
+const conditionDialog = ref(false);
+const editingConditionIdx = ref<number | null>(null);
+const conditionField = ref('');
+const conditionOp = ref('exists');
+const conditionValue = ref('');
+const conditionValues = ref('');
 
 async function loadProfiles() {
   if (!props.clientId) return;
@@ -89,6 +102,7 @@ async function loadSteps() {
       on_failure: s.on_failure || 'HALT',
       is_enabled: s.is_enabled !== false,
       step_config: s.step_config || {},
+      run_condition: s.run_condition || null,
     })) : [];
   } catch {
     steps.value = [];
@@ -108,7 +122,45 @@ function addStep() {
     on_failure: 'HALT',
     is_enabled: true,
     step_config: {},
+    run_condition: null,
   });
+}
+
+function openConditionDialog(idx: number) {
+  editingConditionIdx.value = idx;
+  const cond = steps.value[idx].run_condition;
+  if (cond) {
+    conditionField.value = cond.field || '';
+    conditionOp.value = cond.op || 'exists';
+    conditionValue.value = cond.value || '';
+    conditionValues.value = Array.isArray(cond.values) ? cond.values.join(',') : '';
+  } else {
+    conditionField.value = '';
+    conditionOp.value = 'exists';
+    conditionValue.value = '';
+    conditionValues.value = '';
+  }
+  conditionDialog.value = true;
+}
+
+function clearCondition() {
+  if (editingConditionIdx.value !== null) {
+    steps.value[editingConditionIdx.value].run_condition = null;
+  }
+  conditionDialog.value = false;
+}
+
+function applyCondition() {
+  if (editingConditionIdx.value !== null) {
+    const cond: Record<string, any> = { field: conditionField.value.trim(), op: conditionOp.value };
+    if (conditionOp.value === 'equals' || conditionOp.value === 'contains') {
+      cond.value = conditionValue.value;
+    } else if (conditionOp.value === 'in') {
+      cond.values = conditionValues.value.split(',').map(s => s.trim()).filter(s => s);
+    }
+    steps.value[editingConditionIdx.value].run_condition = cond;
+  }
+  conditionDialog.value = false;
 }
 
 function openConfigDialog(idx: number) {
@@ -151,15 +203,19 @@ async function saveSteps() {
 }
 
 async function createNewProfile() {
-  if (!props.clientId || !newProfileName.value.trim()) return;
+  if (!props.clientId || !newProfileName.value.trim() || !newProfileVerificationType.value || !newProfileTargetStatus.value.trim()) return;
   creatingProfile.value = true;
   try {
     const created = await clinicStore.createProfile(props.clientId, {
       profile_name: newProfileName.value.trim(),
+      verification_type: newProfileVerificationType.value,
+      target_status: newProfileTargetStatus.value.trim(),
     });
     profiles.value.push(created);
     selectedProfileId.value = created.id;
     newProfileName.value = '';
+    newProfileVerificationType.value = 'ELG';
+    newProfileTargetStatus.value = '';
     newProfileDialog.value = false;
     snackbarMsg.value = 'Profile created';
     snackbarColor.value = 'success';
@@ -199,7 +255,7 @@ onMounted(loadProfiles);
         <v-select
           v-model="selectedProfileId"
           :items="profiles"
-          item-title="profile_name"
+          :item-title="(p) => p.verification_type ? `${p.verification_type} — ${p.target_status} (${p.profile_name})` : p.profile_name"
           item-value="id"
           label="Profile"
           variant="outlined"
@@ -223,6 +279,7 @@ onMounted(loadProfiles);
                 <th style="width: 50px">#</th>
                 <th>Step Type</th>
                 <th style="width: 140px">On Failure</th>
+                <th style="width: 110px" class="text-center">Condition</th>
                 <th style="width: 100px" class="text-center">Enabled</th>
                 <th style="width: 80px" class="text-center">Config</th>
               </tr>
@@ -247,6 +304,15 @@ onMounted(loadProfiles);
                     density="compact"
                     hide-details
                   />
+                </td>
+                <td class="text-center">
+                  <v-chip v-if="step.run_condition" size="small" color="primary" variant="tonal" @click="openConditionDialog(idx)">
+                    {{ step.run_condition.field }}
+                    <EditIcon size="12" class="ml-1" />
+                  </v-chip>
+                  <v-btn v-else icon variant="text" size="small" color="grey" @click="openConditionDialog(idx)">
+                    <PlusIcon size="16" />
+                  </v-btn>
                 </td>
                 <td class="text-center">
                   <v-switch
@@ -306,6 +372,53 @@ onMounted(loadProfiles);
       </v-card>
     </v-dialog>
 
+    <!-- Condition Editor Dialog -->
+    <v-dialog v-model="conditionDialog" max-width="500">
+      <v-card>
+        <v-card-title>Edit Run Condition</v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="conditionField"
+            label="Field"
+            placeholder="e.g., has_form, pdf_files"
+            variant="outlined"
+            density="compact"
+            class="mb-3"
+          />
+          <v-select
+            v-model="conditionOp"
+            :items="['exists', 'not_exists', 'equals', 'in', 'contains']"
+            label="Operator"
+            variant="outlined"
+            density="compact"
+            class="mb-3"
+          />
+          <v-text-field
+            v-if="conditionOp === 'equals' || conditionOp === 'contains'"
+            v-model="conditionValue"
+            label="Value"
+            variant="outlined"
+            density="compact"
+            class="mb-3"
+          />
+          <v-text-field
+            v-if="conditionOp === 'in'"
+            v-model="conditionValues"
+            label="Values (comma-separated)"
+            variant="outlined"
+            density="compact"
+            class="mb-3"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" color="error" @click="clearCondition">Remove Condition</v-btn>
+          <v-spacer />
+          <v-btn variant="text" @click="conditionDialog = false">Cancel</v-btn>
+          <v-btn color="primary" variant="flat" @click="applyCondition">Apply</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- New Profile Dialog -->
     <v-dialog v-model="newProfileDialog" max-width="400">
       <v-card>
@@ -315,9 +428,29 @@ onMounted(loadProfiles);
             v-model="newProfileName"
             label="Profile Name"
             variant="outlined"
+            density="compact"
             color="primary"
             placeholder="e.g., Default Pipeline"
-            hide-details
+            class="mb-3"
+          />
+          <v-select
+            v-model="newProfileVerificationType"
+            :items="['FBD', 'ELG', 'SHORT_FORM']"
+            label="Verification Type"
+            variant="outlined"
+            density="compact"
+            color="primary"
+            class="mb-3"
+          />
+          <v-text-field
+            v-model="newProfileTargetStatus"
+            label="Target Status"
+            variant="outlined"
+            density="compact"
+            color="primary"
+            placeholder="e.g., Active,Max Out"
+            hint="Comma-separated for multiple statuses"
+            persistent-hint
           />
         </v-card-text>
         <v-card-actions>
@@ -327,7 +460,7 @@ onMounted(loadProfiles);
             color="primary"
             variant="flat"
             :loading="creatingProfile"
-            :disabled="!newProfileName.trim()"
+            :disabled="!newProfileName.trim() || !newProfileVerificationType || !newProfileTargetStatus.trim()"
             @click="createNewProfile"
           >
             Create
