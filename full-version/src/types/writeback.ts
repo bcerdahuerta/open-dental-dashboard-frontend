@@ -8,6 +8,8 @@ export interface WritebackJob {
     patient_name: string | null;
     row_index: number;
     spreadsheet_id: string;
+    sheet_tab: string | null;
+    matched_profile: string | null;
     status: JobStatus;
     attempt: number;
     max_attempts: number;

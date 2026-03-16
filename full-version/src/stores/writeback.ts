@@ -111,9 +111,10 @@ export const useWritebackStore = defineStore('writeback', () => {
         }
     }
 
-    async function syncClinic(clinicId: string) {
+    async function syncClinic(clinicId: string, rowIndices?: number[]) {
         try {
-            const result = await fetchWrapper.post(`${baseUrl}/sync/${clinicId}`);
+            const body = rowIndices ? { row_indices: rowIndices } : undefined;
+            const result = await fetchWrapper.post(`${baseUrl}/sync/${clinicId}`, body);
             // Refresh stats after sync
             await fetchQueueStats();
             return result;

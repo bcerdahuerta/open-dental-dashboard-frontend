@@ -52,6 +52,9 @@ const statusOptions = [
 // Table headers
 const headers = [
   { title: 'Patient', key: 'patient_name', sortable: false },
+  { title: 'Row #', key: 'row_index', sortable: false, width: '70px' },
+  { title: 'Appt Date', key: 'sheet_tab', sortable: false, width: '120px' },
+  { title: 'Profile', key: 'matched_profile', sortable: false, width: '180px' },
   { title: 'Status', key: 'status', sortable: false, width: '130px' },
   { title: 'Attempt', key: 'attempt', sortable: false, width: '90px' },
   { title: 'Created', key: 'created_at', sortable: false, width: '180px' },
@@ -270,6 +273,29 @@ onUnmounted(() => {
             <span class="text-body-2 font-weight-medium">
               {{ item.patient_name || 'N/A' }}
             </span>
+          </template>
+
+          <!-- Row index -->
+          <template #item.row_index="{ item }">
+            <span class="text-body-2 text-medium-emphasis">{{ item.row_index }}</span>
+          </template>
+
+          <!-- Sheet tab / appointment date -->
+          <template #item.sheet_tab="{ item }">
+            <span class="text-body-2">{{ item.sheet_tab || '—' }}</span>
+          </template>
+
+          <!-- Matched profile chip -->
+          <template #item.matched_profile="{ item }">
+            <v-chip
+              v-if="item.matched_profile"
+              :color="item.matched_profile === 'No match' ? 'error' : 'success'"
+              variant="tonal"
+              size="x-small"
+            >
+              {{ item.matched_profile }}
+            </v-chip>
+            <span v-else class="text-caption text-medium-emphasis">—</span>
           </template>
 
           <!-- Status chip -->

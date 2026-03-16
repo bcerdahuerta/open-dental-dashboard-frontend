@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import {
   RefreshIcon,
   BuildingIcon,
   AlertTriangleIcon,
+  EyeIcon,
+  PlayerPlayIcon,
 } from 'vue-tabler-icons';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import { useWritebackStore } from '@/stores/writeback';
@@ -21,12 +23,51 @@ const { clinics } = storeToRefs(clinicStore);
 const { clinicStatsMap, circuitBreakerStatuses } = storeToRefs(writebackStore);
 
 const filterClientId = ref<string | undefined>(undefined);
-const syncingClinicId = ref<string | null>(null);
 const syncResult = ref<{ clinic_id: string; message: string } | null>(null);
 
 // Per-clinic writeback config and ready rows
 const clinicConfigMap = ref<Record<string, any>>({});
 const clinicReadyCountMap = ref<Record<string, number>>({});
+
+// Preview dialog state
+const previewDialog = ref(false);
+const previewClinicId = ref<string | null>(null);
+const previewClinicName = ref('');
+const previewRows = ref<any[]>([]);
+const previewLoading = ref(false);
+const selectedRows = ref<any[]>([]);
+const syncingSelected = ref(false);
+const filterSheetTab = ref<string | undefined>(undefined);
+
+// Preview table headers
+const previewHeaders = [
+  { title: '#', key: 'row_index', sortable: true, width: '60px' },
+  { title: 'Patient', key: 'patient_name', sortable: true },
+  { title: 'Appt Date', key: 'sheet_tab', sortable: true, width: '130px' },
+  { title: 'Profile', key: 'matched_profile', sortable: false, width: '200px' },
+  { title: 'Verification', key: 'verification_type', sortable: false, width: '110px' },
+  { title: 'Status', key: 'verification_status', sortable: false, width: '140px' },
+  { title: 'Audit', key: 'audit_status', sortable: false, width: '100px' },
+];
+
+// Computed: unique sheet tabs for filter
+const uniqueSheetTabs = computed(() =>
+  [...new Set(previewRows.value.map((r: any) => r.sheet_tab).filter(Boolean))].sort()
+);
+
+// Computed: filtered preview rows
+const filteredPreviewRows = computed(() =>
+  filterSheetTab.value
+    ? previewRows.value.filter((r: any) => r.sheet_tab === filterSheetTab.value)
+    : previewRows.value
+);
+
+// Computed: selection summary
+const selectionSummary = computed(() => {
+  const total = filteredPreviewRows.value.length;
+  const selected = selectedRows.value.length;
+  return `${total} rows ready (${selected} selected)`;
+});
 
 // Load clinics when client changes, then fetch per-clinic stats + configs
 async function onClientChange(clientId: string | undefined) {
@@ -72,7 +113,6 @@ function getReadyCount(clinicId: string): number {
 function isQuietHours(clinicId: string): boolean {
   const cfg = clinicConfigMap.value[clinicId];
   if (!cfg || cfg.writeback_mode !== 'automatic') return false;
-  // We can't compute quiet hours client-side perfectly but we show the chip if quiet hours are configured
   return !!(cfg.quiet_start && cfg.quiet_end);
 }
 
@@ -100,29 +140,59 @@ function trafficLightLabel(clinic: any): string {
   return 'No jobs';
 }
 
-async function handleSync(clinicId: string) {
-  syncingClinicId.value = clinicId;
-  syncResult.value = null;
+// Open preview dialog
+async function handlePreview(clinic: any) {
+  previewClinicId.value = clinic.id;
+  previewClinicName.value = clinic.clinic_name;
+  previewLoading.value = true;
+  previewDialog.value = true;
+  filterSheetTab.value = undefined;
+  selectedRows.value = [];
+  previewRows.value = [];
+
   try {
-    const result = await writebackStore.syncClinic(clinicId);
+    const rows = await writebackStore.previewReadyRows(clinic.id);
+    previewRows.value = Array.isArray(rows) ? rows : [];
+    // Select all by default
+    selectedRows.value = [...previewRows.value];
+  } catch {
+    previewRows.value = [];
+  } finally {
+    previewLoading.value = false;
+  }
+}
+
+// Sync selected rows
+async function handleSyncSelected() {
+  if (!previewClinicId.value || selectedRows.value.length === 0) return;
+  syncingSelected.value = true;
+  try {
+    const rowIndices = selectedRows.value.map((r: any) => r.row_index);
+    const result = await writebackStore.syncClinic(previewClinicId.value, rowIndices);
     syncResult.value = {
-      clinic_id: clinicId,
+      clinic_id: previewClinicId.value,
       message: `Sync complete: ${result?.jobs_created ?? 0} jobs enqueued`,
     };
     // Refresh this clinic's stats and ready count
-    await writebackStore.fetchClinicStats(clinicId);
+    await writebackStore.fetchClinicStats(previewClinicId.value);
     try {
-      const rows = await writebackStore.previewReadyRows(clinicId);
-      clinicReadyCountMap.value[clinicId] = Array.isArray(rows) ? rows.length : 0;
+      const rows = await writebackStore.previewReadyRows(previewClinicId.value);
+      clinicReadyCountMap.value[previewClinicId.value] = Array.isArray(rows) ? rows.length : 0;
     } catch { /* ignore */ }
+    previewDialog.value = false;
   } catch (err: any) {
     syncResult.value = {
-      clinic_id: clinicId,
+      clinic_id: previewClinicId.value!,
       message: `Sync failed: ${err}`,
     };
   } finally {
-    syncingClinicId.value = null;
+    syncingSelected.value = false;
   }
+}
+
+function profileColor(profile: string): string {
+  if (!profile || profile === 'No match') return 'error';
+  return 'success';
 }
 
 onMounted(() => {
@@ -254,19 +324,18 @@ onMounted(() => {
                   </strong>
                 </div>
 
-                <!-- Sync Now button -->
+                <!-- Preview Rows button -->
                 <v-btn
-                  :color="getMode(clinic.id) === 'manual' && getReadyCount(clinic.id) > 0 ? 'primary' : 'primary'"
-                  :variant="getMode(clinic.id) === 'manual' && getReadyCount(clinic.id) > 0 ? 'flat' : 'tonal'"
+                  color="primary"
+                  :variant="getReadyCount(clinic.id) > 0 ? 'flat' : 'tonal'"
                   size="small"
                   block
                   class="mt-3"
-                  :loading="syncingClinicId === clinic.id"
                   :disabled="!clinic.is_active"
-                  @click="handleSync(clinic.id)"
+                  @click="handlePreview(clinic)"
                 >
-                  <RefreshIcon size="16" class="mr-1" />
-                  Sync Now
+                  <EyeIcon size="16" class="mr-1" />
+                  Preview Rows
                   <v-badge
                     v-if="getReadyCount(clinic.id) > 0"
                     :content="getReadyCount(clinic.id)"
@@ -291,4 +360,111 @@ onMounted(() => {
       </UiParentCard>
     </v-col>
   </v-row>
+
+  <!-- Preview Dialog -->
+  <v-dialog v-model="previewDialog" max-width="1100" scrollable>
+    <v-card>
+      <v-card-title class="d-flex align-center justify-space-between">
+        <span class="text-h6">
+          <EyeIcon size="20" class="mr-2" />
+          Preview — {{ previewClinicName }}
+        </span>
+        <v-chip color="primary" variant="tonal" size="small">
+          {{ selectionSummary }}
+        </v-chip>
+      </v-card-title>
+
+      <v-card-text class="pa-4">
+        <!-- Sheet tab filter -->
+        <div class="d-flex align-center ga-3 mb-3">
+          <v-select
+            v-model="filterSheetTab"
+            :items="uniqueSheetTabs"
+            label="Filter by Appointment Date"
+            clearable
+            density="compact"
+            variant="outlined"
+            hide-details
+            style="max-width: 250px"
+          />
+        </div>
+
+        <!-- Loading spinner -->
+        <v-progress-circular
+          v-if="previewLoading"
+          indeterminate
+          color="primary"
+          class="d-block mx-auto my-8"
+        />
+
+        <!-- Empty state -->
+        <v-alert
+          v-else-if="previewRows.length === 0"
+          type="info"
+          variant="tonal"
+          class="my-4"
+        >
+          No ready rows found for this clinic.
+        </v-alert>
+
+        <!-- Data table -->
+        <v-data-table
+          v-else
+          v-model="selectedRows"
+          :headers="previewHeaders"
+          :items="filteredPreviewRows"
+          item-value="row_index"
+          show-select
+          return-object
+          density="compact"
+          class="rounded-lg"
+          :items-per-page="-1"
+          hide-default-footer
+        >
+          <!-- Profile chip -->
+          <template #item.matched_profile="{ item }">
+            <v-chip
+              :color="profileColor(item.matched_profile)"
+              variant="tonal"
+              size="small"
+            >
+              {{ item.matched_profile || 'No match' }}
+            </v-chip>
+          </template>
+
+          <!-- Verification type chip -->
+          <template #item.verification_type="{ item }">
+            <v-chip
+              v-if="item.verification_type"
+              color="info"
+              variant="tonal"
+              size="x-small"
+            >
+              {{ item.verification_type }}
+            </v-chip>
+          </template>
+
+          <!-- Audit status -->
+          <template #item.audit_status="{ item }">
+            <span class="text-caption">{{ item.audit_status }}</span>
+          </template>
+        </v-data-table>
+      </v-card-text>
+
+      <v-card-actions class="pa-4 pt-0">
+        <v-spacer />
+        <v-btn variant="text" @click="previewDialog = false">Cancel</v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          :loading="syncingSelected"
+          :disabled="selectedRows.length === 0"
+          @click="handleSyncSelected"
+        >
+          <PlayerPlayIcon size="16" class="mr-1" />
+          Sync Selected ({{ selectedRows.length }})
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
