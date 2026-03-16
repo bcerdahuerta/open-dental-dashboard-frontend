@@ -9,6 +9,7 @@ import {
   ToggleLeftIcon,
   InfoCircleIcon,
   SettingsIcon,
+  TrashIcon,
 } from 'vue-tabler-icons';
 
 const props = defineProps<{ clinicId: string; clientId?: string }>();
@@ -67,6 +68,11 @@ const newProfileName = ref('');
 const newProfileVerificationType = ref('ELG');
 const newProfileTargetStatus = ref('');
 const creatingProfile = ref(false);
+
+// Deactivate profile
+const deactivateDialog = ref(false);
+const deactivateProfileId = ref<string>('');
+const deactivateProfileName = ref<string>('');
 
 // Condition dialog
 const conditionDialog = ref(false);
@@ -137,6 +143,45 @@ function addStep() {
     step_config: {},
     run_condition: null,
   });
+}
+
+async function removeStep(idx: number) {
+  steps.value.splice(idx, 1);
+  // Re-number and auto-save
+  steps.value.forEach((s, i) => { s.step_order = i + 1; });
+  if (selectedProfileId.value && steps.value.length >= 0) {
+    await saveSteps();
+  }
+}
+
+function promptDeactivateProfile() {
+  const prof = profiles.value.find(p => p.id === selectedProfileId.value);
+  if (!prof) return;
+  deactivateProfileId.value = prof.id;
+  deactivateProfileName.value = prof.profile_name;
+  deactivateDialog.value = true;
+}
+
+async function confirmDeactivateProfile() {
+  try {
+    await fetchWrapper.delete(`${apiUrl}/profiles/${deactivateProfileId.value}`);
+    profiles.value = profiles.value.filter(p => p.id !== deactivateProfileId.value);
+    if (profiles.value.length > 0) {
+      selectedProfileId.value = profiles.value[0].id;
+    } else {
+      selectedProfileId.value = '';
+      steps.value = [];
+    }
+    snackbarMsg.value = 'Profile deactivated';
+    snackbarColor.value = 'success';
+    snackbar.value = true;
+  } catch (e: any) {
+    snackbarMsg.value = e.message || 'Failed to deactivate';
+    snackbarColor.value = 'error';
+    snackbar.value = true;
+  } finally {
+    deactivateDialog.value = false;
+  }
 }
 
 function openConditionDialog(idx: number) {
@@ -315,6 +360,18 @@ async function openGuideDialog(stepType: string) {
           class="mb-4"
           style="max-width: 320px"
         />
+        <v-btn
+          v-if="selectedProfileId"
+          icon
+          variant="text"
+          color="error"
+          size="small"
+          class="ml-2"
+          @click="promptDeactivateProfile"
+        >
+          <TrashIcon size="18" stroke-width="1.5" />
+          <v-tooltip activator="parent" location="top">Deactivate Profile</v-tooltip>
+        </v-btn>
 
         <v-progress-circular v-if="loadingSteps" indeterminate color="primary" class="d-block mx-auto my-4" />
 
@@ -333,6 +390,7 @@ async function openGuideDialog(stepType: string) {
                 <th style="width: 110px" class="text-center">Condition</th>
                 <th style="width: 100px" class="text-center">Enabled</th>
                 <th style="width: 80px" class="text-center">Config</th>
+                <th style="width: 50px" class="text-center"></th>
               </tr>
             </thead>
             <tbody>
@@ -382,6 +440,12 @@ async function openGuideDialog(stepType: string) {
                 <td class="text-center">
                   <v-btn icon variant="text" color="primary" size="small" @click="openConfigDialog(idx)">
                     <EditIcon size="16" stroke-width="1.5" />
+                  </v-btn>
+                </td>
+                <td class="text-center">
+                  <v-btn icon variant="text" color="error" size="x-small" @click="removeStep(idx)">
+                    <TrashIcon size="16" stroke-width="1.5" />
+                    <v-tooltip activator="parent" location="top">Delete Step</v-tooltip>
                   </v-btn>
                 </td>
               </tr>
@@ -563,6 +627,24 @@ async function openGuideDialog(stepType: string) {
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="guideDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Deactivate Profile Confirm Dialog -->
+    <v-dialog v-model="deactivateDialog" max-width="400">
+      <v-card>
+        <v-card-title class="text-h6">Deactivate Profile</v-card-title>
+        <v-card-text>
+          Deactivate profile <strong>"{{ deactivateProfileName }}"</strong>?
+          It will be hidden but can be restored.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="deactivateDialog = false">Cancel</v-btn>
+          <v-btn color="error" variant="flat" @click="confirmDeactivateProfile">
+            Deactivate
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

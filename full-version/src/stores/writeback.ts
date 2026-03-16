@@ -56,6 +56,7 @@ export const useWritebackStore = defineStore('writeback', () => {
     async function fetchJobs(filters: {
         page?: number;
         per_page?: number;
+        client_id?: string;
         clinic_id?: string;
         status?: string;
     } = {}) {
@@ -65,6 +66,7 @@ export const useWritebackStore = defineStore('writeback', () => {
             const params = new URLSearchParams();
             if (filters.page) params.set('page', String(filters.page));
             if (filters.per_page) params.set('per_page', String(filters.per_page));
+            if (filters.client_id) params.set('client_id', filters.client_id);
             if (filters.clinic_id) params.set('clinic_id', filters.clinic_id);
             if (filters.status) params.set('status', filters.status);
 

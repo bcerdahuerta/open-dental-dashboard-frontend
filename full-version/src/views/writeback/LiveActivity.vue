@@ -89,6 +89,7 @@ async function loadJobs() {
   await writebackStore.fetchJobs({
     page: currentPage.value,
     per_page: itemsPerPage.value,
+    client_id: filterClientId.value,
     clinic_id: filterClinicId.value,
     status: filterStatus.value,
   });
@@ -134,10 +135,11 @@ watch(filterClientId, async (clientId) => {
   if (clientId) {
     await clinicStore.fetchClinics(clientId);
   }
+  // loadJobs will be called by the combined watch below
 });
 
-// Reload when filters change
-watch([filterStatus, filterClinicId], () => {
+// Reload when any filter changes
+watch([filterStatus, filterClientId, filterClinicId], () => {
   currentPage.value = 1;
   loadJobs();
 });
