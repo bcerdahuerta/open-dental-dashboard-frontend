@@ -21,9 +21,10 @@ const STEP_TYPES = [
   'force_zero', 'update_deductibles', 'update_annual_max', 'update_ortho_max',
   'insert_exclusions', 'update_frequencies', 'update_age_limits', 'update_history',
   'update_fee_schedule', 'change_apt_color', 'update_appointment_tags',
-  'update_provider', 'update_verification_dates', 'render_note',
-  'subscriber_note', 'create_commlog', 'upload_document',
+  'update_provider', 'update_verification_dates', 'update_effective_date',
+  'render_note', 'subscriber_note', 'create_commlog', 'upload_document',
   'drop_plan', 'create_ins_adjustment', 'update_insverify', 'update_spreadsheet_column',
+  'plan_matching_note',
 ];
 
 const FAILURE_OPTIONS = ['HALT', 'SKIP', 'CONTINUE', 'RETRY_3'];
