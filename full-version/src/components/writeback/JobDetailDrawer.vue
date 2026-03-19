@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, watch, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import {
   CircleCheckIcon,
@@ -8,6 +8,9 @@ import {
   RefreshIcon,
   ClockIcon,
   DatabaseIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CircleXIcon,
 } from 'vue-tabler-icons';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import { useWritebackStore } from '@/stores/writeback';
@@ -24,6 +27,18 @@ const emit = defineEmits<{
 
 const writebackStore = useWritebackStore();
 const { selectedJob, loading, compensationEntries } = storeToRefs(writebackStore);
+
+const expandedSteps = ref<Set<number>>(new Set());
+
+function toggleStepOutput(index: number) {
+  const next = new Set(expandedSteps.value);
+  if (next.has(index)) {
+    next.delete(index);
+  } else {
+    next.add(index);
+  }
+  expandedSteps.value = next;
+}
 
 const drawerOpen = computed({
   get: () => props.modelValue,
@@ -196,14 +211,51 @@ async function handleRetry() {
                   />
                   <span class="text-body-2 font-weight-medium">{{ step.step_type }}</span>
                 </div>
-                <v-chip
-                  :color="statusColor(step.status)"
-                  variant="tonal"
-                  size="x-small"
-                >
-                  {{ formatDuration(step.duration_ms) }}
-                </v-chip>
+                <div class="d-flex align-center ga-1">
+                  <v-chip
+                    :color="statusColor(step.status)"
+                    variant="tonal"
+                    size="x-small"
+                  >
+                    {{ formatDuration(step.duration_ms) }}
+                  </v-chip>
+                  <v-btn
+                    v-if="step.output"
+                    icon
+                    variant="text"
+                    size="x-small"
+                    @click="toggleStepOutput(index)"
+                  >
+                    <component
+                      :is="expandedSteps.has(index) ? ChevronUpIcon : ChevronDownIcon"
+                      :size="14"
+                      class="text-medium-emphasis"
+                    />
+                  </v-btn>
+                </div>
               </div>
+              <!-- Step output evidence -->
+              <v-card
+                v-if="step.output && expandedSteps.has(index)"
+                variant="outlined"
+                class="mt-2 pa-3 rounded-lg bg-lightsecondary"
+              >
+                <v-row
+                  v-for="(val, key) in step.output"
+                  :key="String(key)"
+                  no-gutters
+                  class="py-1"
+                >
+                  <v-col cols="5" class="text-caption text-medium-emphasis">
+                    {{ key }}
+                  </v-col>
+                  <v-col cols="7" class="text-caption font-weight-medium">
+                    <CircleCheckIcon v-if="val === true" :size="14" class="text-success" />
+                    <CircleXIcon v-else-if="val === false" :size="14" class="text-error" />
+                    <template v-else>{{ val }}</template>
+                  </v-col>
+                </v-row>
+              </v-card>
               <!-- Failed step error -->
               <v-alert
                 v-if="step.status === 'FAILED' && step.error_message"

@@ -27,6 +27,7 @@ export interface StepLogEntry {
     status: 'SUCCESS' | 'FAILED' | 'SKIPPED';
     duration_ms: number | null;
     error_message: string | null;
+    output: Record<string, unknown> | null;
 }
 
 export interface WritebackJobDetail extends WritebackJob {
