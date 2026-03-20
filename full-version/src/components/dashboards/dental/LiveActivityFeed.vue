@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { watchEffect } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { EyeIcon } from 'vue-tabler-icons';
 import { useWritebackStore } from '@/stores/writeback';
+
+const props = defineProps<{
+  clientId?: string | null;
+  clinicId?: string | null;
+}>();
 
 const router = useRouter();
 const writebackStore = useWritebackStore();
@@ -43,8 +48,12 @@ const viewDetails = (jobId: string) => {
   router.push({ path: `/writeback/jobs/${jobId}` });
 };
 
-onMounted(() => {
-  writebackStore.fetchJobs({ per_page: 10 });
+watchEffect(() => {
+  writebackStore.fetchJobs({
+    per_page: 10,
+    client_id: props.clientId ?? undefined,
+    clinic_id: props.clinicId ?? undefined,
+  });
 });
 </script>
 

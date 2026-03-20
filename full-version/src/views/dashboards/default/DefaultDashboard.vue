@@ -289,7 +289,7 @@ onUnmounted(() => {
             View Live Activity
           </v-btn>
         </template>
-        <LiveActivityFeed />
+        <LiveActivityFeed :client-id="selectedClientId" :clinic-id="selectedClinicId" />
       </UiParentCard>
     </v-col>
   </v-row>
