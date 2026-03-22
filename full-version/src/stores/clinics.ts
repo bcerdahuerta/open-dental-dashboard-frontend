@@ -13,7 +13,6 @@ export interface ClinicCreate {
     spreadsheet_id?: string;
     // OD API connection — only used in create flow, not sent to clinic CRUD
     customer_key?: string;
-    od_api_base_url?: string;
 }
 
 export interface ClinicItem {

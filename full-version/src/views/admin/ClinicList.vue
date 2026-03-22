@@ -29,7 +29,6 @@ const formData = ref<ClinicCreate>({
   ccc_clinic_id: '',
   spreadsheet_id: '',
   customer_key: '',
-  od_api_base_url: '',
 });
 
 const headers = [
@@ -59,7 +58,6 @@ function openAdd() {
     ccc_clinic_id: '',
     spreadsheet_id: '',
     customer_key: '',
-    od_api_base_url: '',
   };
   showCustomerKey.value = false;
   dialog.value = true;
@@ -95,14 +93,12 @@ async function saveClinic() {
         value: formData.value.customer_key
       });
     }
-    // Optional base URL override
-    if (formData.value.od_api_base_url) {
-      await clinicStore.upsertCredential(newClinicId, {
-        credential_type: 'opendental_api',
-        key_name: 'base_url',
-        value: formData.value.od_api_base_url
-      });
-    }
+    // Base URL — always the same, hardcoded
+    await clinicStore.upsertCredential(newClinicId, {
+      credential_type: 'opendental_api',
+      key_name: 'base_url',
+      value: 'https://api.opendental.com/api/v1'
+    });
 
     dialog.value = false;
     showSnackbar('Clinic created successfully', 'success');
@@ -267,14 +263,7 @@ watch(selectedClientId, (newVal) => {
             class="mb-4"
           />
 
-          <v-text-field
-            v-model="formData.od_api_base_url"
-            label="OD API Base URL"
-            variant="outlined"
-            color="primary"
-            hide-details="auto"
-            placeholder="Default: https://api.opendental.com/api/v1"
-          />
+
         </v-form>
       </v-card-text>
       <v-card-actions class="pa-4">
