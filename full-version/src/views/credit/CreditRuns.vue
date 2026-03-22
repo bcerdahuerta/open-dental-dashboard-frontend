@@ -11,11 +11,12 @@ import {
 
 const creditStore = useCreditStore();
 const authStore = useAuthStore();
-const { runs, runsPagination, loading, error } = storeToRefs(creditStore);
-const { fetchRuns, triggerRun } = creditStore;
+const { runs, runsPagination, creditClinics, loading, error } = storeToRefs(creditStore);
+const { fetchRuns, triggerRun, fetchCreditClinics } = creditStore;
 
 const showTriggerDialog = ref(false);
 const triggerLoading = ref(false);
+const selectedClinicIds = ref<string[]>([]);
 const snackbar = ref(false);
 const snackbarText = ref('');
 const snackbarColor = ref('success');
@@ -32,6 +33,11 @@ const headers = [
   { title: 'Completed', key: 'completed_at', sortable: false },
   { title: 'Error', key: 'error_message', sortable: false },
 ];
+
+function clinicName(clinicId: string): string {
+  const clinic = creditClinics.value.find((c) => c.id === clinicId);
+  return clinic ? clinic.clinic_name : clinicId.slice(0, 8) + '…';
+}
 
 function statusColor(status: string): string {
   const map: Record<string, string> = {
@@ -55,10 +61,17 @@ function formatDate(iso: string | null): string {
   });
 }
 
+async function openTriggerDialog() {
+  await fetchCreditClinics();
+  selectedClinicIds.value = [];
+  showTriggerDialog.value = true;
+}
+
 async function onTrigger() {
   triggerLoading.value = true;
   try {
-    const result = await triggerRun();
+    const ids = selectedClinicIds.value.length > 0 ? selectedClinicIds.value : undefined;
+    const result = await triggerRun(ids);
     if (result?.dispatched === 0) {
       snackbarText.value = result.message || 'No clinics enrolled in credit. Go to Clinic Detail → Products tab to enable.';
       snackbarColor.value = 'warning';
@@ -84,7 +97,7 @@ function onTableUpdate(opts: { page: number; itemsPerPage: number }) {
 }
 
 onMounted(async () => {
-  await fetchRuns();
+  await Promise.all([fetchRuns(), fetchCreditClinics()]);
 });
 </script>
 
@@ -108,7 +121,7 @@ onMounted(async () => {
             v-if="isAdmin"
             color="primary"
             variant="flat"
-            @click="showTriggerDialog = true"
+            @click="openTriggerDialog"
           >
             <PlayerPlayIcon size="18" class="mr-1" stroke-width="1.5" />
             Trigger Run
@@ -128,7 +141,7 @@ onMounted(async () => {
           @update:options="onTableUpdate"
         >
           <template #item.clinic_id="{ item }">
-            <span class="font-weight-medium">{{ item.clinic_id.slice(0, 8) }}…</span>
+            <span class="font-weight-medium">{{ clinicName(item.clinic_id) }}</span>
           </template>
 
           <template #item.status="{ item }">
@@ -143,7 +156,7 @@ onMounted(async () => {
 
           <template #item.total_credit_amount="{ item }">
             <span class="font-weight-bold text-primary">
-              ${{ item.total_credit_amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+              ${{ item.total_credit_amount?.toLocaleString(undefined, { minimumFractionDigits: 2 }) ?? '0.00' }}
             </span>
           </template>
 
@@ -173,11 +186,35 @@ onMounted(async () => {
   </v-row>
 
   <!-- Trigger confirm dialog -->
-  <v-dialog v-model="showTriggerDialog" max-width="420">
+  <v-dialog v-model="showTriggerDialog" max-width="500">
     <v-card>
       <v-card-title class="text-h6">Trigger Credit Run</v-card-title>
       <v-card-text>
-        This will start a credit analysis for all <strong>enrolled</strong> clinics. Continue?
+        <p class="text-body-1 mb-4">
+          Select which clinics to run credit analysis for, or leave empty to run
+          for <strong>all enrolled</strong> clinics.
+        </p>
+
+        <v-select
+          v-model="selectedClinicIds"
+          :items="creditClinics"
+          item-title="clinic_name"
+          item-value="id"
+          label="Clinics (optional — empty = all)"
+          variant="outlined"
+          color="primary"
+          multiple
+          chips
+          closable-chips
+          hide-details
+        >
+          <template #no-data>
+            <div class="text-center pa-4 text-medium-emphasis">
+              No clinics enrolled in credit.<br />
+              Go to Clinic Detail → Products tab to enable.
+            </div>
+          </template>
+        </v-select>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
@@ -186,9 +223,10 @@ onMounted(async () => {
           color="primary"
           variant="flat"
           :loading="triggerLoading"
+          :disabled="creditClinics.length === 0"
           @click="onTrigger"
         >
-          Confirm
+          {{ selectedClinicIds.length > 0 ? `Run ${selectedClinicIds.length} clinic(s)` : 'Run All' }}
         </v-btn>
       </v-card-actions>
     </v-card>

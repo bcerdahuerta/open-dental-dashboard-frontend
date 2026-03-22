@@ -20,6 +20,7 @@ export const useCreditStore = defineStore('credit', () => {
   const records = ref<CreditRecord[]>([]);
   const selectedRecord = ref<CreditRecord | null>(null);
   const exceptions = ref<CreditException[]>([]);
+  const creditClinics = ref<{ id: string; clinic_name: string }[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
@@ -204,6 +205,17 @@ export const useCreditStore = defineStore('credit', () => {
     }
   }
 
+  async function fetchCreditClinics() {
+    try {
+      creditClinics.value = await fetchWrapper.get(`${baseUrl}/clinics`);
+      return creditClinics.value;
+    } catch (err: any) {
+      error.value = err;
+      creditClinics.value = [];
+      return [];
+    }
+  }
+
   return {
     // State
     summary,
@@ -211,6 +223,7 @@ export const useCreditStore = defineStore('credit', () => {
     records,
     selectedRecord,
     exceptions,
+    creditClinics,
     loading,
     error,
     runsPagination,
@@ -224,5 +237,6 @@ export const useCreditStore = defineStore('credit', () => {
     fetchExceptions,
     triggerRun,
     exportCsv,
+    fetchCreditClinics,
   };
 });
