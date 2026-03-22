@@ -57,6 +57,28 @@ const MainRoutes = {
       component: () => import('@/views/admin/ClinicDetail.vue')
     },
 
+    // Credit module
+    {
+      name: 'CreditDashboard',
+      path: '/credit',
+      component: () => import('@/views/credit/CreditDashboard.vue')
+    },
+    {
+      name: 'CreditRecords',
+      path: '/credit/records',
+      component: () => import('@/views/credit/CreditRecords.vue')
+    },
+    {
+      name: 'CreditRecordDetail',
+      path: '/credit/records/:id',
+      component: () => import('@/views/credit/CreditRecordDetail.vue')
+    },
+    {
+      name: 'CreditRuns',
+      path: '/credit/runs',
+      component: () => import('@/views/credit/CreditRuns.vue')
+    },
+
     {
       name: 'UserProfile',
       path: '/profile',

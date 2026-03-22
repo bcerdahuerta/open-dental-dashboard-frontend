@@ -7,7 +7,10 @@ import {
   ArrowsTransferDownIcon,
   TemplateIcon,
   UsersIcon,
-  ClipboardListIcon
+  ClipboardListIcon,
+  CreditCardIcon,
+  ReportIcon,
+  ClockIcon
 } from 'vue-tabler-icons';
 
 export interface menu {
@@ -31,6 +34,11 @@ const sidebarItem: menu[] = [
   { header: 'Writeback' },
   { title: 'Live Activity', icon: ActivityIcon, to: '/writeback/live' },
   { title: 'Job Queue', icon: ListCheckIcon, to: '/writeback/queue', chip: 'New', chipColor: 'primary' },
+
+  { header: 'Credit' },
+  { title: 'Dashboard', icon: CreditCardIcon, to: '/credit' },
+  { title: 'Records', icon: ReportIcon, to: '/credit/records' },
+  { title: 'Run History', icon: ClockIcon, to: '/credit/runs' },
 
   { header: 'Management' },
   { title: 'Clients', icon: BuildingArchIcon, to: '/admin/clients' },
