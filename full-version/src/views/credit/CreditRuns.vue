@@ -58,9 +58,15 @@ function formatDate(iso: string | null): string {
 async function onTrigger() {
   triggerLoading.value = true;
   try {
-    await triggerRun();
-    snackbarText.value = 'Credit run triggered successfully!';
-    snackbarColor.value = 'success';
+    const result = await triggerRun();
+    if (result?.dispatched === 0) {
+      snackbarText.value = result.message || 'No clinics enrolled in credit. Go to Clinic Detail → Products tab to enable.';
+      snackbarColor.value = 'warning';
+    } else {
+      snackbarText.value = `Credit run triggered for ${result?.dispatched || 0} clinic(s)!`;
+      snackbarColor.value = 'success';
+      await fetchRuns();
+    }
   } catch (err: any) {
     snackbarText.value = `Trigger failed: ${err}`;
     snackbarColor.value = 'error';
@@ -171,7 +177,7 @@ onMounted(async () => {
     <v-card>
       <v-card-title class="text-h6">Trigger Credit Run</v-card-title>
       <v-card-text>
-        This will start a credit analysis for all active clinics. Continue?
+        This will start a credit analysis for all <strong>enrolled</strong> clinics. Continue?
       </v-card-text>
       <v-card-actions>
         <v-spacer />

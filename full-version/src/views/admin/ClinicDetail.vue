@@ -9,6 +9,7 @@ import BenefitMappingsTab from './clinic-config/BenefitMappingsTab.vue';
 import FrequencyMappingsTab from './clinic-config/FrequencyMappingsTab.vue';
 import AgeLimitMappingsTab from './clinic-config/AgeLimitMappingsTab.vue';
 import PipelineStepsTab from './clinic-config/PipelineStepsTab.vue';
+import ProductsTab from './clinic-config/ProductsTab.vue';
 import {
   DeviceFloppyIcon as SaveIcon,
   KeyIcon,
@@ -379,6 +380,7 @@ async function importYamlFile(event: Event) {
           <v-tab value="frequencies">Frequencies</v-tab>
           <v-tab value="age-limits">Age Limits</v-tab>
           <v-tab value="pipeline">Pipeline</v-tab>
+          <v-tab value="products">Products</v-tab>
           <v-tab value="writeback">Writeback</v-tab>
         </v-tabs>
 
@@ -659,6 +661,11 @@ async function importYamlFile(event: Event) {
           <!-- Pipeline Tab -->
           <v-window-item value="pipeline">
             <PipelineStepsTab :clinic-id="clinicId" :client-id="currentClinic?.client_id" />
+          </v-window-item>
+
+          <!-- Products Tab -->
+          <v-window-item value="products">
+            <ProductsTab :clinic-id="clinicId" />
           </v-window-item>
 
           <!-- Writeback Tab -->

@@ -43,10 +43,20 @@ export interface CatalogueData {
     image_folders: { DefNum: number; ItemName: string; ItemOrder: number }[];
 }
 
+export interface ProductEnrollment {
+    id: string;
+    clinic_id: string;
+    product_type: string;
+    enabled: boolean;
+    enrolled_at: string | null;
+    enrolled_by: string | null;
+}
+
 export const useClinicStore = defineStore('clinics', () => {
     const clinics = ref<ClinicItem[]>([]);
     const currentClinic = ref<ClinicItem | null>(null);
     const credentials = ref<CredentialItem[]>([]);
+    const enrollments = ref<ProductEnrollment[]>([]);
     const loading = ref(false);
     const error = ref<string | null>(null);
 
@@ -143,6 +153,47 @@ export const useClinicStore = defineStore('clinics', () => {
         return await fetchWrapper.post(`${clinicsUrl}/${targetClinicId}/clone-config`, { source_clinic_id: sourceClinicId });
     }
 
+    // --- Product Enrollment Methods ---
+
+    async function fetchEnrollments(clinicId: string) {
+        try {
+            enrollments.value = await fetchWrapper.get(`${clinicsUrl}/${clinicId}/enrollments`);
+            return enrollments.value;
+        } catch (err: any) {
+            error.value = err.message || err;
+            enrollments.value = [];
+            return [];
+        }
+    }
+
+    async function enrollProduct(clinicId: string, productType: string) {
+        try {
+            const result = await fetchWrapper.post(
+                `${clinicsUrl}/${clinicId}/enrollments`,
+                { product_type: productType },
+            );
+            await fetchEnrollments(clinicId);
+            return result;
+        } catch (err: any) {
+            error.value = err.message || err;
+            throw err;
+        }
+    }
+
+    async function toggleProduct(clinicId: string, productType: string, enabled: boolean) {
+        try {
+            const result = await fetchWrapper.put(
+                `${clinicsUrl}/${clinicId}/enrollments/${productType}`,
+                { enabled },
+            );
+            await fetchEnrollments(clinicId);
+            return result;
+        } catch (err: any) {
+            error.value = err.message || err;
+            throw err;
+        }
+    }
+
     // --- Config API Methods ---
 
     async function fetchBenefitMappings(clinicId: string) {
@@ -186,10 +237,11 @@ export const useClinicStore = defineStore('clinics', () => {
     }
 
     return {
-        clinics, currentClinic, credentials, loading, error,
+        clinics, currentClinic, credentials, enrollments, loading, error,
         fetchClinics, fetchClinic, createClinic, updateClinic,
         fetchCredentials, upsertCredential, testConnection,
         fetchCatalogue, cloneConfig,
+        fetchEnrollments, enrollProduct, toggleProduct,
         fetchBenefitMappings, saveBenefitMappings,
         fetchFrequencyMappings, saveFrequencyMappings,
         fetchAgeLimitMappings, saveAgeLimitMappings,
