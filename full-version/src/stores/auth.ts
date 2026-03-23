@@ -10,6 +10,7 @@ interface User {
   email: string;
   display_name: string;
   role: string;
+  allowed_products: string[];
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -54,6 +55,12 @@ export const useAuthStore = defineStore('auth', () => {
       refresh_token.value = data.refresh_token;
       localStorage.setItem('access_token', access_token.value!);
       localStorage.setItem('refresh_token', refresh_token.value!);
+
+      // Sync product access (prevents stale state after admin changes)
+      if (data.allowed_products && user.value) {
+        user.value = { ...user.value, allowed_products: data.allowed_products };
+        localStorage.setItem('user', JSON.stringify(user.value));
+      }
     } catch (error) {
       logout();
       throw error;
@@ -70,6 +77,10 @@ export const useAuthStore = defineStore('auth', () => {
     router.push('/login');
   }
 
+  function hasProduct(product: string): boolean {
+    return user.value?.allowed_products?.includes(product) ?? false;
+  }
+
   return {
     user,
     access_token,
@@ -77,6 +88,8 @@ export const useAuthStore = defineStore('auth', () => {
     returnUrl,
     login,
     refresh,
-    logout
+    logout,
+    hasProduct
   };
 });
+

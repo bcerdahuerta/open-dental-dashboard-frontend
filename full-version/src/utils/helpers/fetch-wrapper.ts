@@ -1,4 +1,5 @@
 import { useAuthStore } from '@/stores/auth';
+import { router } from '@/router';
 
 export const fetchWrapper = {
   get: request('GET'),
@@ -6,6 +7,9 @@ export const fetchWrapper = {
   put: request('PUT'),
   delete: request('DELETE')
 };
+
+// Prevent concurrent 403 redirects
+let isHandling403 = false;
 
 function request(method: string) {
   return async (url: string, body?: object) => {
@@ -29,6 +33,26 @@ function request(method: string) {
         response = await fetch(url, requestOptions);
       } catch (e) {
         return Promise.reject('Session expired');
+      }
+    }
+
+    // Handle product access 403 — sync state and redirect
+    if (response.status === 403 && authStore.user && !isHandling403) {
+      const cloned = response.clone();
+      try {
+        const errorData = await cloned.json();
+        if (errorData?.message?.includes('No access to module')) {
+          isHandling403 = true;
+          try {
+            await authStore.refresh();
+          } catch (_) {
+            // refresh failed — proceed to reject below
+          }
+          router.push('/dashboard/default');
+          isHandling403 = false;
+        }
+      } catch (_) {
+        // Not JSON — proceed normally
       }
     }
 
@@ -56,3 +80,4 @@ async function handleResponse(response: Response) {
 
   return data?.data !== undefined ? data.data : data;
 }
+

@@ -28,6 +28,7 @@ interface UserItem {
   created_at: string;
   approved_by: string | null;
   approved_at: string | null;
+  allowed_products: string[];
 }
 
 interface RoleItem {
@@ -48,9 +49,16 @@ const rejectTarget = ref<UserItem | null>(null);
 const deleteDialog = ref(false);
 const deleteTarget = ref<UserItem | null>(null);
 const selectedRoles = ref<Record<string, string>>({});
+const selectedProducts = ref<Record<string, string[]>>({});
 const snackbar = ref(false);
 const snackbarMsg = ref('');
 const snackbarColor = ref('success');
+
+// Available products for checkboxes
+const availableProducts = [
+  { value: 'credit', label: 'Credit' },
+  { value: 'writeback', label: 'Insurance Verification' }
+];
 
 // Table headers
 const pendingHeaders = [
@@ -58,6 +66,7 @@ const pendingHeaders = [
   { title: 'Display Name', key: 'display_name', sortable: true },
   { title: 'Registered', key: 'created_at', sortable: true },
   { title: 'Assign Role', key: 'role_select', sortable: false },
+  { title: 'Products', key: 'product_select', sortable: false },
   { title: 'Actions', key: 'actions', sortable: false, align: 'center' as const }
 ];
 
@@ -66,6 +75,7 @@ const allHeaders = [
   { title: 'Display Name', key: 'display_name', sortable: true },
   { title: 'Status', key: 'status', sortable: true },
   { title: 'Role', key: 'role_select', sortable: false },
+  { title: 'Products', key: 'products', sortable: false },
   { title: 'Created', key: 'created_at', sortable: true },
   { title: 'Actions', key: 'actions', sortable: false, align: 'center' as const }
 ];
@@ -135,9 +145,13 @@ async function refreshAll() {
 async function approveUser(user: UserItem) {
   approveLoading.value = user.id;
   try {
-    const body: Record<string, string> = {};
+    const body: Record<string, any> = {};
     if (selectedRoles.value[user.id]) {
       body.role_id = selectedRoles.value[user.id];
+    }
+    // Send selected products (defaults to both on backend if omitted)
+    if (selectedProducts.value[user.id]?.length) {
+      body.product_types = selectedProducts.value[user.id];
     }
     await fetchWrapper.post(`${apiUrl}/users/${user.id}/approve`, body);
     snackbarMsg.value = `${user.email} approved successfully`;
@@ -190,6 +204,24 @@ async function changeRole(userId: string, roleId: string) {
     snackbarColor.value = 'error';
     snackbar.value = true;
   }
+}
+
+async function updateProducts(userId: string, products: string[]) {
+  try {
+    await fetchWrapper.put(`${apiUrl}/users/${userId}/products`, { product_types: products });
+    snackbarMsg.value = 'Product access updated';
+    snackbarColor.value = 'success';
+    snackbar.value = true;
+    await refreshAll();
+  } catch (e: any) {
+    snackbarMsg.value = e.message || 'Failed to update product access';
+    snackbarColor.value = 'error';
+    snackbar.value = true;
+  }
+}
+
+function isAdminUser(user: UserItem): boolean {
+  return user.role_name === 'admin';
 }
 
 async function toggleActive(user: UserItem) {
@@ -280,6 +312,22 @@ onMounted(() => refreshAll());
             />
           </template>
 
+          <template #item.product_select="{ item }">
+            <div class="d-flex ga-2">
+              <v-checkbox
+                v-for="p in availableProducts"
+                :key="p.value"
+                v-model="selectedProducts[item.id]"
+                :value="p.value"
+                :label="p.label"
+                density="compact"
+                hide-details
+                color="primary"
+                class="mt-0"
+              />
+            </div>
+          </template>
+
           <template #item.actions="{ item }">
             <div class="d-flex justify-center ga-2">
               <v-btn
@@ -350,6 +398,45 @@ onMounted(() => refreshAll());
               class="my-1"
               @update:model-value="(val) => changeRole(item.id, val)"
             />
+          </template>
+
+          <template #item.products="{ item }">
+            <div v-if="isAdminUser(item)">
+              <v-tooltip text="Administrators have implicit full access">
+                <template #activator="{ props }">
+                  <div v-bind="props" class="d-flex ga-1">
+                    <v-chip
+                      v-for="p in availableProducts"
+                      :key="p.value"
+                      size="small"
+                      color="primary"
+                      variant="tonal"
+                    >
+                      {{ p.label }}
+                    </v-chip>
+                  </div>
+                </template>
+              </v-tooltip>
+            </div>
+            <div v-else class="d-flex ga-2">
+              <v-checkbox
+                v-for="p in availableProducts"
+                :key="p.value"
+                :model-value="item.allowed_products?.includes(p.value)"
+                :label="p.label"
+                density="compact"
+                hide-details
+                color="primary"
+                class="mt-0"
+                @update:model-value="(checked) => {
+                  const current = [...(item.allowed_products || [])];
+                  const updated = checked
+                    ? [...current, p.value]
+                    : current.filter(x => x !== p.value);
+                  updateProducts(item.id, updated);
+                }"
+              />
+            </div>
           </template>
 
           <template #item.created_at="{ item }">

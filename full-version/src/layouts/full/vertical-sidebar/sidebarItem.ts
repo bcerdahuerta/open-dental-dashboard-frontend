@@ -25,20 +25,21 @@ export interface menu {
   disabled?: boolean;
   type?: string;
   subCaption?: string;
+  requiredProduct?: string;
 }
 
 const sidebarItem: menu[] = [
   { header: 'Overview' },
   { title: 'Operations Hub', icon: DashboardIcon, to: '/dashboard/default' },
 
-  { header: 'Writeback' },
-  { title: 'Live Activity', icon: ActivityIcon, to: '/writeback/live' },
-  { title: 'Job Queue', icon: ListCheckIcon, to: '/writeback/queue', chip: 'New', chipColor: 'primary' },
+  { header: 'Writeback', requiredProduct: 'writeback' },
+  { title: 'Live Activity', icon: ActivityIcon, to: '/writeback/live', requiredProduct: 'writeback' },
+  { title: 'Job Queue', icon: ListCheckIcon, to: '/writeback/queue', chip: 'New', chipColor: 'primary', requiredProduct: 'writeback' },
 
-  { header: 'Credit' },
-  { title: 'Dashboard', icon: CreditCardIcon, to: '/credit' },
-  { title: 'Records', icon: ReportIcon, to: '/credit/records' },
-  { title: 'Run History', icon: ClockIcon, to: '/credit/runs' },
+  { header: 'Credit', requiredProduct: 'credit' },
+  { title: 'Dashboard', icon: CreditCardIcon, to: '/credit', requiredProduct: 'credit' },
+  { title: 'Records', icon: ReportIcon, to: '/credit/records', requiredProduct: 'credit' },
+  { title: 'Run History', icon: ClockIcon, to: '/credit/runs', requiredProduct: 'credit' },
 
   { header: 'Management' },
   { title: 'Clients', icon: BuildingArchIcon, to: '/admin/clients' },
@@ -52,3 +53,4 @@ const sidebarItem: menu[] = [
 ];
 
 export default sidebarItem;
+

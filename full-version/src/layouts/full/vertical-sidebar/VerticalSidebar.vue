@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { shallowRef } from 'vue';
+import { computed } from 'vue';
 import { useCustomizerStore } from '../../../stores/customizer';
+import { useAuthStore } from '@/stores/auth';
 import sidebarItems from './sidebarItem';
 
 import NavGroup from './NavGroup/NavGroup.vue';
@@ -9,9 +10,17 @@ import NavCollapse from './NavCollapse/NavCollapse.vue';
 
 import Logo from '../logo/LogoMain.vue';
 
-// Access customizer store
+// Access stores
 const customizer = useCustomizerStore();
-const sidebarMenu = shallowRef(sidebarItems);
+const auth = useAuthStore();
+
+// Filter sidebar items based on product access
+const sidebarMenu = computed(() =>
+  sidebarItems.filter((item) => {
+    if (!item.requiredProduct) return true;
+    return auth.hasProduct(item.requiredProduct);
+  })
+);
 
 // Assign the version to a variable
 const appVersion = import.meta.env.VITE_APP_VERSION;

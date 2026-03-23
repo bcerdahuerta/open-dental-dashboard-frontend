@@ -31,6 +31,12 @@ router.beforeEach(async (to, from, next) => {
   } else if (auth.user && to.path === '/login') {
     next('/dashboard/default');
   } else {
-    next();
+    // Check product-level access
+    const requiredProduct = to.meta?.requiredProduct as string | undefined;
+    if (requiredProduct && auth.user && !auth.hasProduct(requiredProduct)) {
+      next('/dashboard/default');
+    } else {
+      next();
+    }
   }
 });
