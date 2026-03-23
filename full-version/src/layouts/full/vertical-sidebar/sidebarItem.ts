@@ -29,8 +29,8 @@ export interface menu {
 }
 
 const sidebarItem: menu[] = [
-  { header: 'Overview' },
-  { title: 'Operations Hub', icon: DashboardIcon, to: '/dashboard/default' },
+  { header: 'Overview', requiredProduct: 'writeback' },
+  { title: 'Operations Hub', icon: DashboardIcon, to: '/dashboard/default', requiredProduct: 'writeback' },
 
   { header: 'Writeback', requiredProduct: 'writeback' },
   { title: 'Live Activity', icon: ActivityIcon, to: '/writeback/live', requiredProduct: 'writeback' },
@@ -41,13 +41,13 @@ const sidebarItem: menu[] = [
   { title: 'Records', icon: ReportIcon, to: '/credit/records', requiredProduct: 'credit' },
   { title: 'Run History', icon: ClockIcon, to: '/credit/runs', requiredProduct: 'credit' },
 
-  { header: 'Management' },
-  { title: 'Clients', icon: BuildingArchIcon, to: '/admin/clients' },
-  { title: 'Clinics', icon: BuildingIcon, to: '/admin/clinics' },
-  { title: 'Pipelines', icon: ArrowsTransferDownIcon, to: '/admin/pipelines' },
+  { header: 'Management', requiredProduct: 'writeback' },
+  { title: 'Clients', icon: BuildingArchIcon, to: '/admin/clients', requiredProduct: 'writeback' },
+  { title: 'Clinics', icon: BuildingIcon, to: '/admin/clinics', requiredProduct: 'writeback' },
+  { title: 'Pipelines', icon: ArrowsTransferDownIcon, to: '/admin/pipelines', requiredProduct: 'writeback' },
 
   { header: 'Configuration' },
-  { title: 'Templates', icon: TemplateIcon, to: '/admin/templates' },
+  { title: 'Templates', icon: TemplateIcon, to: '/admin/templates', requiredProduct: 'writeback' },
   { title: 'Users', icon: UsersIcon, to: '/admin/users' },
   { title: 'System Logs', icon: ClipboardListIcon, to: '/admin/logs' }
 ];

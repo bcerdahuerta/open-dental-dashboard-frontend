@@ -25,16 +25,24 @@ router.beforeEach(async (to, from, next) => {
   const isPublicPage = publicPages.includes(to.path);
   const authRequired = !isPublicPage && to.matched.some((record) => record.meta.requiresAuth);
 
+  // Determine the user's landing page based on their products
+  const getLandingPage = () => {
+    if (!auth.user) return '/login';
+    if (auth.hasProduct('writeback')) return '/dashboard/default';
+    if (auth.hasProduct('credit')) return '/credit';
+    return '/login'; // no products — shouldn't happen
+  };
+
   if (authRequired && !auth.user) {
     auth.returnUrl = to.fullPath;
     next('/login');
   } else if (auth.user && to.path === '/login') {
-    next('/dashboard/default');
+    next(getLandingPage());
   } else {
     // Check product-level access
     const requiredProduct = to.meta?.requiredProduct as string | undefined;
     if (requiredProduct && auth.user && !auth.hasProduct(requiredProduct)) {
-      next('/dashboard/default');
+      next(getLandingPage());
     } else {
       next();
     }

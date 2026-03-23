@@ -9,26 +9,31 @@ const MainRoutes = {
     {
       name: 'Default',
       path: '/dashboard/default',
+      meta: { requiredProduct: 'writeback' },
       component: () => import('@/views/dashboards/default/DefaultDashboard.vue')
     },
     {
       name: 'ClientManagement',
       path: '/admin/clients',
+      meta: { requiredProduct: 'writeback' },
       component: () => import('@/views/admin/ClientList.vue')
     },
     {
       name: 'ClinicManagement',
       path: '/admin/clinics',
+      meta: { requiredProduct: 'writeback' },
       component: () => import('@/views/admin/ClinicList.vue')
     },
     {
       name: 'Pipelines',
       path: '/admin/pipelines',
+      meta: { requiredProduct: 'writeback' },
       component: () => import('@/views/admin/PipelineList.vue')
     },
     {
       name: 'Templates',
       path: '/admin/templates',
+      meta: { requiredProduct: 'writeback' },
       component: () => import('@/views/admin/TemplateList.vue')
     },
     {
@@ -56,6 +61,7 @@ const MainRoutes = {
     {
       name: 'ClinicDetail',
       path: '/admin/clinics/:id',
+      meta: { requiredProduct: 'writeback' },
       component: () => import('@/views/admin/ClinicDetail.vue')
     },
 
