@@ -20,8 +20,20 @@ export type Disposition =
   | 'RecoupFromInsurance'
   | 'ManualReview';
 
+export interface AgingBucket {
+  count: number;
+  amount: number;
+}
+
+export interface ExceptionSummaryItem {
+  flag_type: string;
+  severity: string;
+  count: number;
+}
+
 export interface CreditSummary {
   clinic_id: string;
+  clinic_name: string;
   run_id: string;
   run_date: string | null;
   total_patients: number;
@@ -29,6 +41,12 @@ export interface CreditSummary {
   total_exceptions: number;
   total_credit_amount: number;
   od_version: string | null;
+  avg_age_days: number;
+  action_required_count: number;
+  aging_distribution: Record<string, AgingBucket>;
+  disposition_distribution: Record<string, AgingBucket>;
+  exception_summary: ExceptionSummaryItem[];
+  credit_type_distribution: Record<string, AgingBucket>;
 }
 
 export interface CreditRun {
