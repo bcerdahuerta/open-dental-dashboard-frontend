@@ -14,11 +14,14 @@ import Logo from '../logo/LogoMain.vue';
 const customizer = useCustomizerStore();
 const auth = useAuthStore();
 
-// Filter sidebar items based on product access
+// Filter sidebar items based on product access and role
 const sidebarMenu = computed(() =>
   sidebarItems.filter((item) => {
-    if (!item.requiredProduct) return true;
-    return auth.hasProduct(item.requiredProduct);
+    // Check role requirement
+    if (item.requiredRole && auth.user?.role !== item.requiredRole) return false;
+    // Check product requirement
+    if (item.requiredProduct && !auth.hasProduct(item.requiredProduct)) return false;
+    return true;
   })
 );
 

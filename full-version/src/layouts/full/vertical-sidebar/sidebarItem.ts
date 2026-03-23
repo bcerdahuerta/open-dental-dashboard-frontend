@@ -26,6 +26,7 @@ export interface menu {
   type?: string;
   subCaption?: string;
   requiredProduct?: string;
+  requiredRole?: string;
 }
 
 const sidebarItem: menu[] = [
@@ -46,10 +47,10 @@ const sidebarItem: menu[] = [
   { title: 'Clinics', icon: BuildingIcon, to: '/admin/clinics', requiredProduct: 'writeback' },
   { title: 'Pipelines', icon: ArrowsTransferDownIcon, to: '/admin/pipelines', requiredProduct: 'writeback' },
 
-  { header: 'Configuration' },
-  { title: 'Templates', icon: TemplateIcon, to: '/admin/templates', requiredProduct: 'writeback' },
-  { title: 'Users', icon: UsersIcon, to: '/admin/users' },
-  { title: 'System Logs', icon: ClipboardListIcon, to: '/admin/logs' }
+  { header: 'Configuration', requiredRole: 'admin' },
+  { title: 'Templates', icon: TemplateIcon, to: '/admin/templates', requiredProduct: 'writeback', requiredRole: 'admin' },
+  { title: 'Users', icon: UsersIcon, to: '/admin/users', requiredRole: 'admin' },
+  { title: 'System Logs', icon: ClipboardListIcon, to: '/admin/logs', requiredRole: 'admin' }
 ];
 
 export default sidebarItem;
