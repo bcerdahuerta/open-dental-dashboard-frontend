@@ -19,6 +19,13 @@ export const useWritebackStore = defineStore('writeback', () => {
         EXECUTING: 0,
         DONE: 0,
         FAILED: 0,
+        EXTRACTED: 0,
+        EXECUTED: 0,
+        PARTIAL: 0,
+        SYNCING: 0,
+        SYNCED: 0,
+        EXTRACT_FAILED: 0,
+        SYNC_FAILED: 0,
         total: 0,
     });
     const jobs = ref<WritebackJob[]>([]);

@@ -61,7 +61,7 @@ const scopedStats = computed<QueueStats>(() => {
 
   // Client selected w/ "All Clinics" → aggregate from clinicStatsMap
   if (selectedClientId.value && clinics.value.length > 0) {
-    const agg: QueueStats = { PENDING: 0, POLLING: 0, EXTRACTING: 0, EXECUTING: 0, DONE: 0, FAILED: 0, total: 0 };
+    const agg: QueueStats = { PENDING: 0, POLLING: 0, EXTRACTING: 0, EXECUTING: 0, DONE: 0, FAILED: 0, EXTRACTED: 0, EXECUTED: 0, PARTIAL: 0, SYNCING: 0, SYNCED: 0, EXTRACT_FAILED: 0, SYNC_FAILED: 0, total: 0 };
     for (const clinic of clinics.value) {
       const cs = clinicStatsMap.value[clinic.id];
       if (cs) {
