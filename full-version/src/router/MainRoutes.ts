@@ -31,6 +31,12 @@ const MainRoutes = {
       component: () => import('@/views/admin/PipelineList.vue')
     },
     {
+      name: 'ProfileResolution',
+      path: '/admin/profile-resolution',
+      meta: { requiredProduct: 'writeback' },
+      component: () => import('@/views/admin/ProfileResolution.vue')
+    },
+    {
       name: 'Templates',
       path: '/admin/templates',
       meta: { requiredProduct: 'writeback' },

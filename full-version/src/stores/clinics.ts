@@ -71,6 +71,32 @@ export const useClinicStore = defineStore('clinics', () => {
         }
     }
 
+    async function fetchClinicCatalog(params?: {
+        search?: string;
+        limit?: number;
+        clientId?: string;
+        includeInactive?: boolean;
+    }) {
+        loading.value = true;
+        error.value = null;
+        try {
+            const query = new URLSearchParams();
+            if (params?.search) query.set('search', params.search);
+            if (typeof params?.limit === 'number') query.set('limit', String(params.limit));
+            if (params?.clientId) query.set('client_id', params.clientId);
+            if (params?.includeInactive) query.set('include_inactive', 'true');
+
+            const url = query.toString() ? `${clinicsUrl}?${query.toString()}` : clinicsUrl;
+            clinics.value = await fetchWrapper.get(url);
+            return clinics.value;
+        } catch (err: any) {
+            error.value = err.message || err;
+            throw err;
+        } finally {
+            loading.value = false;
+        }
+    }
+
     async function fetchClinic(clinicId: string) {
         loading.value = true;
         error.value = null;
@@ -237,7 +263,7 @@ export const useClinicStore = defineStore('clinics', () => {
 
     return {
         clinics, currentClinic, credentials, enrollments, loading, error,
-        fetchClinics, fetchClinic, createClinic, updateClinic,
+        fetchClinics, fetchClinicCatalog, fetchClinic, createClinic, updateClinic,
         fetchCredentials, upsertCredential, testConnection,
         fetchCatalogue, cloneConfig,
         fetchEnrollments, enrollProduct, toggleProduct,

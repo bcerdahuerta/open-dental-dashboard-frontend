@@ -29,11 +29,17 @@ export const useClientStore = defineStore('clients', () => {
     const loading = ref(false);
     const error = ref<string | null>(null);
 
-    async function fetchClients() {
+    async function fetchClients(params?: { search?: string; limit?: number; includeInactive?: boolean }) {
         loading.value = true;
         error.value = null;
         try {
-            clients.value = await fetchWrapper.get(baseUrl);
+            const query = new URLSearchParams();
+            if (params?.search) query.set('search', params.search);
+            if (typeof params?.limit === 'number') query.set('limit', String(params.limit));
+            if (params?.includeInactive) query.set('include_inactive', 'true');
+
+            const url = query.toString() ? `${baseUrl}?${query.toString()}` : baseUrl;
+            clients.value = await fetchWrapper.get(url);
         } catch (err: any) {
             error.value = err.message || err;
         } finally {

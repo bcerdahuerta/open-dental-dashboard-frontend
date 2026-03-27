@@ -5,6 +5,7 @@ import {
   BuildingArchIcon,
   BuildingIcon,
   ArrowsTransferDownIcon,
+  Hierarchy3Icon,
   TemplateIcon,
   UsersIcon,
   ClipboardListIcon,
@@ -46,6 +47,7 @@ const sidebarItem: menu[] = [
   { title: 'Clients', icon: BuildingArchIcon, to: '/admin/clients', requiredProduct: 'writeback' },
   { title: 'Clinics', icon: BuildingIcon, to: '/admin/clinics', requiredProduct: 'writeback' },
   { title: 'Pipelines', icon: ArrowsTransferDownIcon, to: '/admin/pipelines', requiredProduct: 'writeback' },
+  { title: 'Profile Resolution', icon: Hierarchy3Icon, to: '/admin/profile-resolution', requiredProduct: 'writeback' },
 
   { header: 'Configuration', requiredRole: 'admin' },
   { title: 'Templates', icon: TemplateIcon, to: '/admin/templates', requiredProduct: 'writeback', requiredRole: 'admin' },
