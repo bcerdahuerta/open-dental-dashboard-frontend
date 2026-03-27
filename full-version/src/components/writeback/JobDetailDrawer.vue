@@ -79,6 +79,14 @@ function statusColor(status: string): string {
     SKIPPED: 'grey',
     RECORDED: 'info',
     REVERSED: 'warning',
+    // v2 statuses
+    EXTRACTED: 'info',
+    EXECUTED: 'info',
+    PARTIAL: 'orange',
+    SYNCING: 'primary',
+    SYNCED: 'success',
+    EXTRACT_FAILED: 'error',
+    SYNC_FAILED: 'error',
   };
   return colors[status] || 'grey';
 }
@@ -319,7 +327,7 @@ async function handleRetry() {
         </UiParentCard>
 
         <!-- Footer: Retry button -->
-        <div v-if="selectedJob.status === 'FAILED'" class="mt-4">
+        <div v-if="selectedJob.status === 'FAILED' || selectedJob.status === 'PARTIAL'" class="mt-4">
           <v-btn color="warning" variant="flat" block @click="handleRetry">
             <RefreshIcon size="18" class="mr-2" />
             Retry Job

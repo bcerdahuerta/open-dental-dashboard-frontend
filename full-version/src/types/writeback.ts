@@ -1,10 +1,15 @@
 /** Writeback domain types — shared across stores, components, and pages. */
 
-export type JobStatus = 'PENDING' | 'POLLING' | 'EXTRACTING' | 'EXECUTING' | 'DONE' | 'FAILED';
+export type JobStatus =
+  // v1 statuses
+  | 'PENDING' | 'POLLING' | 'EXTRACTING' | 'EXECUTING' | 'DONE' | 'FAILED'
+  // v2 event-pipeline statuses
+  | 'EXTRACTED' | 'EXECUTED' | 'PARTIAL' | 'SYNCING' | 'SYNCED' | 'EXTRACT_FAILED' | 'SYNC_FAILED';
 
 export interface WritebackJob {
     id: string;
     clinic_id: string;
+    clinic_name: string | null;
     patient_name: string | null;
     row_index: number;
     spreadsheet_id: string;
@@ -48,6 +53,14 @@ export interface QueueStats {
     EXECUTING: number;
     DONE: number;
     FAILED: number;
+    // v2 statuses
+    EXTRACTED: number;
+    EXECUTED: number;
+    PARTIAL: number;
+    SYNCING: number;
+    SYNCED: number;
+    EXTRACT_FAILED: number;
+    SYNC_FAILED: number;
     total: number;
 }
 

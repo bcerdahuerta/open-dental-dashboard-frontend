@@ -45,13 +45,21 @@ const statusOptions = [
   { title: 'Polling', value: 'POLLING' },
   { title: 'Extracting', value: 'EXTRACTING' },
   { title: 'Executing', value: 'EXECUTING' },
+  { title: 'Extracted', value: 'EXTRACTED' },
+  { title: 'Executed', value: 'EXECUTED' },
+  { title: 'Partial', value: 'PARTIAL' },
+  { title: 'Syncing', value: 'SYNCING' },
+  { title: 'Synced', value: 'SYNCED' },
   { title: 'Done', value: 'DONE' },
   { title: 'Failed', value: 'FAILED' },
+  { title: 'Extract Failed', value: 'EXTRACT_FAILED' },
+  { title: 'Sync Failed', value: 'SYNC_FAILED' },
 ];
 
 // Table headers
 const headers = [
   { title: 'Patient', key: 'patient_name', sortable: false },
+  { title: 'Clinic', key: 'clinic_name', sortable: false, width: '160px' },
   { title: 'Row #', key: 'row_index', sortable: false, width: '70px' },
   { title: 'Appt Date', key: 'sheet_tab', sortable: false, width: '120px' },
   { title: 'Profile', key: 'matched_profile', sortable: false, width: '180px' },
@@ -70,6 +78,14 @@ function statusColor(status: string): string {
     EXECUTING: 'primary',
     DONE: 'success',
     FAILED: 'error',
+    // v2 statuses
+    EXTRACTED: 'info',
+    EXECUTED: 'info',
+    PARTIAL: 'orange',
+    SYNCING: 'primary',
+    SYNCED: 'success',
+    EXTRACT_FAILED: 'error',
+    SYNC_FAILED: 'error',
   };
   return colors[status] || 'grey';
 }
@@ -275,6 +291,13 @@ onUnmounted(() => {
             </span>
           </template>
 
+          <!-- Clinic name -->
+          <template #item.clinic_name="{ item }">
+            <span class="text-body-2 text-medium-emphasis">
+              {{ item.clinic_name || '—' }}
+            </span>
+          </template>
+
           <!-- Row index -->
           <template #item.row_index="{ item }">
             <span class="text-body-2 text-medium-emphasis">{{ item.row_index }}</span>
@@ -342,7 +365,7 @@ onUnmounted(() => {
               Execute
             </v-btn>
             <v-btn
-              v-if="item.status === 'FAILED'"
+              v-if="item.status === 'FAILED' || item.status === 'PARTIAL'"
               color="warning"
               variant="tonal"
               size="x-small"
