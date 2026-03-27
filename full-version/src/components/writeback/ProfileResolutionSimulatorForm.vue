@@ -144,6 +144,19 @@ function onReset() {
                         @update:model-value="(value) => patchField('verification_status', String(value ?? ''))"
                     />
                 </v-col>
+
+                <v-col cols="12" md="6">
+                    <v-switch
+                        :model-value="form.has_shortform ?? false"
+                        label="Has Shortform"
+                        color="primary"
+                        hide-details="auto"
+                        density="compact"
+                        hint="Set to true if short form is available for this client"
+                        persistent-hint
+                        @update:model-value="(value) => patchField('has_shortform', Boolean(value))"
+                    />
+                </v-col>
             </v-row>
 
             <v-alert v-if="touched && validationErrors.length" type="warning" variant="tonal" density="compact" class="mb-3">
