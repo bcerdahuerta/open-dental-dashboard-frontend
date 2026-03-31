@@ -70,3 +70,49 @@ export interface JobsPagination {
     total: number;
     pages: number;
 }
+
+export interface PreviewReadyRow {
+    row_index: number;
+    sheet_tab: string;
+    selection_key: string;
+    patient_name: string;
+    audit_status: string;
+    is_not_found: boolean;
+    matched_profile: string | null;
+    matched_profile_id: string | null;
+    verification_type: string;
+    verification_status: string;
+    preview_snapshot_token: string;
+    preview_generated_at: string;
+}
+
+export interface SyncSelection {
+    row_index: number;
+    sheet_tab: string;
+    selection_key: string;
+    patient_name?: string;
+}
+
+export interface SyncClinicRequest {
+    selections: SyncSelection[];
+    preview_snapshot_token?: string | null;
+    preview_generated_at?: string | null;
+    preview_rows_found?: number;
+}
+
+export interface SyncClinicResult {
+    clinic_id: string;
+    rows_found_before_filter: number;
+    rows_requested: number;
+    rows_after_filter: number;
+    jobs_created: number;
+    jobs_deduplicated: number;
+    jobs_failed_enqueue: number;
+    current_snapshot_token: string;
+    resolved_profiles: Array<{
+        row_index: number;
+        sheet_tab: string;
+        matched_profile_id: string | null;
+        matched_profile: string | null;
+    }>;
+}

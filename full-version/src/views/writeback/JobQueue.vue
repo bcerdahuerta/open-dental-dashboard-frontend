@@ -12,7 +12,7 @@ import UiParentCard from '@/components/shared/UiParentCard.vue';
 import { useWritebackStore } from '@/stores/writeback';
 import { useClientStore } from '@/stores/clients';
 import { useClinicStore } from '@/stores/clinics';
-import type { QueueStats } from '@/types/writeback';
+import type { QueueStats, PreviewReadyRow, SyncSelection } from '@/types/writeback';
 
 const writebackStore = useWritebackStore();
 const clientStore = useClientStore();
@@ -33,11 +33,13 @@ const clinicReadyCountMap = ref<Record<string, number>>({});
 const previewDialog = ref(false);
 const previewClinicId = ref<string | null>(null);
 const previewClinicName = ref('');
-const previewRows = ref<any[]>([]);
+const previewRows = ref<PreviewReadyRow[]>([]);
 const previewLoading = ref(false);
-const selectedRows = ref<any[]>([]);
+const selectedRows = ref<PreviewReadyRow[]>([]);
 const syncingSelected = ref(false);
 const filterSheetTab = ref<string | undefined>(undefined);
+const previewSnapshotToken = ref<string | null>(null);
+const previewGeneratedAt = ref<string | null>(null);
 
 // Preview table headers
 const previewHeaders = [
@@ -52,20 +54,25 @@ const previewHeaders = [
 
 // Computed: unique sheet tabs for filter
 const uniqueSheetTabs = computed(() =>
-  [...new Set(previewRows.value.map((r: any) => r.sheet_tab).filter(Boolean))].sort()
+  [...new Set(previewRows.value.map((r) => r.sheet_tab).filter(Boolean))].sort()
 );
 
 // Computed: filtered preview rows
 const filteredPreviewRows = computed(() =>
   filterSheetTab.value
-    ? previewRows.value.filter((r: any) => r.sheet_tab === filterSheetTab.value)
+    ? previewRows.value.filter((r) => r.sheet_tab === filterSheetTab.value)
     : previewRows.value
 );
 
 // Computed: selection summary
+const selectedInFilterCount = computed(() => {
+  const visibleKeys = new Set(filteredPreviewRows.value.map((r) => r.selection_key));
+  return selectedRows.value.filter((r) => visibleKeys.has(r.selection_key)).length;
+});
+
 const selectionSummary = computed(() => {
   const total = filteredPreviewRows.value.length;
-  const selected = selectedRows.value.length;
+  const selected = selectedInFilterCount.value;
   return `${total} rows ready (${selected} selected)`;
 });
 
@@ -73,7 +80,7 @@ const selectionSummary = computed(() => {
 async function onClientChange(clientId: string | undefined) {
   if (clientId) {
     await clinicStore.fetchClinics(clientId);
-    // Fetch stats, configs, ready rows, and circuit breaker for each clinic (parallel)
+    // Fetch stats + configs only (avoid multi-clinic preview prefetch load)
     await Promise.all([
       writebackStore.fetchCircuitBreakerStatus(),
       ...clinicStore.clinics.map(async (c: any) => {
@@ -83,12 +90,6 @@ async function onClientChange(clientId: string | undefined) {
           clinicConfigMap.value[c.id] = cfg;
         } catch {
           clinicConfigMap.value[c.id] = { writeback_mode: 'manual' };
-        }
-        try {
-          const rows = await writebackStore.previewReadyRows(c.id);
-          clinicReadyCountMap.value[c.id] = Array.isArray(rows) ? rows.length : 0;
-        } catch {
-          clinicReadyCountMap.value[c.id] = 0;
         }
       }),
     ]);
@@ -107,7 +108,7 @@ function getMode(clinicId: string): string {
 }
 
 function getReadyCount(clinicId: string): number {
-  return clinicReadyCountMap.value[clinicId] || 0;
+  return clinicReadyCountMap.value[clinicId] ?? 0;
 }
 
 function isQuietHours(clinicId: string): boolean {
@@ -149,14 +150,20 @@ async function handlePreview(clinic: any) {
   filterSheetTab.value = undefined;
   selectedRows.value = [];
   previewRows.value = [];
+  previewSnapshotToken.value = null;
+  previewGeneratedAt.value = null;
 
   try {
     const rows = await writebackStore.previewReadyRows(clinic.id);
     previewRows.value = Array.isArray(rows) ? rows : [];
+    clinicReadyCountMap.value[clinic.id] = previewRows.value.length;
+    previewSnapshotToken.value = previewRows.value[0]?.preview_snapshot_token ?? null;
+    previewGeneratedAt.value = previewRows.value[0]?.preview_generated_at ?? null;
     // Select all by default
     selectedRows.value = [...previewRows.value];
   } catch {
     previewRows.value = [];
+    clinicReadyCountMap.value[clinic.id] = 0;
   } finally {
     previewLoading.value = false;
   }
@@ -167,11 +174,22 @@ async function handleSyncSelected() {
   if (!previewClinicId.value || selectedRows.value.length === 0) return;
   syncingSelected.value = true;
   try {
-    const rowIndices = selectedRows.value.map((r: any) => r.row_index);
-    const result = await writebackStore.syncClinic(previewClinicId.value, rowIndices);
+    const selections: SyncSelection[] = selectedRows.value.map((r) => ({
+      row_index: r.row_index,
+      sheet_tab: r.sheet_tab || '',
+      selection_key: r.selection_key,
+      patient_name: r.patient_name,
+    }));
+
+    const result = await writebackStore.syncClinic(previewClinicId.value, {
+      selections,
+      preview_snapshot_token: previewSnapshotToken.value,
+      preview_generated_at: previewGeneratedAt.value,
+      preview_rows_found: previewRows.value.length,
+    });
     syncResult.value = {
       clinic_id: previewClinicId.value,
-      message: `Sync complete: ${result?.jobs_created ?? 0} jobs enqueued`,
+      message: `Sync complete: ${result?.jobs_created ?? 0} created, ${result?.jobs_deduplicated ?? 0} deduplicated`,
     };
     // Refresh this clinic's stats and ready count
     await writebackStore.fetchClinicStats(previewClinicId.value);
@@ -181,16 +199,20 @@ async function handleSyncSelected() {
     } catch { /* ignore */ }
     previewDialog.value = false;
   } catch (err: any) {
+    const text = String(err || 'Unknown error');
+    const stale = text.toLowerCase().includes('stale') || text.toLowerCase().includes('inconsistent');
     syncResult.value = {
       clinic_id: previewClinicId.value!,
-      message: `Sync failed: ${err}`,
+      message: stale
+        ? `Preview desactualizada: ${text}. Refrescá Preview Rows y volvé a sincronizar.`
+        : `Sync failed: ${text}`,
     };
   } finally {
     syncingSelected.value = false;
   }
 }
 
-function profileColor(profile: string): string {
+function profileColor(profile: string | null): string {
   if (!profile || profile === 'No match') return 'error';
   return 'success';
 }
@@ -315,6 +337,7 @@ onMounted(() => {
                 <!-- Ready rows count -->
                 <div class="text-caption text-medium-emphasis mb-1">
                   Ready rows: <strong class="text-primary">{{ getReadyCount(clinic.id) }}</strong>
+                  <span class="text-disabled"> (on-demand)</span>
                 </div>
 
                 <!-- Info list -->
@@ -413,7 +436,7 @@ onMounted(() => {
           v-model="selectedRows"
           :headers="previewHeaders"
           :items="filteredPreviewRows"
-          item-value="row_index"
+          item-value="selection_key"
           show-select
           return-object
           density="compact"

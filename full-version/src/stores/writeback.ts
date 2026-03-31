@@ -6,6 +6,9 @@ import type {
     WritebackJobDetail,
     QueueStats,
     JobsPagination,
+    SyncClinicRequest,
+    SyncClinicResult,
+    PreviewReadyRow,
 } from '@/types/writeback';
 
 const baseUrl = `${import.meta.env.VITE_API_URL}/writeback`;
@@ -118,10 +121,9 @@ export const useWritebackStore = defineStore('writeback', () => {
         }
     }
 
-    async function syncClinic(clinicId: string, rowIndices?: number[]) {
+    async function syncClinic(clinicId: string, payload?: SyncClinicRequest): Promise<SyncClinicResult> {
         try {
-            const body = rowIndices ? { row_indices: rowIndices } : undefined;
-            const result = await fetchWrapper.post(`${baseUrl}/sync/${clinicId}`, body);
+            const result = await fetchWrapper.post(`${baseUrl}/sync/${clinicId}`, payload);
             // Refresh stats after sync
             await fetchQueueStats();
             return result;
@@ -131,7 +133,7 @@ export const useWritebackStore = defineStore('writeback', () => {
         }
     }
 
-    async function previewReadyRows(clinicId: string) {
+    async function previewReadyRows(clinicId: string): Promise<PreviewReadyRow[]> {
         try {
             return await fetchWrapper.get(`${baseUrl}/preview/${clinicId}`);
         } catch (err: any) {
