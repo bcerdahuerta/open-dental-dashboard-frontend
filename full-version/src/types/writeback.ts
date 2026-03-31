@@ -19,6 +19,8 @@ export interface WritebackJob {
     attempt: number;
     max_attempts: number;
     error_message: string | null;
+    error_category?: 'source_file_invalid' | null;
+    retryable?: boolean | null;
     worker_id: string | null;
     priority: number;
     execution_id: string | null;

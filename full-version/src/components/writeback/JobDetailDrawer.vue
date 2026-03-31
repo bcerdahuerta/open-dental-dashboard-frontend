@@ -195,6 +195,16 @@ async function handleRetry() {
           >
             {{ selectedJob.error_message }}
           </v-alert>
+
+          <v-alert
+            v-if="selectedJob.error_category === 'source_file_invalid'"
+            type="warning"
+            variant="tonal"
+            density="compact"
+            class="mt-3"
+          >
+            Source file issue detected. Fix/regenerate the short form file first, then retry this job.
+          </v-alert>
         </UiParentCard>
 
         <!-- Section 2: Execution Steps -->

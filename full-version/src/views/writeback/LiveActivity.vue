@@ -323,13 +323,23 @@ onUnmounted(() => {
 
           <!-- Status chip -->
           <template #item.status="{ item }">
-            <v-chip
-              :color="statusColor(item.status)"
-              variant="tonal"
-              size="small"
-            >
-              {{ item.status }}
-            </v-chip>
+            <div class="d-flex flex-column ga-1">
+              <v-chip
+                :color="statusColor(item.status)"
+                variant="tonal"
+                size="small"
+              >
+                {{ item.status }}
+              </v-chip>
+              <v-chip
+                v-if="item.error_category === 'source_file_invalid'"
+                color="warning"
+                variant="tonal"
+                size="x-small"
+              >
+                Source file invalid
+              </v-chip>
+            </div>
           </template>
 
           <!-- Attempt -->
