@@ -95,10 +95,34 @@ function formatDate(dateStr: string | null): string {
   return new Date(dateStr).toLocaleString();
 }
 
+const terminalStatuses = new Set<JobStatus>([
+  'DONE',
+  'SYNCED',
+  'FAILED',
+  'PARTIAL',
+  'EXTRACT_FAILED',
+  'SYNC_FAILED',
+]);
+
+const retryableStatuses = new Set<JobStatus>([
+  'FAILED',
+  'PARTIAL',
+  'EXTRACT_FAILED',
+  'SYNC_FAILED',
+]);
+
+function canRetry(job: WritebackJob): boolean {
+  return retryableStatuses.has(job.status) && job.retryable !== false;
+}
+
 function formatDuration(job: WritebackJob): string {
   if (!job.started_at) return '—';
-  const end = job.completed_at ? new Date(job.completed_at) : new Date();
   const start = new Date(job.started_at);
+  const end = job.completed_at
+    ? new Date(job.completed_at)
+    : terminalStatuses.has(job.status)
+      ? start
+      : new Date();
   const ms = end.getTime() - start.getTime();
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
@@ -375,7 +399,7 @@ onUnmounted(() => {
               Execute
             </v-btn>
             <v-btn
-              v-if="item.status === 'FAILED' || item.status === 'PARTIAL'"
+              v-if="canRetry(item)"
               color="warning"
               variant="tonal"
               size="x-small"

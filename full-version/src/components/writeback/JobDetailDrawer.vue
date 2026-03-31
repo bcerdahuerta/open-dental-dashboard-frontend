@@ -108,6 +108,12 @@ function formatDuration(ms: number | null): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+const retryableStatuses = new Set(['FAILED', 'PARTIAL', 'EXTRACT_FAILED', 'SYNC_FAILED']);
+
+function canRetry(job: WritebackJobDetail): boolean {
+  return retryableStatuses.has(job.status) && job.retryable !== false;
+}
+
 async function handleRetry() {
   if (selectedJob.value) {
     await writebackStore.retryJob(selectedJob.value.id);
@@ -337,12 +343,21 @@ async function handleRetry() {
         </UiParentCard>
 
         <!-- Footer: Retry button -->
-        <div v-if="selectedJob.status === 'FAILED' || selectedJob.status === 'PARTIAL'" class="mt-4">
+        <div v-if="canRetry(selectedJob)" class="mt-4">
           <v-btn color="warning" variant="flat" block @click="handleRetry">
             <RefreshIcon size="18" class="mr-2" />
             Retry Job
           </v-btn>
         </div>
+        <v-alert
+          v-else-if="retryableStatuses.has(selectedJob.status) && selectedJob.retryable === false"
+          type="info"
+          variant="tonal"
+          density="compact"
+          class="mt-3"
+        >
+          This job is currently marked as non-retryable. Resolve the root cause first, then retry.
+        </v-alert>
       </div>
     </template>
   </v-navigation-drawer>
