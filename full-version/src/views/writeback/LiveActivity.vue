@@ -112,7 +112,19 @@ const retryableStatuses = new Set<JobStatus>([
 ]);
 
 function canRetry(job: WritebackJob): boolean {
-  return retryableStatuses.has(job.status) && job.retryable !== false;
+  if (!retryableStatuses.has(job.status)) {
+    return false;
+  }
+  // `retryable=false` blocks automatic retries, not operator-initiated retries
+  // after source-file remediation.
+  if (job.error_category === 'source_file_invalid') {
+    return true;
+  }
+  return job.retryable !== false;
+}
+
+function retryButtonLabel(job: WritebackJob): string {
+  return job.error_category === 'source_file_invalid' ? 'Retry after fix' : 'Retry';
 }
 
 function formatDuration(job: WritebackJob): string {
@@ -406,7 +418,7 @@ onUnmounted(() => {
               @click.stop="handleRetry(item.id)"
             >
               <RefreshIcon size="14" class="mr-1" />
-              Retry
+              {{ retryButtonLabel(item) }}
             </v-btn>
           </template>
         </v-data-table-server>

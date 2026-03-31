@@ -111,7 +111,20 @@ function formatDuration(ms: number | null): string {
 const retryableStatuses = new Set(['FAILED', 'PARTIAL', 'EXTRACT_FAILED', 'SYNC_FAILED']);
 
 function canRetry(job: WritebackJobDetail): boolean {
-  return retryableStatuses.has(job.status) && job.retryable !== false;
+  if (!retryableStatuses.has(job.status)) {
+    return false;
+  }
+  // `retryable=false` blocks automatic retries in the backend queue,
+  // but operators can still retry source-file-invalid jobs manually
+  // after fixing/regenerating the source document.
+  if (job.error_category === 'source_file_invalid') {
+    return true;
+  }
+  return job.retryable !== false;
+}
+
+function retryButtonLabel(job: WritebackJobDetail): string {
+  return job.error_category === 'source_file_invalid' ? 'Retry after fix' : 'Retry Job';
 }
 
 async function handleRetry() {
@@ -346,7 +359,7 @@ async function handleRetry() {
         <div v-if="canRetry(selectedJob)" class="mt-4">
           <v-btn color="warning" variant="flat" block @click="handleRetry">
             <RefreshIcon size="18" class="mr-2" />
-            Retry Job
+            {{ retryButtonLabel(selectedJob) }}
           </v-btn>
         </div>
         <v-alert
@@ -356,7 +369,7 @@ async function handleRetry() {
           density="compact"
           class="mt-3"
         >
-          This job is currently marked as non-retryable. Resolve the root cause first, then retry.
+          This job is marked non-retryable for automatic queue retries. Operators can retry manually after fixing the source file or underlying issue.
         </v-alert>
       </div>
     </template>
