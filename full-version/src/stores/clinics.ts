@@ -25,6 +25,7 @@ export interface ClinicItem {
     folder_id: string | null;
     images_folder_id: number;
     is_active: boolean;
+    drive_permission_status: 'pending' | 'granted' | 'failed' | null;
     created_at: string;
 }
 
@@ -178,6 +179,28 @@ export const useClinicStore = defineStore('clinics', () => {
         return await fetchWrapper.post(`${clinicsUrl}/${targetClinicId}/clone-config`, { source_clinic_id: sourceClinicId });
     }
 
+    async function retryDrivePermission(clinicId: string) {
+        const response = await fetchWrapper.post(`${clinicsUrl}/${clinicId}/drive-permission/retry`, {});
+        const nextStatus = response?.drive_permission_status ?? null;
+
+        if (currentClinic.value && currentClinic.value.id === clinicId) {
+            currentClinic.value = {
+                ...currentClinic.value,
+                drive_permission_status: nextStatus,
+            };
+        }
+
+        const clinicIndex = clinics.value.findIndex((clinic) => clinic.id === clinicId);
+        if (clinicIndex !== -1) {
+            clinics.value[clinicIndex] = {
+                ...clinics.value[clinicIndex],
+                drive_permission_status: nextStatus,
+            };
+        }
+
+        return response;
+    }
+
     // --- Product Enrollment Methods ---
 
     async function fetchEnrollments(clinicId: string) {
@@ -266,6 +289,7 @@ export const useClinicStore = defineStore('clinics', () => {
         fetchClinics, fetchClinicCatalog, fetchClinic, createClinic, updateClinic,
         fetchCredentials, upsertCredential, testConnection,
         fetchCatalogue, cloneConfig,
+        retryDrivePermission,
         fetchEnrollments, enrollProduct, toggleProduct,
         fetchBenefitMappings, saveBenefitMappings,
         fetchFrequencyMappings, saveFrequencyMappings,

@@ -34,9 +34,39 @@ const formData = ref<ClinicCreate>({
 const headers = [
   { title: 'Clinic Name', key: 'clinic_name', sortable: true },
   { title: 'Status', key: 'is_active', sortable: true },
+  { title: 'Drive Status', key: 'drive_permission_status', sortable: false },
   { title: 'Created', key: 'created_at', sortable: true },
   { title: 'Actions', key: 'actions', sortable: false, align: 'center' as const }
 ];
+
+function normalizeDrivePermissionStatus(status: unknown): 'pending' | 'granted' | 'failed' | null {
+  if (status === 'pending' || status === 'granted' || status === 'failed') return status;
+  return null;
+}
+
+function driveStatusLabel(status: unknown): string {
+  const normalized = normalizeDrivePermissionStatus(status);
+  if (normalized === 'pending') return 'Pending';
+  if (normalized === 'granted') return 'Granted';
+  if (normalized === 'failed') return 'Failed';
+  return 'Not Configured';
+}
+
+function driveStatusColor(status: unknown): string {
+  const normalized = normalizeDrivePermissionStatus(status);
+  if (normalized === 'pending') return 'warning';
+  if (normalized === 'granted') return 'success';
+  if (normalized === 'failed') return 'error';
+  return 'secondary';
+}
+
+function driveStatusBgClass(status: unknown): string {
+  const normalized = normalizeDrivePermissionStatus(status);
+  if (normalized === 'pending') return 'bg-lightwarning';
+  if (normalized === 'granted') return 'bg-lightsuccess';
+  if (normalized === 'failed') return 'bg-lighterror';
+  return 'bg-lightsecondary';
+}
 
 function showSnackbar(msg: string, color: string) {
   snackbarMsg.value = msg;
@@ -178,6 +208,15 @@ watch(selectedClientId, (newVal) => {
           </template>
           <template v-slot:item.created_at="{ item }">
             <span class="text-medium-emphasis">{{ formatDate(item.created_at) }}</span>
+          </template>
+          <template v-slot:item.drive_permission_status="{ item }">
+            <v-chip
+              :color="driveStatusColor(item.drive_permission_status)"
+              :class="driveStatusBgClass(item.drive_permission_status)"
+              size="small"
+            >
+              {{ driveStatusLabel(item.drive_permission_status) }}
+            </v-chip>
           </template>
           <template v-slot:item.actions="{ item }">
             <v-btn color="primary" variant="tonal" size="small" @click="configureClinic(item)">

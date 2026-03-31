@@ -104,6 +104,7 @@ const testingSheets = ref(false);
 const testingOD = ref(false);
 const sheetsResult = ref<{ connected: boolean; message: string } | null>(null);
 const odResult = ref<{ connected: boolean; message: string } | null>(null);
+const retryingDrivePermission = ref(false);
 
 // Catalogue / image folders
 const catalogue = ref<CatalogueData | null>(null);
@@ -134,6 +135,62 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
+}
+
+function normalizeDrivePermissionStatus(status: unknown): 'pending' | 'granted' | 'failed' | null {
+  if (status === 'pending' || status === 'granted' || status === 'failed') return status;
+  return null;
+}
+
+const drivePermissionStatus = computed(() => normalizeDrivePermissionStatus(currentClinic.value?.drive_permission_status));
+
+const driveStatusLabel = computed(() => {
+  if (drivePermissionStatus.value === 'pending') return 'Pending';
+  if (drivePermissionStatus.value === 'granted') return 'Granted';
+  if (drivePermissionStatus.value === 'failed') return 'Failed';
+  return 'Not Configured';
+});
+
+const driveStatusColor = computed(() => {
+  if (drivePermissionStatus.value === 'pending') return 'warning';
+  if (drivePermissionStatus.value === 'granted') return 'success';
+  if (drivePermissionStatus.value === 'failed') return 'error';
+  return 'secondary';
+});
+
+const driveStatusBgClass = computed(() => {
+  if (drivePermissionStatus.value === 'pending') return 'bg-lightwarning';
+  if (drivePermissionStatus.value === 'granted') return 'bg-lightsuccess';
+  if (drivePermissionStatus.value === 'failed') return 'bg-lighterror';
+  return 'bg-lightsecondary';
+});
+
+const driveStatusDescription = computed(() => {
+  if (drivePermissionStatus.value === 'pending') return 'Waiting for clinic to accept sharing invitation';
+  if (drivePermissionStatus.value === 'granted') return 'Google Drive sharing verified';
+  if (drivePermissionStatus.value === 'failed') return 'Sharing request failed — retry available';
+  return 'Drive sharing is not configured for this clinic yet';
+});
+
+const canRetryDrivePermission = computed(() =>
+  drivePermissionStatus.value === 'failed' || drivePermissionStatus.value === 'pending'
+);
+
+async function retryDrivePermission() {
+  retryingDrivePermission.value = true;
+  try {
+    await clinicStore.retryDrivePermission(clinicId);
+    showSnackbar('Drive permission retry requested successfully', 'success');
+  } catch (e: any) {
+    const statusCode = e?.status ?? e?.response?.status;
+    if (statusCode === 403) {
+      showSnackbar('You do not have permission to retry Drive sharing for this clinic', 'warning');
+    } else {
+      showSnackbar(e?.message || 'Failed to retry Drive permission', 'error');
+    }
+  } finally {
+    retryingDrivePermission.value = false;
+  }
 }
 
 async function loadClinic() {
@@ -639,6 +696,33 @@ async function importYamlFile(event: Event) {
                     </v-alert>
                   </v-card>
                 </div>
+              </v-col>
+            </v-row>
+
+            <v-divider class="my-6" />
+
+            <v-row>
+              <v-col cols="12" md="6">
+                <h6 class="text-subtitle-1 font-weight-bold mb-3">Drive Sharing Status</h6>
+                <v-card variant="outlined" class="pa-4">
+                  <div class="d-flex align-center justify-space-between ga-3 mb-2">
+                    <v-chip :color="driveStatusColor" :class="driveStatusBgClass" size="small">
+                      {{ driveStatusLabel }}
+                    </v-chip>
+                    <v-btn
+                      v-if="canRetryDrivePermission"
+                      color="primary"
+                      variant="tonal"
+                      size="small"
+                      :loading="retryingDrivePermission"
+                      :disabled="retryingDrivePermission"
+                      @click="retryDrivePermission"
+                    >
+                      Retry Permission
+                    </v-btn>
+                  </div>
+                  <p class="text-body-2 text-medium-emphasis mb-0">{{ driveStatusDescription }}</p>
+                </v-card>
               </v-col>
             </v-row>
           </v-window-item>
