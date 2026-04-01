@@ -75,6 +75,8 @@ function mountClinicDetail() {
         AgeLimitMappingsTab: true,
         PipelineStepsTab: true,
         ProductsTab: true,
+        VWindow: { template: '<div><slot /></div>' },
+        VWindowItem: { template: '<div><slot /></div>' },
         VDialog: { template: '<div><slot /></div>' },
         VSnackbar: {
           props: ['modelValue', 'color'],
@@ -84,6 +86,13 @@ function mountClinicDetail() {
       }
     }
   });
+}
+
+async function settleAsync() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await nextTick();
+  await nextTick();
 }
 
 function findRetryButton(wrapper: any) {
@@ -133,7 +142,12 @@ describe('ClinicDetail drive sharing status card', () => {
       audit_column: 'Update Status',
       upload_column: 'Upload Status',
       upload_done_value: 'Done By DR',
-      include_not_found: false
+      include_not_found: false,
+      watch_health: {
+        status: 'none',
+        expires_at: null,
+        automatic_healthy: false,
+      }
     });
     writebackStoreMock.saveWritebackConfig.mockResolvedValue(undefined);
   });
@@ -141,8 +155,7 @@ describe('ClinicDetail drive sharing status card', () => {
   it('renders Drive Sharing Status card with neutral fallback for null status', async () => {
     currentClinicRef.value = makeClinic(null);
     const wrapper = mountClinicDetail();
-
-    await nextTick();
+    await settleAsync();
 
     const text = wrapper.text();
     expect(text).toContain('Drive Sharing Status');
@@ -162,7 +175,7 @@ describe('ClinicDetail drive sharing status card', () => {
     for (const { status, visible } of statuses) {
       currentClinicRef.value = makeClinic(status);
       const wrapper = mountClinicDetail();
-      await nextTick();
+      await settleAsync();
 
       const retryButton = findRetryButton(wrapper);
       if (visible) {
@@ -185,20 +198,20 @@ describe('ClinicDetail drive sharing status card', () => {
     clinicStoreMock.retryDrivePermission.mockReturnValue(retryPromise);
 
     const wrapper = mountClinicDetail();
-    await nextTick();
+    await settleAsync();
 
     const retryButton = findRetryButton(wrapper);
     expect(retryButton).toBeDefined();
 
     await retryButton!.trigger('click');
-    await nextTick();
+    await settleAsync();
 
     expect(clinicStoreMock.retryDrivePermission).toHaveBeenCalledWith('clinic-1');
     expect(retryButton!.attributes('disabled')).toBeDefined();
 
     resolveRetry?.();
     await retryPromise;
-    await nextTick();
+    await settleAsync();
 
     expect(retryButton!.attributes('disabled')).toBeUndefined();
   });
@@ -208,11 +221,11 @@ describe('ClinicDetail drive sharing status card', () => {
     clinicStoreMock.retryDrivePermission.mockResolvedValue({ drive_permission_status: 'pending' });
 
     const wrapper = mountClinicDetail();
-    await nextTick();
+    await settleAsync();
 
     const retryButton = findRetryButton(wrapper);
     await retryButton!.trigger('click');
-    await nextTick();
+    await settleAsync();
 
     expect(wrapper.text()).toContain('Drive permission retry requested successfully');
   });
@@ -222,12 +235,98 @@ describe('ClinicDetail drive sharing status card', () => {
     clinicStoreMock.retryDrivePermission.mockRejectedValue({ status: 403, message: 'Forbidden' });
 
     const wrapper = mountClinicDetail();
-    await nextTick();
+    await settleAsync();
 
     const retryButton = findRetryButton(wrapper);
     await retryButton!.trigger('click');
-    await nextTick();
+    await settleAsync();
 
     expect(wrapper.text()).toContain('You do not have permission to retry Drive sharing for this clinic');
+  });
+
+  it('shows automatic degraded when mode is automatic and watch expired', async () => {
+    writebackStoreMock.fetchWritebackConfig.mockResolvedValue({
+      writeback_mode: 'automatic',
+      quiet_start: null,
+      quiet_end: null,
+      timezone: 'America/Chicago',
+      audit_column: 'Update Status',
+      upload_column: 'Upload Status',
+      upload_done_value: 'Done By DR',
+      include_not_found: false,
+      watch_health: {
+        status: 'expired',
+        expires_at: '2026-01-01T00:00:00+00:00',
+        automatic_healthy: false,
+      }
+    });
+
+    const wrapper = mountClinicDetail();
+    await settleAsync();
+
+    expect(writebackStoreMock.fetchWritebackConfig).toHaveBeenCalled();
+
+    (wrapper.vm as any).activeTab = 'writeback';
+    await settleAsync();
+
+    const text = wrapper.text();
+    expect(text).toContain('Watch: Expired');
+    expect(text).toContain('Automatic Degraded');
+  });
+
+  it('shows automatic degraded when mode is automatic and watch status is none', async () => {
+    writebackStoreMock.fetchWritebackConfig.mockResolvedValue({
+      writeback_mode: 'automatic',
+      quiet_start: null,
+      quiet_end: null,
+      timezone: 'America/Chicago',
+      audit_column: 'Update Status',
+      upload_column: 'Upload Status',
+      upload_done_value: 'Done By DR',
+      include_not_found: false,
+      watch_health: {
+        status: 'none',
+        expires_at: null,
+        automatic_healthy: false,
+      }
+    });
+
+    const wrapper = mountClinicDetail();
+    await settleAsync();
+
+    (wrapper.vm as any).activeTab = 'writeback';
+    await settleAsync();
+
+    const text = wrapper.text();
+    expect(text).toContain('Watch: No Watch');
+    expect(text).toContain('Automatic Degraded');
+  });
+
+  it('shows automatic degraded when mode is automatic and watch status is expiring_soon', async () => {
+    writebackStoreMock.fetchWritebackConfig.mockResolvedValue({
+      writeback_mode: 'automatic',
+      quiet_start: null,
+      quiet_end: null,
+      timezone: 'America/Chicago',
+      audit_column: 'Update Status',
+      upload_column: 'Upload Status',
+      upload_done_value: 'Done By DR',
+      include_not_found: false,
+      watch_health: {
+        status: 'expiring_soon',
+        expires_at: '2026-01-01T00:00:00+00:00',
+        automatic_healthy: false,
+      }
+    });
+
+    const wrapper = mountClinicDetail();
+    await settleAsync();
+
+    (wrapper.vm as any).activeTab = 'writeback';
+    await settleAsync();
+
+    const text = wrapper.text();
+    expect(text).toContain('Watch: Expiring Soon');
+    expect(text).toContain('Automatic Degraded');
   });
 });

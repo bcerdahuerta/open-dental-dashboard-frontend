@@ -9,6 +9,7 @@ import type {
     SyncClinicRequest,
     SyncClinicResult,
     PreviewReadyRow,
+    WritebackConfigResponse,
 } from '@/types/writeback';
 
 const baseUrl = `${import.meta.env.VITE_API_URL}/writeback`;
@@ -141,7 +142,7 @@ export const useWritebackStore = defineStore('writeback', () => {
         }
     }
 
-    async function fetchWritebackConfig(clinicId: string) {
+    async function fetchWritebackConfig(clinicId: string): Promise<WritebackConfigResponse> {
         try {
             return await fetchWrapper.get(`${baseUrl}/config/${clinicId}`);
         } catch (err: any) {
@@ -154,6 +155,11 @@ export const useWritebackStore = defineStore('writeback', () => {
                 upload_column: 'Upload Status',
                 upload_done_value: 'Done By DR',
                 include_not_found: false,
+                watch_health: {
+                    status: 'none',
+                    expires_at: null,
+                    automatic_healthy: false,
+                },
             };
         }
     }

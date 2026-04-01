@@ -22,6 +22,7 @@ import {
   ToggleLeftIcon,
   FileImportIcon,
 } from 'vue-tabler-icons';
+import type { WritebackConfigResponse } from '@/types/writeback';
 
 const route = useRoute();
 const clinicId = route.params.id as string;
@@ -44,6 +45,11 @@ const writebackForm = ref({
   include_not_found: false,
 });
 const savingWbConfig = ref(false);
+const watchHealth = ref<WritebackConfigResponse['watch_health']>({
+  status: 'none',
+  expires_at: null,
+  automatic_healthy: false,
+});
 
 // YAML import
 const yamlImportDialog = ref(false);
@@ -175,6 +181,32 @@ const driveStatusDescription = computed(() => {
 const canRetryDrivePermission = computed(() =>
   drivePermissionStatus.value === 'failed' || drivePermissionStatus.value === 'pending'
 );
+
+const watchHealthLabel = computed(() => {
+  const status = watchHealth.value?.status || 'none';
+  if (status === 'active') return 'Active';
+  if (status === 'expiring_soon') return 'Expiring Soon';
+  if (status === 'expired') return 'Expired';
+  return 'No Watch';
+});
+
+const watchHealthColor = computed(() => {
+  const status = watchHealth.value?.status || 'none';
+  if (status === 'active') return 'success';
+  if (status === 'expiring_soon') return 'warning';
+  if (status === 'expired' || status === 'none') return 'error';
+  return 'secondary';
+});
+
+const automaticHealthyLabel = computed(() => {
+  if (writebackForm.value.writeback_mode !== 'automatic') return 'Manual mode';
+  return watchHealth.value?.automatic_healthy ? 'Automatic Healthy' : 'Automatic Degraded';
+});
+
+const automaticHealthyColor = computed(() => {
+  if (writebackForm.value.writeback_mode !== 'automatic') return 'info';
+  return watchHealth.value?.automatic_healthy ? 'success' : 'error';
+});
 
 async function retryDrivePermission() {
   retryingDrivePermission.value = true;
@@ -325,6 +357,11 @@ async function loadWritebackConfig() {
       upload_done_value: cfg.upload_done_value || 'Done By DR',
       include_not_found: cfg.include_not_found || false,
     };
+    watchHealth.value = cfg.watch_health || {
+      status: 'none',
+      expires_at: null,
+      automatic_healthy: false,
+    };
   } catch (e: any) {
     // Use defaults
   }
@@ -338,7 +375,8 @@ async function saveWritebackConfig() {
       payload.quiet_start = null;
       payload.quiet_end = null;
     }
-    await writebackStore.saveWritebackConfig(clinicId, payload);
+    const savedCfg = await writebackStore.saveWritebackConfig(clinicId, payload);
+    watchHealth.value = savedCfg?.watch_health || watchHealth.value;
     showSnackbar('Writeback config saved', 'success');
   } catch (e: any) {
     showSnackbar(e.message || 'Failed to save config', 'error');
@@ -789,6 +827,24 @@ async function importYamlFile(event: Event) {
                     color="primary"
                     hide-details="auto"
                   />
+                </v-col>
+              </v-row>
+
+              <v-row class="mt-1" v-if="writebackForm.writeback_mode === 'automatic'">
+                <v-col cols="12" md="4">
+                  <v-chip :color="watchHealthColor" variant="tonal" size="small">
+                    Watch: {{ watchHealthLabel }}
+                  </v-chip>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-chip :color="automaticHealthyColor" variant="tonal" size="small">
+                    {{ automaticHealthyLabel }}
+                  </v-chip>
+                </v-col>
+                <v-col cols="12" md="4" v-if="watchHealth?.expires_at">
+                  <span class="text-caption text-medium-emphasis">
+                    Expires: {{ formatDate(watchHealth.expires_at) }}
+                  </span>
                 </v-col>
               </v-row>
 

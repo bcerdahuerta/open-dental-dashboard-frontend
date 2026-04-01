@@ -117,6 +117,46 @@ function isQuietHours(clinicId: string): boolean {
   return !!(cfg.quiet_start && cfg.quiet_end);
 }
 
+function getWatchHealth(clinicId: string) {
+  return clinicConfigMap.value[clinicId]?.watch_health ?? {
+    status: 'none',
+    expires_at: null,
+    automatic_healthy: false,
+  };
+}
+
+function showWatchHealthChip(clinicId: string): boolean {
+  return getMode(clinicId) === 'automatic';
+}
+
+function watchHealthColor(clinicId: string): string {
+  const status = getWatchHealth(clinicId).status;
+  if (status === 'active') return 'success';
+  if (status === 'expiring_soon') return 'warning';
+  if (status === 'expired' || status === 'none') return 'error';
+  return 'secondary';
+}
+
+function watchHealthLabel(clinicId: string): string {
+  const status = getWatchHealth(clinicId).status;
+  if (status === 'active') return 'Watch Active';
+  if (status === 'expiring_soon') return 'Watch Expiring Soon';
+  if (status === 'expired') return 'Watch Expired';
+  return 'No Watch';
+}
+
+function automaticHealthLabel(clinicId: string): string {
+  const mode = getMode(clinicId);
+  if (mode !== 'automatic') return 'Manual mode';
+  return getWatchHealth(clinicId).automatic_healthy ? 'Automatic Healthy' : 'Automatic Degraded';
+}
+
+function automaticHealthColor(clinicId: string): string {
+  const mode = getMode(clinicId);
+  if (mode !== 'automatic') return 'info';
+  return getWatchHealth(clinicId).automatic_healthy ? 'success' : 'error';
+}
+
 // Traffic light color based on per-clinic stats + circuit breaker
 function trafficLightColor(clinic: any): string {
   const cb = circuitBreakerStatuses.value[clinic.id];
@@ -297,6 +337,21 @@ onMounted(() => {
                     size="x-small"
                   >
                     {{ getMode(clinic.id) === 'automatic' ? 'Auto' : 'Manual' }}
+                  </v-chip>
+                  <v-chip
+                    v-if="showWatchHealthChip(clinic.id)"
+                    :color="watchHealthColor(clinic.id)"
+                    variant="tonal"
+                    size="x-small"
+                  >
+                    {{ watchHealthLabel(clinic.id) }}
+                  </v-chip>
+                  <v-chip
+                    :color="automaticHealthColor(clinic.id)"
+                    variant="tonal"
+                    size="x-small"
+                  >
+                    {{ automaticHealthLabel(clinic.id) }}
                   </v-chip>
                   <v-chip
                     :color="trafficLightColor(clinic)"

@@ -118,3 +118,26 @@ export interface SyncClinicResult {
         matched_profile: string | null;
     }>;
 }
+
+export type WatchHealthStatus = 'active' | 'expiring_soon' | 'expired' | 'none';
+
+export interface WatchHealth {
+    status: WatchHealthStatus;
+    expires_at: string | null;
+    automatic_healthy: boolean;
+}
+
+export interface WritebackConfigResponse {
+    id?: string;
+    clinic_id?: string;
+    writeback_mode: 'automatic' | 'manual';
+    quiet_start: string | null;
+    quiet_end: string | null;
+    timezone: string;
+    audit_column: string;
+    upload_column: string;
+    upload_done_value: string;
+    include_not_found: boolean;
+    watch_health?: WatchHealth;
+    activation_status?: Record<string, unknown>;
+}
