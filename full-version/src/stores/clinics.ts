@@ -11,6 +11,7 @@ export interface ClinicCreate {
     clinic_name: string;
     ccc_clinic_id?: string;
     spreadsheet_id?: string;
+    folder_id?: string;
     // OD API connection — only used in create flow, not sent to clinic CRUD
     customer_key?: string;
 }
@@ -26,6 +27,7 @@ export interface ClinicItem {
     images_folder_id: number;
     is_active: boolean;
     drive_permission_status: 'pending' | 'granted' | 'failed' | null;
+    folder_drive_permission_status: 'pending' | 'granted' | 'failed' | null;
     created_at: string;
 }
 
@@ -179,14 +181,19 @@ export const useClinicStore = defineStore('clinics', () => {
         return await fetchWrapper.post(`${clinicsUrl}/${targetClinicId}/clone-config`, { source_clinic_id: sourceClinicId });
     }
 
-    async function retryDrivePermission(clinicId: string) {
-        const response = await fetchWrapper.post(`${clinicsUrl}/${clinicId}/drive-permission/retry`, {});
-        const nextStatus = response?.drive_permission_status ?? null;
+    async function retryDrivePermission(clinicId: string, resource: 'spreadsheet' | 'folder' | 'all' = 'all') {
+        const response = await fetchWrapper.post(
+            `${clinicsUrl}/${clinicId}/drive-permission/retry?resource=${resource}`,
+            {}
+        );
+        const nextSpreadsheetStatus = response?.drive_permission_status ?? null;
+        const nextFolderStatus = response?.folder_drive_permission_status ?? null;
 
         if (currentClinic.value && currentClinic.value.id === clinicId) {
             currentClinic.value = {
                 ...currentClinic.value,
-                drive_permission_status: nextStatus,
+                drive_permission_status: nextSpreadsheetStatus,
+                folder_drive_permission_status: nextFolderStatus,
             };
         }
 
@@ -194,7 +201,8 @@ export const useClinicStore = defineStore('clinics', () => {
         if (clinicIndex !== -1) {
             clinics.value[clinicIndex] = {
                 ...clinics.value[clinicIndex],
-                drive_permission_status: nextStatus,
+                drive_permission_status: nextSpreadsheetStatus,
+                folder_drive_permission_status: nextFolderStatus,
             };
         }
 

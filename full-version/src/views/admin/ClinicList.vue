@@ -28,6 +28,7 @@ const formData = ref<ClinicCreate>({
   clinic_name: '',
   ccc_clinic_id: '',
   spreadsheet_id: '',
+  folder_id: '',
   customer_key: '',
 });
 
@@ -87,6 +88,7 @@ function openAdd() {
     clinic_name: '',
     ccc_clinic_id: '',
     spreadsheet_id: '',
+    folder_id: '',
     customer_key: '',
   };
   showCustomerKey.value = false;
@@ -103,7 +105,8 @@ async function saveClinic() {
       clinic_name: formData.value.clinic_name,
     };
     if (formData.value.ccc_clinic_id) payload.ccc_clinic_id = formData.value.ccc_clinic_id;
-    if (formData.value.spreadsheet_id) payload.spreadsheet_id = formData.value.spreadsheet_id;
+    payload.spreadsheet_id = formData.value.spreadsheet_id?.trim() || null;
+    payload.folder_id = formData.value.folder_id?.trim() || null;
 
     const newClinic = await clinicStore.createClinic(payload);
     const newClinicId = newClinic.id;
@@ -210,13 +213,28 @@ watch(selectedClientId, (newVal) => {
             <span class="text-medium-emphasis">{{ formatDate(item.created_at) }}</span>
           </template>
           <template v-slot:item.drive_permission_status="{ item }">
-            <v-chip
-              :color="driveStatusColor(item.drive_permission_status)"
-              :class="driveStatusBgClass(item.drive_permission_status)"
-              size="small"
-            >
-              {{ driveStatusLabel(item.drive_permission_status) }}
-            </v-chip>
+            <div class="d-flex flex-column ga-1">
+              <div class="d-flex align-center ga-2">
+                <span class="text-caption text-medium-emphasis">Sheet</span>
+                <v-chip
+                  :color="driveStatusColor(item.drive_permission_status)"
+                  :class="driveStatusBgClass(item.drive_permission_status)"
+                  size="x-small"
+                >
+                  {{ driveStatusLabel(item.drive_permission_status) }}
+                </v-chip>
+              </div>
+              <div class="d-flex align-center ga-2">
+                <span class="text-caption text-medium-emphasis">Folder</span>
+                <v-chip
+                  :color="driveStatusColor(item.folder_drive_permission_status)"
+                  :class="driveStatusBgClass(item.folder_drive_permission_status)"
+                  size="x-small"
+                >
+                  {{ driveStatusLabel(item.folder_drive_permission_status) }}
+                </v-chip>
+              </div>
+            </div>
           </template>
           <template v-slot:item.actions="{ item }">
             <v-btn color="primary" variant="tonal" size="small" @click="configureClinic(item)">
@@ -277,6 +295,16 @@ watch(selectedClientId, (newVal) => {
             color="primary"
             hide-details="auto"
             placeholder="Override (inherits from client)"
+            class="mb-4"
+          />
+
+          <v-text-field
+            v-model="formData.folder_id"
+            label="Folder ID"
+            variant="outlined"
+            color="primary"
+            hide-details="auto"
+            placeholder="Drive folder override (optional)"
             class="mb-4"
           />
 

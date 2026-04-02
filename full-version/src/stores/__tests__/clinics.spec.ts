@@ -31,6 +31,7 @@ describe('clinics store', () => {
       images_folder_id: 131,
       is_active: true,
       drive_permission_status: 'failed',
+      folder_drive_permission_status: 'failed',
       created_at: '2026-01-01T00:00:00Z'
     };
     store.clinics = [
@@ -45,13 +46,15 @@ describe('clinics store', () => {
         images_folder_id: 131,
         is_active: true,
         drive_permission_status: 'failed',
+        folder_drive_permission_status: 'failed',
         created_at: '2026-01-01T00:00:00Z'
       }
     ];
 
     vi.mocked(fetchWrapper.post).mockResolvedValue({
       clinic_id: 'clinic-1',
-      drive_permission_status: 'pending'
+      drive_permission_status: 'pending',
+      folder_drive_permission_status: 'granted'
     });
 
     const response = await store.retryDrivePermission('clinic-1');
@@ -61,8 +64,11 @@ describe('clinics store', () => {
       {}
     );
     expect(response.drive_permission_status).toBe('pending');
+    expect(response.folder_drive_permission_status).toBe('granted');
     expect(store.currentClinic?.drive_permission_status).toBe('pending');
+    expect(store.currentClinic?.folder_drive_permission_status).toBe('granted');
     expect(store.clinics[0].drive_permission_status).toBe('pending');
+    expect(store.clinics[0].folder_drive_permission_status).toBe('granted');
   });
 
   it('falls back to null drive status when response is missing status', async () => {
@@ -78,6 +84,7 @@ describe('clinics store', () => {
       images_folder_id: 131,
       is_active: true,
       drive_permission_status: 'pending',
+      folder_drive_permission_status: 'pending',
       created_at: '2026-01-01T00:00:00Z'
     };
 
@@ -86,5 +93,22 @@ describe('clinics store', () => {
     await store.retryDrivePermission('clinic-2');
 
     expect(store.currentClinic?.drive_permission_status).toBeNull();
+    expect(store.currentClinic?.folder_drive_permission_status).toBeNull();
+  });
+
+  it('passes resource query parameter on retry', async () => {
+    const store = useClinicStore();
+    vi.mocked(fetchWrapper.post).mockResolvedValue({
+      clinic_id: 'clinic-3',
+      drive_permission_status: 'pending',
+      folder_drive_permission_status: 'pending'
+    });
+
+    await store.retryDrivePermission('clinic-3', 'folder');
+
+    expect(fetchWrapper.post).toHaveBeenCalledWith(
+      expect.stringContaining('/clinics/clinic-3/drive-permission/retry?resource=folder'),
+      {}
+    );
   });
 });

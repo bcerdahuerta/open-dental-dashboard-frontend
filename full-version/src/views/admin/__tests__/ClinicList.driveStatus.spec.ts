@@ -55,6 +55,7 @@ describe('ClinicList drive status column', () => {
         images_folder_id: 131,
         is_active: true,
         drive_permission_status: 'pending',
+        folder_drive_permission_status: 'pending',
         created_at: '2026-01-01T00:00:00Z'
       },
       {
@@ -68,6 +69,7 @@ describe('ClinicList drive status column', () => {
         images_folder_id: 131,
         is_active: true,
         drive_permission_status: 'granted',
+        folder_drive_permission_status: 'granted',
         created_at: '2026-01-01T00:00:00Z'
       },
       {
@@ -81,6 +83,7 @@ describe('ClinicList drive status column', () => {
         images_folder_id: 131,
         is_active: true,
         drive_permission_status: 'failed',
+        folder_drive_permission_status: 'failed',
         created_at: '2026-01-01T00:00:00Z'
       },
       {
@@ -94,6 +97,7 @@ describe('ClinicList drive status column', () => {
         images_folder_id: 131,
         is_active: true,
         drive_permission_status: null,
+        folder_drive_permission_status: null,
         created_at: '2026-01-01T00:00:00Z'
       }
     ];
@@ -113,6 +117,8 @@ describe('ClinicList drive status column', () => {
 
     const text = wrapper.text();
     expect(text).toContain('Drive Status');
+    expect(text).toContain('Sheet');
+    expect(text).toContain('Folder');
     expect(text).toContain('Pending');
     expect(text).toContain('Granted');
     expect(text).toContain('Failed');

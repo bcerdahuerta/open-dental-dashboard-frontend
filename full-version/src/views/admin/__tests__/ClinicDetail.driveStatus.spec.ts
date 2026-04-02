@@ -61,6 +61,7 @@ function makeClinic(status: DriveStatus) {
     images_folder_id: 131,
     is_active: true,
     drive_permission_status: status,
+    folder_drive_permission_status: status,
     created_at: '2026-01-01T00:00:00Z'
   };
 }
@@ -98,7 +99,13 @@ async function settleAsync() {
 function findRetryButton(wrapper: any) {
   return wrapper
     .findAll('button')
-    .find((btn: any) => btn.text().includes('Retry Permission'));
+    .find((btn: any) => btn.text().includes('Retry Spreadsheet') || btn.text().includes('Retry Folder'));
+}
+
+function findRetryButtonByLabel(wrapper: any, label: string) {
+  return wrapper
+    .findAll('button')
+    .find((btn: any) => btn.text().includes(label));
 }
 
 describe('ClinicDetail drive sharing status card', () => {
@@ -159,6 +166,8 @@ describe('ClinicDetail drive sharing status card', () => {
 
     const text = wrapper.text();
     expect(text).toContain('Drive Sharing Status');
+    expect(text).toContain('Spreadsheet');
+    expect(text).toContain('Folder');
     expect(text).toContain('Not Configured');
     expect(text).toContain('Drive sharing is not configured for this clinic yet');
     expect(findRetryButton(wrapper)).toBeUndefined();
@@ -188,6 +197,29 @@ describe('ClinicDetail drive sharing status card', () => {
     }
   });
 
+  it('renders mixed state (spreadsheet failed + folder granted) with scoped retry control', async () => {
+    currentClinicRef.value = {
+      ...makeClinic('granted'),
+      drive_permission_status: 'failed',
+      folder_drive_permission_status: 'granted'
+    };
+
+    const wrapper = mountClinicDetail();
+    await settleAsync();
+
+    const text = wrapper.text();
+    expect(text).toContain('Spreadsheet');
+    expect(text).toContain('Folder');
+    expect(text).toContain('Spreadsheet: Sharing request failed — retry available');
+    expect(text).toContain('Folder: Google Drive sharing verified');
+
+    const spreadsheetRetry = findRetryButtonByLabel(wrapper, 'Retry Spreadsheet');
+    const folderRetry = findRetryButtonByLabel(wrapper, 'Retry Folder');
+
+    expect(spreadsheetRetry).toBeDefined();
+    expect(folderRetry).toBeUndefined();
+  });
+
   it('disables retry button while retry is in flight', async () => {
     currentClinicRef.value = makeClinic('failed');
 
@@ -206,7 +238,7 @@ describe('ClinicDetail drive sharing status card', () => {
     await retryButton!.trigger('click');
     await settleAsync();
 
-    expect(clinicStoreMock.retryDrivePermission).toHaveBeenCalledWith('clinic-1');
+    expect(clinicStoreMock.retryDrivePermission).toHaveBeenCalledWith('clinic-1', 'spreadsheet');
     expect(retryButton!.attributes('disabled')).toBeDefined();
 
     resolveRetry?.();
@@ -227,7 +259,7 @@ describe('ClinicDetail drive sharing status card', () => {
     await retryButton!.trigger('click');
     await settleAsync();
 
-    expect(wrapper.text()).toContain('Drive permission retry requested successfully');
+    expect(wrapper.text()).toContain('Drive permission retry requested successfully (spreadsheet)');
   });
 
   it('shows warning feedback when retry returns 403', async () => {

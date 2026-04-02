@@ -148,38 +148,48 @@ function normalizeDrivePermissionStatus(status: unknown): 'pending' | 'granted' 
   return null;
 }
 
-const drivePermissionStatus = computed(() => normalizeDrivePermissionStatus(currentClinic.value?.drive_permission_status));
-
-const driveStatusLabel = computed(() => {
-  if (drivePermissionStatus.value === 'pending') return 'Pending';
-  if (drivePermissionStatus.value === 'granted') return 'Granted';
-  if (drivePermissionStatus.value === 'failed') return 'Failed';
+function driveStatusLabel(status: 'pending' | 'granted' | 'failed' | null): string {
+  if (status === 'pending') return 'Pending';
+  if (status === 'granted') return 'Granted';
+  if (status === 'failed') return 'Failed';
   return 'Not Configured';
-});
+}
 
-const driveStatusColor = computed(() => {
-  if (drivePermissionStatus.value === 'pending') return 'warning';
-  if (drivePermissionStatus.value === 'granted') return 'success';
-  if (drivePermissionStatus.value === 'failed') return 'error';
+function driveStatusColor(status: 'pending' | 'granted' | 'failed' | null): string {
+  if (status === 'pending') return 'warning';
+  if (status === 'granted') return 'success';
+  if (status === 'failed') return 'error';
   return 'secondary';
-});
+}
 
-const driveStatusBgClass = computed(() => {
-  if (drivePermissionStatus.value === 'pending') return 'bg-lightwarning';
-  if (drivePermissionStatus.value === 'granted') return 'bg-lightsuccess';
-  if (drivePermissionStatus.value === 'failed') return 'bg-lighterror';
+function driveStatusBgClass(status: 'pending' | 'granted' | 'failed' | null): string {
+  if (status === 'pending') return 'bg-lightwarning';
+  if (status === 'granted') return 'bg-lightsuccess';
+  if (status === 'failed') return 'bg-lighterror';
   return 'bg-lightsecondary';
-});
+}
 
-const driveStatusDescription = computed(() => {
-  if (drivePermissionStatus.value === 'pending') return 'Waiting for clinic to accept sharing invitation';
-  if (drivePermissionStatus.value === 'granted') return 'Google Drive sharing verified';
-  if (drivePermissionStatus.value === 'failed') return 'Sharing request failed — retry available';
+function driveStatusDescription(status: 'pending' | 'granted' | 'failed' | null): string {
+  if (status === 'pending') return 'Waiting for clinic to accept sharing invitation';
+  if (status === 'granted') return 'Google Drive sharing verified';
+  if (status === 'failed') return 'Sharing request failed — retry available';
   return 'Drive sharing is not configured for this clinic yet';
-});
+}
 
-const canRetryDrivePermission = computed(() =>
-  drivePermissionStatus.value === 'failed' || drivePermissionStatus.value === 'pending'
+const spreadsheetDrivePermissionStatus = computed(() =>
+  normalizeDrivePermissionStatus(currentClinic.value?.drive_permission_status)
+);
+
+const folderDrivePermissionStatus = computed(() =>
+  normalizeDrivePermissionStatus(currentClinic.value?.folder_drive_permission_status)
+);
+
+const canRetrySpreadsheetDrivePermission = computed(() =>
+  spreadsheetDrivePermissionStatus.value === 'failed' || spreadsheetDrivePermissionStatus.value === 'pending'
+);
+
+const canRetryFolderDrivePermission = computed(() =>
+  folderDrivePermissionStatus.value === 'failed' || folderDrivePermissionStatus.value === 'pending'
 );
 
 const watchHealthLabel = computed(() => {
@@ -208,11 +218,11 @@ const automaticHealthyColor = computed(() => {
   return watchHealth.value?.automatic_healthy ? 'success' : 'error';
 });
 
-async function retryDrivePermission() {
+async function retryDrivePermission(resource: 'spreadsheet' | 'folder' | 'all') {
   retryingDrivePermission.value = true;
   try {
-    await clinicStore.retryDrivePermission(clinicId);
-    showSnackbar('Drive permission retry requested successfully', 'success');
+    await clinicStore.retryDrivePermission(clinicId, resource);
+    showSnackbar(`Drive permission retry requested successfully (${resource})`, 'success');
   } catch (e: any) {
     const statusCode = e?.status ?? e?.response?.status;
     if (statusCode === 403) {
@@ -743,23 +753,63 @@ async function importYamlFile(event: Event) {
               <v-col cols="12" md="6">
                 <h6 class="text-subtitle-1 font-weight-bold mb-3">Drive Sharing Status</h6>
                 <v-card variant="outlined" class="pa-4">
-                  <div class="d-flex align-center justify-space-between ga-3 mb-2">
-                    <v-chip :color="driveStatusColor" :class="driveStatusBgClass" size="small">
-                      {{ driveStatusLabel }}
-                    </v-chip>
-                    <v-btn
-                      v-if="canRetryDrivePermission"
-                      color="primary"
-                      variant="tonal"
-                      size="small"
-                      :loading="retryingDrivePermission"
-                      :disabled="retryingDrivePermission"
-                      @click="retryDrivePermission"
-                    >
-                      Retry Permission
-                    </v-btn>
+                  <div class="d-flex flex-column ga-3">
+                    <div class="d-flex align-center justify-space-between ga-3">
+                      <div class="d-flex align-center ga-2">
+                        <span class="text-body-2 text-medium-emphasis">Spreadsheet</span>
+                        <v-chip
+                          :color="driveStatusColor(spreadsheetDrivePermissionStatus)"
+                          :class="driveStatusBgClass(spreadsheetDrivePermissionStatus)"
+                          size="small"
+                        >
+                          {{ driveStatusLabel(spreadsheetDrivePermissionStatus) }}
+                        </v-chip>
+                      </div>
+                      <v-btn
+                        v-if="canRetrySpreadsheetDrivePermission"
+                        color="primary"
+                        variant="tonal"
+                        size="small"
+                        :loading="retryingDrivePermission"
+                        :disabled="retryingDrivePermission"
+                        @click="retryDrivePermission('spreadsheet')"
+                      >
+                        Retry Spreadsheet
+                      </v-btn>
+                    </div>
+
+                    <div class="d-flex align-center justify-space-between ga-3">
+                      <div class="d-flex align-center ga-2">
+                        <span class="text-body-2 text-medium-emphasis">Folder</span>
+                        <v-chip
+                          :color="driveStatusColor(folderDrivePermissionStatus)"
+                          :class="driveStatusBgClass(folderDrivePermissionStatus)"
+                          size="small"
+                        >
+                          {{ driveStatusLabel(folderDrivePermissionStatus) }}
+                        </v-chip>
+                      </div>
+                      <v-btn
+                        v-if="canRetryFolderDrivePermission"
+                        color="primary"
+                        variant="tonal"
+                        size="small"
+                        :loading="retryingDrivePermission"
+                        :disabled="retryingDrivePermission"
+                        @click="retryDrivePermission('folder')"
+                      >
+                        Retry Folder
+                      </v-btn>
+                    </div>
                   </div>
-                  <p class="text-body-2 text-medium-emphasis mb-0">{{ driveStatusDescription }}</p>
+                  <div class="mt-2">
+                    <p class="text-body-2 text-medium-emphasis mb-1">
+                      Spreadsheet: {{ driveStatusDescription(spreadsheetDrivePermissionStatus) }}
+                    </p>
+                    <p class="text-body-2 text-medium-emphasis mb-0">
+                      Folder: {{ driveStatusDescription(folderDrivePermissionStatus) }}
+                    </p>
+                  </div>
                 </v-card>
               </v-col>
             </v-row>

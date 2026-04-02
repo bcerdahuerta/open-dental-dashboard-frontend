@@ -284,6 +284,12 @@ The most complex page — a tabbed config editor for a single clinic:
 | Age Limits | Age limit mapping table |
 | Fee Schedules | Fee schedule rules + catalogue |
 
+Drive onboarding behavior:
+
+- Create dialog captures both `spreadsheet_id` and `folder_id`.
+- Drive status is shown as two sub-statuses (Spreadsheet + Folder) across Clinic List and Clinic Detail.
+- Retry actions are resource-scoped from Clinic Detail (`Retry Spreadsheet` / `Retry Folder`) and call backend retry endpoint with `resource` query param.
+
 ---
 
 ## Development Guidelines
