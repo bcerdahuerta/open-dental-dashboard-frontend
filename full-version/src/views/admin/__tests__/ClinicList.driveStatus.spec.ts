@@ -47,6 +47,62 @@ describe('ClinicList drive status column', () => {
       {
         id: 'clinic-1',
         client_id: 'client-1',
+        clinic_name: 'Clinic Ready',
+        ccc_clinic_id: null,
+        clinic_num: null,
+        spreadsheet_id: null,
+        folder_id: null,
+        images_folder_id: 131,
+        is_active: true,
+        drive_permission_status: 'granted',
+        folder_drive_permission_status: 'granted',
+        created_at: '2026-01-01T00:00:00Z'
+      },
+      {
+        id: 'clinic-2',
+        client_id: 'client-1',
+        clinic_name: 'Clinic Failed Precedence',
+        ccc_clinic_id: null,
+        clinic_num: null,
+        spreadsheet_id: null,
+        folder_id: null,
+        images_folder_id: 131,
+        is_active: true,
+        drive_permission_status: 'failed',
+        folder_drive_permission_status: 'pending',
+        created_at: '2026-01-01T00:00:00Z'
+      },
+      {
+        id: 'clinic-3',
+        client_id: 'client-1',
+        clinic_name: 'Clinic Partial Pending',
+        ccc_clinic_id: null,
+        clinic_num: null,
+        spreadsheet_id: null,
+        folder_id: null,
+        images_folder_id: 131,
+        is_active: true,
+        drive_permission_status: 'granted',
+        folder_drive_permission_status: 'pending',
+        created_at: '2026-01-01T00:00:00Z'
+      },
+      {
+        id: 'clinic-4',
+        client_id: 'client-1',
+        clinic_name: 'Clinic Partial Null',
+        ccc_clinic_id: null,
+        clinic_num: null,
+        spreadsheet_id: null,
+        folder_id: null,
+        images_folder_id: 131,
+        is_active: true,
+        drive_permission_status: 'granted',
+        folder_drive_permission_status: null,
+        created_at: '2026-01-01T00:00:00Z'
+      },
+      {
+        id: 'clinic-5',
+        client_id: 'client-1',
         clinic_name: 'Clinic Pending',
         ccc_clinic_id: null,
         clinic_num: null,
@@ -59,35 +115,7 @@ describe('ClinicList drive status column', () => {
         created_at: '2026-01-01T00:00:00Z'
       },
       {
-        id: 'clinic-2',
-        client_id: 'client-1',
-        clinic_name: 'Clinic Granted',
-        ccc_clinic_id: null,
-        clinic_num: null,
-        spreadsheet_id: null,
-        folder_id: null,
-        images_folder_id: 131,
-        is_active: true,
-        drive_permission_status: 'granted',
-        folder_drive_permission_status: 'granted',
-        created_at: '2026-01-01T00:00:00Z'
-      },
-      {
-        id: 'clinic-3',
-        client_id: 'client-1',
-        clinic_name: 'Clinic Failed',
-        ccc_clinic_id: null,
-        clinic_num: null,
-        spreadsheet_id: null,
-        folder_id: null,
-        images_folder_id: 131,
-        is_active: true,
-        drive_permission_status: 'failed',
-        folder_drive_permission_status: 'failed',
-        created_at: '2026-01-01T00:00:00Z'
-      },
-      {
-        id: 'clinic-4',
+        id: 'clinic-6',
         client_id: 'client-1',
         clinic_name: 'Clinic Unconfigured',
         ccc_clinic_id: null,
@@ -103,7 +131,7 @@ describe('ClinicList drive status column', () => {
     ];
   });
 
-  it('renders Drive Status chip label mapping for all supported states', async () => {
+  it('renders one summary chip per row and hides Sheet/Folder labels', async () => {
     const wrapper = mount(ClinicList, {
       global: {
         stubs: {
@@ -115,17 +143,33 @@ describe('ClinicList drive status column', () => {
       }
     });
 
+    const rowByClinicName = (clinicName: string) =>
+      wrapper
+        .findAll('tr')
+        .find((row) => row.text().includes(clinicName));
+
+    const clinicNames = [
+      'Clinic Ready',
+      'Clinic Failed Precedence',
+      'Clinic Partial Pending',
+      'Clinic Partial Null',
+      'Clinic Pending',
+      'Clinic Unconfigured'
+    ];
+
+    for (const clinicName of clinicNames) {
+      const row = rowByClinicName(clinicName);
+      expect(row).toBeDefined();
+      expect(row?.findAll('.v-chip').length).toBe(2);
+    }
+
     const text = wrapper.text();
     expect(text).toContain('Drive Status');
-    expect(text).toContain('Sheet');
-    expect(text).toContain('Folder');
-    expect(text).toContain('Pending');
-    expect(text).toContain('Granted');
-    expect(text).toContain('Failed');
-    expect(text).toContain('Not Configured');
+    expect(text).not.toContain('Sheet');
+    expect(text).not.toContain('Folder');
   });
 
-  it('maps Drive Status chip semantics (color/class) for each state', async () => {
+  it('maps summary label and semantics for all precedence states', async () => {
     const wrapper = mount(ClinicList, {
       global: {
         stubs: {
@@ -147,17 +191,25 @@ describe('ClinicList drive status column', () => {
         .findAll('.v-chip')
         .find((chip: any) => chip.text().includes(label));
 
+    const readyChip = driveChipByLabel(rowByClinicName('Clinic Ready'), 'Ready');
+    expect(readyChip?.classes()).toContain('text-success');
+    expect(readyChip?.classes()).toContain('bg-lightsuccess');
+
+    const failedChip = driveChipByLabel(rowByClinicName('Clinic Failed Precedence'), 'Failed');
+    expect(failedChip?.classes()).toContain('text-error');
+    expect(failedChip?.classes()).toContain('bg-lighterror');
+
+    const partialPendingChip = driveChipByLabel(rowByClinicName('Clinic Partial Pending'), 'Partial');
+    expect(partialPendingChip?.classes()).toContain('text-warning');
+    expect(partialPendingChip?.classes()).toContain('bg-lightwarning');
+
+    const partialNullChip = driveChipByLabel(rowByClinicName('Clinic Partial Null'), 'Partial');
+    expect(partialNullChip?.classes()).toContain('text-warning');
+    expect(partialNullChip?.classes()).toContain('bg-lightwarning');
+
     const pendingChip = driveChipByLabel(rowByClinicName('Clinic Pending'), 'Pending');
     expect(pendingChip?.classes()).toContain('text-warning');
     expect(pendingChip?.classes()).toContain('bg-lightwarning');
-
-    const grantedChip = driveChipByLabel(rowByClinicName('Clinic Granted'), 'Granted');
-    expect(grantedChip?.classes()).toContain('text-success');
-    expect(grantedChip?.classes()).toContain('bg-lightsuccess');
-
-    const failedChip = driveChipByLabel(rowByClinicName('Clinic Failed'), 'Failed');
-    expect(failedChip?.classes()).toContain('text-error');
-    expect(failedChip?.classes()).toContain('bg-lighterror');
 
     const unconfiguredChip = driveChipByLabel(rowByClinicName('Clinic Unconfigured'), 'Not Configured');
     expect(unconfiguredChip?.classes()).toContain('text-secondary');

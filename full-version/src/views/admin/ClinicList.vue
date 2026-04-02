@@ -45,28 +45,37 @@ function normalizeDrivePermissionStatus(status: unknown): 'pending' | 'granted' 
   return null;
 }
 
-function driveStatusLabel(status: unknown): string {
-  const normalized = normalizeDrivePermissionStatus(status);
-  if (normalized === 'pending') return 'Pending';
-  if (normalized === 'granted') return 'Granted';
-  if (normalized === 'failed') return 'Failed';
-  return 'Not Configured';
-}
+type DriveSummary = {
+  label: 'Failed' | 'Partial' | 'Pending' | 'Ready' | 'Not Configured';
+  color: 'error' | 'warning' | 'success' | 'secondary';
+  bgClass: 'bg-lighterror' | 'bg-lightwarning' | 'bg-lightsuccess' | 'bg-lightsecondary';
+};
 
-function driveStatusColor(status: unknown): string {
-  const normalized = normalizeDrivePermissionStatus(status);
-  if (normalized === 'pending') return 'warning';
-  if (normalized === 'granted') return 'success';
-  if (normalized === 'failed') return 'error';
-  return 'secondary';
-}
+function computeDriveSummary(sheetStatus: unknown, folderStatus: unknown): DriveSummary {
+  const normalizedSheet = normalizeDrivePermissionStatus(sheetStatus);
+  const normalizedFolder = normalizeDrivePermissionStatus(folderStatus);
 
-function driveStatusBgClass(status: unknown): string {
-  const normalized = normalizeDrivePermissionStatus(status);
-  if (normalized === 'pending') return 'bg-lightwarning';
-  if (normalized === 'granted') return 'bg-lightsuccess';
-  if (normalized === 'failed') return 'bg-lighterror';
-  return 'bg-lightsecondary';
+  if (normalizedSheet === 'failed' || normalizedFolder === 'failed') {
+    return { label: 'Failed', color: 'error', bgClass: 'bg-lighterror' };
+  }
+
+  const exactlyOneGranted =
+    (normalizedSheet === 'granted' && normalizedFolder !== 'granted') ||
+    (normalizedFolder === 'granted' && normalizedSheet !== 'granted');
+
+  if (exactlyOneGranted) {
+    return { label: 'Partial', color: 'warning', bgClass: 'bg-lightwarning' };
+  }
+
+  if (normalizedSheet === 'pending' && normalizedFolder === 'pending') {
+    return { label: 'Pending', color: 'warning', bgClass: 'bg-lightwarning' };
+  }
+
+  if (normalizedSheet === 'granted' && normalizedFolder === 'granted') {
+    return { label: 'Ready', color: 'success', bgClass: 'bg-lightsuccess' };
+  }
+
+  return { label: 'Not Configured', color: 'secondary', bgClass: 'bg-lightsecondary' };
 }
 
 function showSnackbar(msg: string, color: string) {
@@ -213,28 +222,13 @@ watch(selectedClientId, (newVal) => {
             <span class="text-medium-emphasis">{{ formatDate(item.created_at) }}</span>
           </template>
           <template v-slot:item.drive_permission_status="{ item }">
-            <div class="d-flex flex-column ga-1">
-              <div class="d-flex align-center ga-2">
-                <span class="text-caption text-medium-emphasis">Sheet</span>
-                <v-chip
-                  :color="driveStatusColor(item.drive_permission_status)"
-                  :class="driveStatusBgClass(item.drive_permission_status)"
-                  size="x-small"
-                >
-                  {{ driveStatusLabel(item.drive_permission_status) }}
-                </v-chip>
-              </div>
-              <div class="d-flex align-center ga-2">
-                <span class="text-caption text-medium-emphasis">Folder</span>
-                <v-chip
-                  :color="driveStatusColor(item.folder_drive_permission_status)"
-                  :class="driveStatusBgClass(item.folder_drive_permission_status)"
-                  size="x-small"
-                >
-                  {{ driveStatusLabel(item.folder_drive_permission_status) }}
-                </v-chip>
-              </div>
-            </div>
+            <v-chip
+              :color="computeDriveSummary(item.drive_permission_status, item.folder_drive_permission_status).color"
+              :class="computeDriveSummary(item.drive_permission_status, item.folder_drive_permission_status).bgClass"
+              size="small"
+            >
+              {{ computeDriveSummary(item.drive_permission_status, item.folder_drive_permission_status).label }}
+            </v-chip>
           </template>
           <template v-slot:item.actions="{ item }">
             <v-btn color="primary" variant="tonal" size="small" @click="configureClinic(item)">
