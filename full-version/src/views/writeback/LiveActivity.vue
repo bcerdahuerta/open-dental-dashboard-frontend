@@ -54,7 +54,7 @@ function syncJobIdQuery(jobId: string | null): void {
     return;
   }
 
-  const nextQuery = { ...route.query } as Record<string, unknown>;
+  const nextQuery = { ...route.query };
 
   if (jobId) {
     nextQuery.jobId = jobId;
