@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
+import { useRoute, useRouter } from 'vue-router';
 import {
   RefreshIcon,
   FilterIcon,
@@ -16,6 +17,8 @@ import type { WritebackJob, JobStatus } from '@/types/writeback';
 const writebackStore = useWritebackStore();
 const clientStore = useClientStore();
 const clinicStore = useClinicStore();
+const route = useRoute();
+const router = useRouter();
 
 const { jobs, loading, error, jobsPagination } = storeToRefs(writebackStore);
 const { clients } = storeToRefs(clientStore);
@@ -33,6 +36,34 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null;
 // Drawer
 const drawerOpen = ref(false);
 const selectedJobId = ref<string | null>(null);
+
+function normalizeJobId(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    return normalizeJobId(value[0]);
+  }
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function syncJobIdQuery(jobId: string | null): void {
+  const currentJobId = normalizeJobId(route.query.jobId);
+  if (currentJobId === jobId) {
+    return;
+  }
+
+  const nextQuery = { ...route.query } as Record<string, unknown>;
+
+  if (jobId) {
+    nextQuery.jobId = jobId;
+  } else {
+    delete nextQuery.jobId;
+  }
+
+  router.replace({ query: nextQuery });
+}
 
 // Server-side pagination options
 const itemsPerPage = ref(50);
@@ -154,6 +185,33 @@ function handleRowClick(_event: Event, row: { item: WritebackJob }) {
   selectedJobId.value = row.item.id;
   drawerOpen.value = true;
 }
+
+watch(
+  () => normalizeJobId(route.query.jobId),
+  (jobId) => {
+    if (!jobId) {
+      drawerOpen.value = false;
+      selectedJobId.value = null;
+      return;
+    }
+
+    selectedJobId.value = jobId;
+    drawerOpen.value = true;
+  },
+  { immediate: true }
+);
+
+watch([drawerOpen, selectedJobId], ([isOpen, jobId]) => {
+  if (isOpen && jobId) {
+    syncJobIdQuery(jobId);
+    return;
+  }
+
+  if (!isOpen) {
+    syncJobIdQuery(null);
+    selectedJobId.value = null;
+  }
+});
 
 async function handleRetry(jobId: string) {
   await writebackStore.retryJob(jobId);

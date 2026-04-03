@@ -45,7 +45,7 @@ const formatDate = (dateStr: string | null): string => {
 };
 
 const viewDetails = (jobId: string) => {
-  router.push({ path: `/writeback/jobs/${jobId}` });
+  router.push({ name: 'WritebackLive', query: { jobId } });
 };
 
 watchEffect(() => {
