@@ -82,7 +82,10 @@ const latestRunId = computed(() => {
 });
 
 async function loadRecords() {
-  await fetchRecords(filters.value);
+  await fetchRecords({
+    ...filters.value,
+    run_id: latestRunId.value ?? undefined,
+  });
 }
 
 function onFilterChange() {
@@ -107,7 +110,8 @@ async function onExport() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadRecords(), fetchSummary()]);
+  await fetchSummary();
+  await loadRecords();
 });
 </script>
 
