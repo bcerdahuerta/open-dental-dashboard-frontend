@@ -97,6 +97,32 @@ const MainRoutes = {
       component: () => import('@/views/credit/CreditRuns.vue')
     },
 
+    // Extraction module
+    {
+      name: 'ExtractionDashboard',
+      path: '/main/extraction',
+      meta: { requiredProduct: 'extraction' },
+      component: () => import('@/views/extraction/ExtractionDashboard.vue')
+    },
+    {
+      name: 'ExtractionRuns',
+      path: '/main/extraction/runs',
+      meta: { requiredProduct: 'extraction' },
+      component: () => import('@/views/extraction/ExtractionRuns.vue')
+    },
+    {
+      name: 'ExtractionSchedules',
+      path: '/main/extraction/schedules',
+      meta: { requiredProduct: 'extraction' },
+      component: () => import('@/views/extraction/ExtractionSchedules.vue')
+    },
+    {
+      name: 'EncargadoList',
+      path: '/main/extraction/encargados',
+      meta: { requiredProduct: 'extraction' },
+      component: () => import('@/views/extraction/EncargadoList.vue')
+    },
+
     {
       name: 'UserProfile',
       path: '/profile',

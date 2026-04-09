@@ -1,11 +1,13 @@
 import {
   DashboardIcon,
   ActivityIcon,
+  ListIcon,
   ListCheckIcon,
   BuildingArchIcon,
   BuildingIcon,
   ArrowsTransferDownIcon,
   Hierarchy3Icon,
+  SettingsIcon,
   TemplateIcon,
   UsersIcon,
   ClipboardListIcon,
@@ -42,6 +44,12 @@ const sidebarItem: menu[] = [
   { title: 'Dashboard', icon: CreditCardIcon, to: '/credit', requiredProduct: 'credit' },
   { title: 'Records', icon: ReportIcon, to: '/credit/records', requiredProduct: 'credit' },
   { title: 'Run History', icon: ClockIcon, to: '/credit/runs', requiredProduct: 'credit' },
+
+  { header: 'Extraction', requiredProduct: 'extraction' },
+  { title: 'Dashboard', icon: DashboardIcon, to: '/main/extraction', requiredProduct: 'extraction' },
+  { title: 'Runs', icon: ListIcon, to: '/main/extraction/runs', requiredProduct: 'extraction' },
+  { title: 'Schedules', icon: SettingsIcon, to: '/main/extraction/schedules', requiredProduct: 'extraction' },
+  { title: 'Encargados', icon: UsersIcon, to: '/main/extraction/encargados', requiredProduct: 'extraction' },
 
   { header: 'Management', requiredProduct: 'writeback' },
   { title: 'Clients', icon: BuildingArchIcon, to: '/admin/clients', requiredProduct: 'writeback' },
