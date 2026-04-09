@@ -16,11 +16,11 @@ const { clients } = storeToRefs(clientStore);
 const { fetchEncargados, createEncargado, updateEncargado, assignClients, fetchAnalytics } = extractionStore;
 const { fetchClients } = clientStore;
 
-const pageMeta = ref({ title: 'Encargados' });
+const pageMeta = ref({ title: 'Team Members' });
 const breadcrumbs = ref([
   { title: 'Dashboard', disabled: false, href: '/dashboard/default' },
   { title: 'Extraction', disabled: false, href: '/main/extraction' },
-  { title: 'Encargados', disabled: true, href: '#' },
+  { title: 'Team Members', disabled: true, href: '#' },
 ]);
 
 const headers = [
@@ -153,7 +153,7 @@ async function refreshEncargados() {
   try {
     await fetchEncargados();
   } catch (err: any) {
-    showSnack(err?.message || 'Failed to refresh encargados', 'error');
+    showSnack(err?.message || 'Failed to refresh team members', 'error');
   }
 }
 
@@ -173,9 +173,9 @@ async function submitCreate() {
       email: createForm.value.email.trim(),
     });
     closeCreateDialog();
-    showSnack('Encargado created successfully.', 'success');
+    showSnack('Team member created successfully.', 'success');
   } catch (err: any) {
-    showSnack(err?.message || 'Failed to create encargado', 'error');
+    showSnack(err?.message || 'Failed to create team member', 'error');
   } finally {
     submitLoading.value = false;
   }
@@ -198,9 +198,9 @@ async function submitEdit() {
       is_active: Boolean(editForm.value.is_active),
     });
     closeEditDialog();
-    showSnack('Encargado updated successfully.', 'success');
+    showSnack('Team member updated successfully.', 'success');
   } catch (err: any) {
-    showSnack(err?.message || 'Failed to update encargado', 'error');
+    showSnack(err?.message || 'Failed to update team member', 'error');
   } finally {
     submitLoading.value = false;
   }
@@ -256,7 +256,7 @@ onMounted(async () => {
 
   <v-row>
     <v-col cols="12">
-      <UiParentCard title="Encargados">
+      <UiParentCard title="Team Members">
         <div class="d-flex align-center mb-4 ga-2">
           <v-btn color="secondary" variant="tonal" size="small" @click="refreshEncargados">
             <RefreshIcon size="18" class="mr-1" stroke-width="1.5" />
@@ -267,7 +267,7 @@ onMounted(async () => {
 
           <v-btn color="primary" variant="flat" size="small" @click="openCreateDialog">
             <PlusIcon size="18" class="mr-1" stroke-width="1.5" />
-            New Encargado
+            New Team Member
           </v-btn>
         </div>
 
@@ -357,7 +357,7 @@ onMounted(async () => {
 
           <template #no-data>
             <div class="text-center pa-8 text-medium-emphasis">
-              No encargados found. Create one to start assigning clients.
+              No team members found. Create one to start assigning clients.
             </div>
           </template>
         </v-data-table>
@@ -367,7 +367,7 @@ onMounted(async () => {
 
   <v-dialog v-model="showCreateDialog" max-width="560">
     <v-card>
-      <v-card-title class="text-h6">Create Encargado</v-card-title>
+      <v-card-title class="text-h6">Create Team Member</v-card-title>
       <v-card-text>
         <v-form>
           <v-row>
@@ -401,7 +401,7 @@ onMounted(async () => {
 
   <v-dialog v-model="showEditDialog" max-width="620">
     <v-card>
-      <v-card-title class="text-h6">Edit Encargado</v-card-title>
+      <v-card-title class="text-h6">Edit Team Member</v-card-title>
       <v-card-text>
         <v-form>
           <v-row>

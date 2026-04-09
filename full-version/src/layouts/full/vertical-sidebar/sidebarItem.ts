@@ -49,7 +49,7 @@ const sidebarItem: menu[] = [
   { title: 'Dashboard', icon: DashboardIcon, to: '/main/extraction', requiredProduct: 'extraction' },
   { title: 'Runs', icon: ListIcon, to: '/main/extraction/runs', requiredProduct: 'extraction' },
   { title: 'Schedules', icon: SettingsIcon, to: '/main/extraction/schedules', requiredProduct: 'extraction' },
-  { title: 'Encargados', icon: UsersIcon, to: '/main/extraction/encargados', requiredProduct: 'extraction' },
+  { title: 'Team Members', icon: UsersIcon, to: '/main/extraction/encargados', requiredProduct: 'extraction' },
 
   { header: 'Management', requiredProduct: 'writeback' },
   { title: 'Clients', icon: BuildingArchIcon, to: '/admin/clients', requiredProduct: 'writeback' },
