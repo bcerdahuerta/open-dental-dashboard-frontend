@@ -6,7 +6,6 @@ import {
   XIcon,
   CircleDotIcon,
   RefreshIcon,
-  ClockIcon,
   DatabaseIcon,
   ChevronDownIcon,
   ChevronUpIcon,

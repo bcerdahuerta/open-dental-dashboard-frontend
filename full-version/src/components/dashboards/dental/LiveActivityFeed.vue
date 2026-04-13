@@ -25,11 +25,18 @@ const headers = [
 const getStatusColor = (status: string): string => {
   const colors: Record<string, string> = {
     PENDING: 'warning',
-    POLLING: 'info',
-    EXTRACTING: 'info',
+    POLLING: 'primary',
+    EXTRACTING: 'primary',
     EXECUTING: 'primary',
     DONE: 'success',
     FAILED: 'error',
+    EXTRACTED: 'info',
+    EXECUTED: 'info',
+    PARTIAL: 'orange',
+    SYNCING: 'primary',
+    SYNCED: 'success',
+    EXTRACT_FAILED: 'error',
+    SYNC_FAILED: 'error',
   };
   return colors[status] || 'grey';
 };
@@ -69,12 +76,12 @@ watchEffect(() => {
     no-data-text="No recent activity"
   >
     <!-- Patient Column -->
-    <template #item.patient_name="{ item }">
+    <template #[`item.patient_name`]="{ item }">
       <span class="font-weight-medium">{{ item.patient_name || 'Unknown' }}</span>
     </template>
 
     <!-- Profile Column -->
-    <template #item.matched_profile="{ item }">
+    <template #[`item.matched_profile`]="{ item }">
       <v-chip v-if="item.matched_profile" color="primary" variant="tonal" size="small" label>
         {{ item.matched_profile }}
       </v-chip>
@@ -82,21 +89,21 @@ watchEffect(() => {
     </template>
 
     <!-- Status Column -->
-    <template #item.status="{ item }">
+    <template #[`item.status`]="{ item }">
       <v-chip :color="getStatusColor(item.status)" size="small" variant="tonal">
         {{ item.status }}
       </v-chip>
     </template>
 
     <!-- Created Column -->
-    <template #item.created_at="{ item }">
+    <template #[`item.created_at`]="{ item }">
       <span class="text-caption text-medium-emphasis">
         {{ formatDate(item.created_at) }}
       </span>
     </template>
 
     <!-- Actions Column -->
-    <template #item.actions="{ item }">
+    <template #[`item.actions`]="{ item }">
       <v-btn icon variant="text" size="small" @click="viewDetails(item.id)">
         <EyeIcon stroke-width="1.5" size="20" />
       </v-btn>

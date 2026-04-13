@@ -4,7 +4,6 @@ import { storeToRefs } from 'pinia';
 import { useRoute, useRouter } from 'vue-router';
 import {
   RefreshIcon,
-  FilterIcon,
   PlayerPlayIcon,
 } from 'vue-tabler-icons';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
@@ -224,8 +223,8 @@ async function handleExecute(jobId: string) {
     snackbarMsg.value = 'Job dispatched for execution';
     snackbarColor.value = 'success';
     snackbar.value = true;
-  } catch (err: any) {
-    snackbarMsg.value = err.message || 'Execute failed';
+  } catch (err: unknown) {
+    snackbarMsg.value = err instanceof Error ? err.message : 'Execute failed';
     snackbarColor.value = 'error';
     snackbar.value = true;
   }
@@ -379,31 +378,31 @@ onUnmounted(() => {
           @update:options="onPageUpdate"
         >
           <!-- Patient name -->
-          <template #item.patient_name="{ item }">
+          <template #[`item.patient_name`]="{ item }">
             <span class="text-body-2 font-weight-medium">
               {{ item.patient_name || 'N/A' }}
             </span>
           </template>
 
           <!-- Clinic name -->
-          <template #item.clinic_name="{ item }">
+          <template #[`item.clinic_name`]="{ item }">
             <span class="text-body-2 text-medium-emphasis">
               {{ item.clinic_name || '—' }}
             </span>
           </template>
 
           <!-- Row index -->
-          <template #item.row_index="{ item }">
+          <template #[`item.row_index`]="{ item }">
             <span class="text-body-2 text-medium-emphasis">{{ item.row_index }}</span>
           </template>
 
           <!-- Sheet tab / appointment date -->
-          <template #item.sheet_tab="{ item }">
+          <template #[`item.sheet_tab`]="{ item }">
             <span class="text-body-2">{{ item.sheet_tab || '—' }}</span>
           </template>
 
           <!-- Matched profile chip -->
-          <template #item.matched_profile="{ item }">
+          <template #[`item.matched_profile`]="{ item }">
             <v-chip
               v-if="item.matched_profile"
               :color="item.matched_profile === 'No match' ? 'error' : 'success'"
@@ -416,7 +415,7 @@ onUnmounted(() => {
           </template>
 
           <!-- Status chip -->
-          <template #item.status="{ item }">
+          <template #[`item.status`]="{ item }">
             <div class="d-flex flex-column ga-1">
               <v-chip
                 :color="statusColor(item.status)"
@@ -437,26 +436,26 @@ onUnmounted(() => {
           </template>
 
           <!-- Attempt -->
-          <template #item.attempt="{ item }">
+          <template #[`item.attempt`]="{ item }">
             <span class="text-body-2">
               {{ item.attempt }}/{{ item.max_attempts }}
             </span>
           </template>
 
           <!-- Created date -->
-          <template #item.created_at="{ item }">
+          <template #[`item.created_at`]="{ item }">
             <span class="text-body-2 text-medium-emphasis">
               {{ formatDate(item.created_at) }}
             </span>
           </template>
 
           <!-- Duration -->
-          <template #item.duration="{ item }">
+          <template #[`item.duration`]="{ item }">
             <span class="text-body-2">{{ formatDuration(item) }}</span>
           </template>
 
           <!-- Actions -->
-          <template #item.actions="{ item }">
+          <template #[`item.actions`]="{ item }">
             <v-btn
               v-if="item.status === 'PENDING'"
               color="primary"

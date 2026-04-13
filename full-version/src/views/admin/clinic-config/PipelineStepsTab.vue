@@ -6,7 +6,6 @@ import {
   PlusIcon,
   DeviceFloppyIcon as SaveIcon,
   EditIcon,
-  ToggleLeftIcon,
   InfoCircleIcon,
   SettingsIcon,
   TrashIcon,
@@ -15,17 +14,7 @@ import {
 const props = defineProps<{ clinicId: string; clientId?: string }>();
 const clinicStore = useClinicStore();
 
-const STEP_TYPES = [
-  'plan_matching', 'validate_prior_verification', 'update_ins_plan',
-  'update_benefits_category', 'update_benefits_code', 'update_benefits_code_diff',
-  'force_zero', 'update_deductibles', 'update_annual_max', 'update_ortho_max',
-  'insert_exclusions', 'update_frequencies', 'update_age_limits', 'update_history',
-  'update_fee_schedule', 'change_apt_color', 'update_appointment_tags',
-  'update_provider', 'update_verification_dates', 'update_effective_date',
-  'render_note', 'subscriber_note', 'create_commlog', 'upload_document',
-  'drop_plan', 'create_ins_adjustment', 'update_insverify', 'update_spreadsheet_column',
-  'plan_matching_note',
-];
+const stepTypes = ref<string[]>([]);
 
 const FAILURE_OPTIONS = ['HALT', 'SKIP', 'CONTINUE', 'RETRY_3'];
 
@@ -35,8 +24,8 @@ interface StepRow {
   step_order: number;
   on_failure: string;
   is_enabled: boolean;
-  step_config: Record<string, any>;
-  run_condition: Record<string, any> | null;
+  step_config: Record<string, unknown>;
+  run_condition: Record<string, unknown> | null;
 }
 
 interface ProfileItem {
@@ -45,6 +34,26 @@ interface ProfileItem {
   is_default: boolean;
   verification_type?: string;
   target_status?: string;
+}
+
+function asString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' ? value : fallback;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function asCondition(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 }
 
 const profiles = ref<ProfileItem[]>([]);
@@ -86,12 +95,19 @@ const conditionValues = ref('');
 // Step Guide dialog
 const guideDialog = ref(false);
 const guideLoading = ref(false);
-const guideData = ref<Record<string, any> | null>(null);
+const guideData = ref<Record<string, unknown> | null>(null);
 
 // Seed defaults
 const seeding = ref(false);
 
 const apiUrl = import.meta.env.VITE_API_URL;
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+}
 
 async function loadProfiles() {
   if (!props.clientId) return;
@@ -110,19 +126,28 @@ async function loadProfiles() {
   }
 }
 
+async function loadStepTypes() {
+  try {
+    const data = await clinicStore.fetchPipelineStepTypes();
+    stepTypes.value = Array.isArray(data) ? data : [];
+  } catch {
+    stepTypes.value = [];
+  }
+}
+
 async function loadSteps() {
   if (!selectedProfileId.value) return;
   loadingSteps.value = true;
   try {
     const data = await clinicStore.fetchProfileSteps(selectedProfileId.value);
-    steps.value = Array.isArray(data) ? data.map((s: any, idx: number) => ({
-      id: s.id,
-      step_type: s.step_type || '',
-      step_order: s.step_order ?? idx + 1,
-      on_failure: s.on_failure || 'HALT',
+    steps.value = Array.isArray(data) ? data.map((s: Record<string, unknown>, idx: number) => ({
+      id: typeof s.id === 'string' ? s.id : undefined,
+      step_type: asString(s.step_type),
+      step_order: asNumber(s.step_order, idx + 1),
+      on_failure: asString(s.on_failure, 'HALT'),
       is_enabled: s.is_enabled !== false,
-      step_config: s.step_config || {},
-      run_condition: s.run_condition || null,
+      step_config: asRecord(s.step_config),
+      run_condition: asCondition(s.run_condition),
     })) : [];
   } catch {
     steps.value = [];
@@ -176,8 +201,8 @@ async function confirmDeactivateProfile() {
     snackbarMsg.value = 'Profile deactivated';
     snackbarColor.value = 'success';
     snackbar.value = true;
-  } catch (e: any) {
-    snackbarMsg.value = e.message || 'Failed to deactivate';
+  } catch (error: unknown) {
+    snackbarMsg.value = getErrorMessage(error, 'Failed to deactivate');
     snackbarColor.value = 'error';
     snackbar.value = true;
   } finally {
@@ -189,10 +214,12 @@ function openConditionDialog(idx: number) {
   editingConditionIdx.value = idx;
   const cond = steps.value[idx].run_condition;
   if (cond) {
-    conditionField.value = cond.field || '';
-    conditionOp.value = cond.op || 'exists';
-    conditionValue.value = cond.value || '';
-    conditionValues.value = Array.isArray(cond.values) ? cond.values.join(',') : '';
+    conditionField.value = asString(cond.field);
+    conditionOp.value = asString(cond.op, 'exists');
+    conditionValue.value = asString(cond.value);
+    conditionValues.value = Array.isArray(cond.values)
+      ? cond.values.filter((item): item is string => typeof item === 'string').join(',')
+      : '';
   } else {
     conditionField.value = '';
     conditionOp.value = 'exists';
@@ -211,7 +238,7 @@ function clearCondition() {
 
 function applyCondition() {
   if (editingConditionIdx.value !== null) {
-    const cond: Record<string, any> = { field: conditionField.value.trim(), op: conditionOp.value };
+    const cond: Record<string, unknown> = { field: conditionField.value.trim(), op: conditionOp.value };
     if (conditionOp.value === 'equals' || conditionOp.value === 'contains') {
       cond.value = conditionValue.value;
     } else if (conditionOp.value === 'in') {
@@ -237,8 +264,8 @@ function saveConfig() {
     }
     configError.value = '';
     configDialog.value = false;
-  } catch (e: any) {
-    configError.value = `Invalid JSON: ${e.message}`;
+  } catch (error: unknown) {
+    configError.value = `Invalid JSON: ${getErrorMessage(error, 'Parse error')}`;
   }
 }
 
@@ -252,8 +279,8 @@ async function saveSteps() {
     steps.value = ordered;
     snackbarMsg.value = 'Pipeline steps saved';
     snackbarColor.value = 'success';
-  } catch (e: any) {
-    snackbarMsg.value = e.message || 'Failed to save steps';
+  } catch (error: unknown) {
+    snackbarMsg.value = getErrorMessage(error, 'Failed to save steps');
     snackbarColor.value = 'error';
   } finally {
     saving.value = false;
@@ -279,8 +306,8 @@ async function createNewProfile() {
     snackbarMsg.value = 'Profile created';
     snackbarColor.value = 'success';
     snackbar.value = true;
-  } catch (e: any) {
-    snackbarMsg.value = e.message || 'Failed to create profile';
+  } catch (error: unknown) {
+    snackbarMsg.value = getErrorMessage(error, 'Failed to create profile');
     snackbarColor.value = 'error';
     snackbar.value = true;
   } finally {
@@ -289,6 +316,7 @@ async function createNewProfile() {
 }
 
 onMounted(loadProfiles);
+onMounted(loadStepTypes);
 
 async function seedDefaults() {
   if (!props.clientId) return;
@@ -300,8 +328,8 @@ async function seedDefaults() {
     snackbarColor.value = 'success';
     snackbar.value = true;
     await loadProfiles();
-  } catch (e: any) {
-    snackbarMsg.value = e.message || 'Failed to seed profiles';
+  } catch (error: unknown) {
+    snackbarMsg.value = getErrorMessage(error, 'Failed to seed profiles');
     snackbarColor.value = 'error';
     snackbar.value = true;
   } finally {
@@ -316,7 +344,7 @@ async function openGuideDialog(stepType: string) {
   try {
     const result = await fetchWrapper.get(`${apiUrl}/pipeline/step-guide/${stepType}`);
     guideData.value = result.data || result;
-  } catch (e: any) {
+  } catch {
     guideData.value = { title: stepType, description: 'Failed to load guide.' };
   } finally {
     guideLoading.value = false;
@@ -400,7 +428,7 @@ async function openGuideDialog(stepType: string) {
                 <td>
                   <v-select
                     v-model="step.step_type"
-                    :items="STEP_TYPES"
+                    :items="stepTypes"
                     variant="outlined"
                     density="compact"
                     hide-details

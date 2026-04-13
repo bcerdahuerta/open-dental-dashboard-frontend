@@ -62,13 +62,20 @@ export const useClinicStore = defineStore('clinics', () => {
     const loading = ref(false);
     const error = ref<string | null>(null);
 
+    function getErrorMessage(err: unknown): string {
+        if (err instanceof Error) {
+            return err.message;
+        }
+        return String(err);
+    }
+
     async function fetchClinics(clientId: string) {
         loading.value = true;
         error.value = null;
         try {
             clinics.value = await fetchWrapper.get(`${clientsUrl}/${clientId}/clinics`);
-        } catch (err: any) {
-            error.value = err.message || err;
+        } catch (err: unknown) {
+            error.value = getErrorMessage(err);
         } finally {
             loading.value = false;
         }
@@ -92,8 +99,8 @@ export const useClinicStore = defineStore('clinics', () => {
             const url = query.toString() ? `${clinicsUrl}?${query.toString()}` : clinicsUrl;
             clinics.value = await fetchWrapper.get(url);
             return clinics.value;
-        } catch (err: any) {
-            error.value = err.message || err;
+        } catch (err: unknown) {
+            error.value = getErrorMessage(err);
             throw err;
         } finally {
             loading.value = false;
@@ -106,8 +113,8 @@ export const useClinicStore = defineStore('clinics', () => {
         try {
             currentClinic.value = await fetchWrapper.get(`${clinicsUrl}/${clinicId}`);
             return currentClinic.value;
-        } catch (err: any) {
-            error.value = err.message || err;
+        } catch (err: unknown) {
+            error.value = getErrorMessage(err);
             throw err;
         } finally {
             loading.value = false;
@@ -121,8 +128,8 @@ export const useClinicStore = defineStore('clinics', () => {
             const newClinic = await fetchWrapper.post(clinicsUrl, data);
             clinics.value.push(newClinic);
             return newClinic;
-        } catch (err: any) {
-            error.value = err.message || err;
+        } catch (err: unknown) {
+            error.value = getErrorMessage(err);
             throw err;
         } finally {
             loading.value = false;
@@ -138,8 +145,8 @@ export const useClinicStore = defineStore('clinics', () => {
             const idx = clinics.value.findIndex((c) => c.id === clinicId);
             if (idx !== -1) clinics.value[idx] = updated;
             return updated;
-        } catch (err: any) {
-            error.value = err.message || err;
+        } catch (err: unknown) {
+            error.value = getErrorMessage(err);
             throw err;
         } finally {
             loading.value = false;
@@ -149,8 +156,8 @@ export const useClinicStore = defineStore('clinics', () => {
     async function fetchCredentials(clinicId: string) {
         try {
             credentials.value = await fetchWrapper.get(`${clinicsUrl}/${clinicId}/credentials`);
-        } catch (err: any) {
-            error.value = err.message || err;
+        } catch (err: unknown) {
+            error.value = getErrorMessage(err);
         }
     }
 
@@ -159,8 +166,8 @@ export const useClinicStore = defineStore('clinics', () => {
             const result = await fetchWrapper.put(`${clinicsUrl}/${clinicId}/credentials`, [cred]);
             await fetchCredentials(clinicId);
             return result;
-        } catch (err: any) {
-            error.value = err.message || err;
+        } catch (err: unknown) {
+            error.value = getErrorMessage(err);
             throw err;
         }
     }
@@ -168,8 +175,8 @@ export const useClinicStore = defineStore('clinics', () => {
     async function testConnection(clinicId: string, service: string) {
         try {
             return await fetchWrapper.post(`${clinicsUrl}/${clinicId}/test-connection?service=${service}`, {});
-        } catch (err: any) {
-            return { connected: false, message: err.message || 'Connection test failed' };
+        } catch (err: unknown) {
+            return { connected: false, message: getErrorMessage(err) || 'Connection test failed' };
         }
     }
 
@@ -215,8 +222,8 @@ export const useClinicStore = defineStore('clinics', () => {
         try {
             enrollments.value = await fetchWrapper.get(`${clinicsUrl}/${clinicId}/enrollments`);
             return enrollments.value;
-        } catch (err: any) {
-            error.value = err.message || err;
+        } catch (err: unknown) {
+            error.value = getErrorMessage(err);
             enrollments.value = [];
             return [];
         }
@@ -230,8 +237,8 @@ export const useClinicStore = defineStore('clinics', () => {
             );
             await fetchEnrollments(clinicId);
             return result;
-        } catch (err: any) {
-            error.value = err.message || err;
+        } catch (err: unknown) {
+            error.value = getErrorMessage(err);
             throw err;
         }
     }
@@ -244,8 +251,8 @@ export const useClinicStore = defineStore('clinics', () => {
             );
             await fetchEnrollments(clinicId);
             return result;
-        } catch (err: any) {
-            error.value = err.message || err;
+        } catch (err: unknown) {
+            error.value = getErrorMessage(err);
             throw err;
         }
     }
@@ -256,7 +263,7 @@ export const useClinicStore = defineStore('clinics', () => {
         return await fetchWrapper.get(`${clinicsUrl}/${clinicId}/benefits`);
     }
 
-    async function saveBenefitMappings(clinicId: string, mappingType: string, items: any[]) {
+    async function saveBenefitMappings(clinicId: string, mappingType: string, items: unknown[]) {
         return await fetchWrapper.put(`${clinicsUrl}/${clinicId}/benefits`, { mapping_type: mappingType, items });
     }
 
@@ -264,7 +271,7 @@ export const useClinicStore = defineStore('clinics', () => {
         return await fetchWrapper.get(`${clinicsUrl}/${clinicId}/frequencies`);
     }
 
-    async function saveFrequencyMappings(clinicId: string, items: any[]) {
+    async function saveFrequencyMappings(clinicId: string, items: unknown[]) {
         return await fetchWrapper.put(`${clinicsUrl}/${clinicId}/frequencies`, { items });
     }
 
@@ -272,7 +279,7 @@ export const useClinicStore = defineStore('clinics', () => {
         return await fetchWrapper.get(`${clinicsUrl}/${clinicId}/age-limits`);
     }
 
-    async function saveAgeLimitMappings(clinicId: string, items: any[]) {
+    async function saveAgeLimitMappings(clinicId: string, items: unknown[]) {
         return await fetchWrapper.put(`${clinicsUrl}/${clinicId}/age-limits`, { items });
     }
 
@@ -284,11 +291,15 @@ export const useClinicStore = defineStore('clinics', () => {
         return await fetchWrapper.get(`${apiUrl}/profiles/${profileId}/steps`);
     }
 
-    async function saveProfileSteps(profileId: string, steps: any[]) {
+    async function saveProfileSteps(profileId: string, steps: unknown[]) {
         return await fetchWrapper.put(`${apiUrl}/profiles/${profileId}/steps`, { steps });
     }
 
-    async function createProfile(clientId: string, data: any) {
+    async function fetchPipelineStepTypes() {
+        return await fetchWrapper.get(`${apiUrl}/pipeline/step-types`);
+    }
+
+    async function createProfile(clientId: string, data: Record<string, unknown>) {
         return await fetchWrapper.post(`${clientsUrl}/${clientId}/profiles`, data);
     }
 
@@ -302,6 +313,6 @@ export const useClinicStore = defineStore('clinics', () => {
         fetchBenefitMappings, saveBenefitMappings,
         fetchFrequencyMappings, saveFrequencyMappings,
         fetchAgeLimitMappings, saveAgeLimitMappings,
-        fetchProfiles, fetchProfileSteps, saveProfileSteps, createProfile,
+        fetchProfiles, fetchProfileSteps, saveProfileSteps, fetchPipelineStepTypes, createProfile,
     };
 });

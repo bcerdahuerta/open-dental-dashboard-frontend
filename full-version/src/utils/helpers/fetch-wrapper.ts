@@ -16,7 +16,7 @@ function request(method: string) {
   return async (url: string, body?: object) => {
     const authStore = useAuthStore();
 
-    let requestOptions: RequestInit = {
+    const requestOptions: RequestInit = {
       method,
       headers: authHeader(url, authStore.access_token)
     };
@@ -32,7 +32,7 @@ function request(method: string) {
         await authStore.refresh();
         requestOptions.headers = authHeader(url, authStore.access_token);
         response = await fetch(url, requestOptions);
-      } catch (e) {
+      } catch {
         return Promise.reject('Session expired');
       }
     }
@@ -46,13 +46,13 @@ function request(method: string) {
           isHandling403 = true;
           try {
             await authStore.refresh();
-          } catch (_) {
+          } catch {
             // refresh failed — proceed to reject below
           }
           router.push('/dashboard/default');
           isHandling403 = false;
         }
-      } catch (_) {
+      } catch {
         // Not JSON — proceed normally
       }
     }
