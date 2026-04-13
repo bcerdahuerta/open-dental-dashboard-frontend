@@ -104,7 +104,7 @@ function mountLiveActivity() {
           props: ['items'],
           emits: ['click:row', 'update:options'],
           template:
-            '<div><div v-for="item in items" :key="item.id"><button data-testid="row-click" @click="$emit(\'click:row\', $event, { item })">Row</button><slot name="item.actions" :item="item" /></div></div>',
+            '<div><div v-for="rawItem in items" :key="rawItem.id"><button data-testid="row-click" @click="$emit(\'click:row\', $event, { item: { raw: rawItem } })">Row</button><button data-testid="row-click-direct" @click="$emit(\'click:row\', $event, { item: rawItem })">RowDirect</button><slot name="item.actions" :item="rawItem" /></div></div>',
         },
         VBtn: { template: '<button @click="$emit(\'click\', $event)"><slot /></button>' },
         RefreshIcon: true,
@@ -155,6 +155,20 @@ describe('Writeback LiveActivity view', () => {
 
     expect(replaceMock).toHaveBeenCalledWith({ query: { jobId: 'job-2' } });
     expect(routeState.query.jobId).toBe('job-2');
+    expect(wrapper.get('[data-testid="drawer"]').attributes('data-open')).toBe('true');
+  });
+
+  it('accepts direct item payload fallback and still opens drawer', async () => {
+    const wrapper = mountLiveActivity();
+    await nextTick();
+
+    const rowButtons = wrapper.findAll('[data-testid="row-click-direct"]');
+    expect(rowButtons).toHaveLength(3);
+    await rowButtons[0].trigger('click');
+    await nextTick();
+
+    expect(replaceMock).toHaveBeenCalledWith({ query: { jobId: 'job-1' } });
+    expect(routeState.query.jobId).toBe('job-1');
     expect(wrapper.get('[data-testid="drawer"]').attributes('data-open')).toBe('true');
   });
 

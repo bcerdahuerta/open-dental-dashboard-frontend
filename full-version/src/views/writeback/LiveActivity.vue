@@ -47,6 +47,23 @@ function normalizeJobId(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function extractJobIdFromRowPayload(row: unknown): string | null {
+  if (!row || typeof row !== 'object') {
+    return null;
+  }
+
+  const typedRow = row as {
+    item?: {
+      id?: unknown;
+      raw?: {
+        id?: unknown;
+      };
+    };
+  };
+
+  return normalizeJobId(typedRow.item?.raw?.id) ?? normalizeJobId(typedRow.item?.id);
+}
+
 function syncJobIdQuery(jobId: string | null): void {
   const currentJobId = normalizeJobId(route.query.jobId);
   if (currentJobId === jobId) {
@@ -180,8 +197,13 @@ async function loadJobs() {
   });
 }
 
-function handleRowClick(_event: Event, row: { item: WritebackJob }) {
-  selectedJobId.value = row.item.id;
+function handleRowClick(_event: Event, row: unknown) {
+  const jobId = extractJobIdFromRowPayload(row);
+  if (!jobId) {
+    return;
+  }
+
+  selectedJobId.value = jobId;
   drawerOpen.value = true;
 }
 
