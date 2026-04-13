@@ -4,12 +4,14 @@ import { ref, nextTick } from 'vue';
 import JobDetailDrawer from '@/components/writeback/JobDetailDrawer.vue';
 
 const selectedJobRef = ref<Record<string, unknown> | null>(null);
-const loadingRef = ref(false);
+const jobsLoadingRef = ref(false);
+const detailLoadingRef = ref(false);
 const compensationEntriesRef = ref<Array<Record<string, unknown>>>([]);
 
 const writebackStoreMock = {
   selectedJob: selectedJobRef,
-  loading: loadingRef,
+  loading: jobsLoadingRef,
+  detailLoading: detailLoadingRef,
   compensationEntries: compensationEntriesRef,
   fetchJobDetail: vi.fn(),
   fetchCompensationEntries: vi.fn(),
@@ -72,7 +74,8 @@ function mountDrawer(props: { modelValue: boolean; jobId: string | null }) {
 describe('JobDetailDrawer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    loadingRef.value = false;
+    jobsLoadingRef.value = false;
+    detailLoadingRef.value = false;
     selectedJobRef.value = {
       id: 'job-42',
       clinic_id: 'clinic-1',
@@ -147,5 +150,31 @@ describe('JobDetailDrawer', () => {
     const modelValueEvents = wrapper.emitted('update:modelValue');
     expect(modelValueEvents).toBeTruthy();
     expect(modelValueEvents?.[modelValueEvents.length - 1]).toEqual([false]);
+  });
+
+  it('uses detailLoading only and keeps content visible during jobs list refresh', async () => {
+    const wrapper = mountDrawer({ modelValue: true, jobId: 'job-42' });
+
+    expect(wrapper.text()).toContain('Job Information');
+
+    jobsLoadingRef.value = true;
+    await nextTick();
+    expect(wrapper.text()).toContain('Job Information');
+
+    // Simulate a list refresh happening in parallel: drawer should stay stable
+    // because it no longer depends on shared list-loading state.
+    await nextTick();
+    expect(wrapper.text()).toContain('Job Information');
+  });
+
+  it('shows spinner only when detailLoading is true', async () => {
+    detailLoadingRef.value = true;
+    selectedJobRef.value = null;
+
+    const wrapper = mountDrawer({ modelValue: true, jobId: 'job-42' });
+    await nextTick();
+
+    expect(wrapper.html()).toContain('v-progress-circular-stub');
+    expect(wrapper.text()).not.toContain('Job Information');
   });
 });

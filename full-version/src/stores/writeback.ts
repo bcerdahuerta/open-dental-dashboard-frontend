@@ -35,6 +35,7 @@ export const useWritebackStore = defineStore('writeback', () => {
     const jobs = ref<WritebackJob[]>([]);
     const selectedJob = ref<WritebackJobDetail | null>(null);
     const loading = ref(false);
+    const detailLoading = ref(false);
     const error = ref<string | null>(null);
     const jobsPagination = ref<JobsPagination>({
         page: 1,
@@ -100,14 +101,14 @@ export const useWritebackStore = defineStore('writeback', () => {
     }
 
     async function fetchJobDetail(jobId: string) {
-        loading.value = true;
+        detailLoading.value = true;
         error.value = null;
         try {
             selectedJob.value = await fetchWrapper.get(`${baseUrl}/jobs/${jobId}`);
         } catch (err: any) {
             error.value = err;
         } finally {
-            loading.value = false;
+            detailLoading.value = false;
         }
     }
 
@@ -231,6 +232,7 @@ export const useWritebackStore = defineStore('writeback', () => {
         jobs,
         selectedJob,
         loading,
+        detailLoading,
         error,
         jobsPagination,
         clinicStatsMap,

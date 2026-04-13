@@ -25,7 +25,7 @@ const emit = defineEmits<{
 }>();
 
 const writebackStore = useWritebackStore();
-const { selectedJob, loading, compensationEntries } = storeToRefs(writebackStore);
+const { selectedJob, detailLoading, compensationEntries } = storeToRefs(writebackStore);
 
 const expandedSteps = ref<Set<number>>(new Set());
 
@@ -138,7 +138,7 @@ async function handleRetry() {
 
 <template>
   <v-navigation-drawer v-model="drawerOpen" location="right" temporary width="480">
-    <template v-if="loading">
+    <template v-if="detailLoading">
       <div class="d-flex align-center justify-center" style="height: 100%">
         <v-progress-circular indeterminate color="primary" />
       </div>
