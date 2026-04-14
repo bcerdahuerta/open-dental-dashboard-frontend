@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import {
   RefreshIcon,
   PlayerPlayIcon,
+  EyeIcon,
 } from 'vue-tabler-icons';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import JobDetailDrawer from '@/components/writeback/JobDetailDrawer.vue';
@@ -45,23 +46,6 @@ function normalizeJobId(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
-}
-
-function extractJobIdFromRowPayload(row: unknown): string | null {
-  if (!row || typeof row !== 'object') {
-    return null;
-  }
-
-  const typedRow = row as {
-    item?: {
-      id?: unknown;
-      raw?: {
-        id?: unknown;
-      };
-    };
-  };
-
-  return normalizeJobId(typedRow.item?.raw?.id) ?? normalizeJobId(typedRow.item?.id);
 }
 
 function syncJobIdQuery(jobId: string | null): void {
@@ -197,13 +181,13 @@ async function loadJobs() {
   });
 }
 
-function handleRowClick(_event: Event, row: unknown) {
-  const jobId = extractJobIdFromRowPayload(row);
-  if (!jobId) {
+function handleInspect(jobId: string) {
+  const normalizedJobId = normalizeJobId(jobId);
+  if (!normalizedJobId) {
     return;
   }
 
-  selectedJobId.value = jobId;
+  selectedJobId.value = normalizedJobId;
   drawerOpen.value = true;
 }
 
@@ -396,7 +380,6 @@ onUnmounted(() => {
           :loading="loading"
           item-value="id"
           hover
-          @click:row="handleRowClick"
           @update:options="onPageUpdate"
         >
           <!-- Patient name -->
@@ -478,6 +461,16 @@ onUnmounted(() => {
 
           <!-- Actions -->
           <template #[`item.actions`]="{ item }">
+            <v-btn
+              color="info"
+              variant="tonal"
+              size="x-small"
+              @click.stop="handleInspect(item.id)"
+              class="mr-1"
+            >
+              <EyeIcon size="14" class="mr-1" />
+              View
+            </v-btn>
             <v-btn
               v-if="item.status === 'PENDING'"
               color="primary"

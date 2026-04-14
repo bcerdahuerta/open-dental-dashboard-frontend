@@ -102,9 +102,9 @@ function mountLiveActivity() {
         VSnackbar: { template: '<div><slot /></div>' },
         VDataTableServer: {
           props: ['items'],
-          emits: ['click:row', 'update:options'],
+          emits: ['update:options'],
           template:
-            '<div><div v-for="rawItem in items" :key="rawItem.id"><button data-testid="row-click" @click="$emit(\'click:row\', $event, { item: { raw: rawItem } })">Row</button><button data-testid="row-click-direct" @click="$emit(\'click:row\', $event, { item: rawItem })">RowDirect</button><slot name="item.actions" :item="rawItem" /></div></div>',
+            '<div><div v-for="rawItem in items" :key="rawItem.id"><slot name="item.actions" :item="rawItem" /></div></div>',
         },
         VBtn: { template: '<button @click="$emit(\'click\', $event)"><slot /></button>' },
         RefreshIcon: true,
@@ -144,27 +144,12 @@ describe('Writeback LiveActivity view', () => {
     expect(routeState.query.jobId).toBeUndefined();
   });
 
-  it('syncs row click to query state on authoritative page', async () => {
+  it('opens drawer from explicit View action and syncs query state', async () => {
     const wrapper = mountLiveActivity();
     await nextTick();
 
-    const rowButtons = wrapper.findAll('[data-testid="row-click"]');
-    expect(rowButtons).toHaveLength(3);
-    await rowButtons[1].trigger('click');
-    await nextTick();
-
-    expect(replaceMock).toHaveBeenCalledWith({ query: { jobId: 'job-2' } });
-    expect(routeState.query.jobId).toBe('job-2');
-    expect(wrapper.get('[data-testid="drawer"]').attributes('data-open')).toBe('true');
-  });
-
-  it('accepts direct item payload fallback and still opens drawer', async () => {
-    const wrapper = mountLiveActivity();
-    await nextTick();
-
-    const rowButtons = wrapper.findAll('[data-testid="row-click-direct"]');
-    expect(rowButtons).toHaveLength(3);
-    await rowButtons[0].trigger('click');
+    const buttons = wrapper.findAll('button');
+    await buttons.find((btn) => btn.text().includes('View'))?.trigger('click');
     await nextTick();
 
     expect(replaceMock).toHaveBeenCalledWith({ query: { jobId: 'job-1' } });
@@ -191,5 +176,7 @@ describe('Writeback LiveActivity view', () => {
     await nextTick();
 
     expect(writebackStoreMock.retryJob).toHaveBeenCalled();
+    expect(routeState.query.jobId).toBeUndefined();
+    expect(wrapper.get('[data-testid="drawer"]').attributes('data-open')).toBe('false');
   });
 });
