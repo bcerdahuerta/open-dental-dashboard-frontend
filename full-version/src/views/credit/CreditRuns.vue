@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useCreditStore } from '@/stores/credit';
 import { useAuthStore } from '@/stores/auth';
@@ -7,12 +8,19 @@ import UiParentCard from '@/components/shared/UiParentCard.vue';
 import {
   PlayerPlayIcon,
   RefreshIcon,
+  EyeIcon,
+  DownloadIcon,
+  BuildingIcon,
+  FilterIcon,
 } from 'vue-tabler-icons';
+import type { RunStatus } from '@/types/credit';
 
+const router = useRouter();
+const route = useRoute();
 const creditStore = useCreditStore();
 const authStore = useAuthStore();
 const { runs, runsPagination, creditClinics, loading, error } = storeToRefs(creditStore);
-const { fetchRuns, triggerRun, fetchCreditClinics } = creditStore;
+const { fetchRuns, triggerRun, fetchCreditClinics, exportCsv } = creditStore;
 
 const showTriggerDialog = ref(false);
 const triggerLoading = ref(false);
@@ -21,7 +29,27 @@ const snackbar = ref(false);
 const snackbarText = ref('');
 const snackbarColor = ref('success');
 
+// Filters
+const selectedClinicFilter = ref<string>('');
+const selectedStatusFilter = ref<RunStatus | ''>('');
+
 const isAdmin = computed(() => authStore.user?.role === 'admin');
+
+// Status options for filter
+const statusOptions: { title: string; value: RunStatus | '' }[] = [
+  { title: 'All Statuses', value: '' },
+  { title: 'Pending', value: 'PENDING' },
+  { title: 'Running', value: 'RUNNING' },
+  { title: 'Completed', value: 'COMPLETED' },
+  { title: 'Failed', value: 'FAILED' },
+  { title: 'Version Incompatible', value: 'VERSION_INCOMPATIBLE' },
+];
+
+// Clinic filter items (single select with "All Clinics")
+const clinicFilterItems = computed(() => [
+  { title: 'All Clinics', value: '' },
+  ...creditClinics.value.map(c => ({ title: c.clinic_name, value: c.id })),
+]);
 
 const headers = [
   { title: 'Clinic', key: 'clinic_id', sortable: false },
@@ -32,6 +60,7 @@ const headers = [
   { title: 'Started', key: 'started_at', sortable: false },
   { title: 'Completed', key: 'completed_at', sortable: false },
   { title: 'Error', key: 'error_message', sortable: false },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'center' as const },
 ];
 
 function clinicName(clinicId: string): string {
@@ -91,13 +120,87 @@ async function onTrigger() {
 }
 
 const page = ref(1);
-function onTableUpdate(opts: { page: number; itemsPerPage: number }) {
-  page.value = opts.page;
-  fetchRuns({ page: opts.page, per_page: opts.itemsPerPage });
+const itemsPerPage = ref(20);
+
+// Build filter params from current state
+function buildFilterParams(): { page: number; per_page: number; clinic_id?: string; status?: RunStatus } {
+  const params: { page: number; per_page: number; clinic_id?: string; status?: RunStatus } = {
+    page: page.value,
+    per_page: itemsPerPage.value,
+  };
+  if (selectedClinicFilter.value) {
+    params.clinic_id = selectedClinicFilter.value;
+  }
+  if (selectedStatusFilter.value) {
+    params.status = selectedStatusFilter.value;
+  }
+  return params;
 }
 
+function onTableUpdate(opts: { page: number; itemsPerPage: number }) {
+  page.value = opts.page;
+  itemsPerPage.value = opts.itemsPerPage;
+  fetchRuns(buildFilterParams());
+}
+
+function onFilterChange() {
+  page.value = 1;
+  fetchRuns(buildFilterParams());
+}
+
+// Navigation actions
+function viewRecords(clinicId: string) {
+  router.push({
+    path: '/credit/records',
+    query: { clinic_id: clinicId },
+  });
+}
+
+async function exportRunCsv(runId: string, status: string) {
+  if (status !== 'COMPLETED') return;
+  try {
+    await exportCsv(runId);
+    snackbarText.value = 'Export downloaded successfully';
+    snackbarColor.value = 'success';
+    snackbar.value = true;
+  } catch (err: any) {
+    snackbarText.value = `Export failed: ${err}`;
+    snackbarColor.value = 'error';
+    snackbar.value = true;
+  }
+}
+
+// Initialize filters from URL query on mount
+function initializeFiltersFromQuery() {
+  const queryClinic = route.query.clinic_id as string;
+  const queryStatus = route.query.status as RunStatus;
+  
+  if (queryClinic && creditClinics.value.some(c => c.id === queryClinic)) {
+    selectedClinicFilter.value = queryClinic;
+  }
+  if (queryStatus && statusOptions.some(s => s.value === queryStatus)) {
+    selectedStatusFilter.value = queryStatus;
+  }
+}
+
+// Update URL when filters change (preserving filters in navigation)
+watch([selectedClinicFilter, selectedStatusFilter], ([clinic, status]) => {
+  const query: Record<string, string> = {};
+  if (clinic) query.clinic_id = clinic;
+  if (status) query.status = status;
+  
+  router.replace({
+    path: route.path,
+    query: Object.keys(query).length > 0 ? query : undefined,
+  });
+  
+  onFilterChange();
+});
+
 onMounted(async () => {
-  await Promise.all([fetchRuns(), fetchCreditClinics()]);
+  await fetchCreditClinics();
+  initializeFiltersFromQuery();
+  await fetchRuns(buildFilterParams());
 });
 </script>
 
@@ -105,28 +208,60 @@ onMounted(async () => {
   <v-row>
     <v-col cols="12">
       <UiParentCard title="Credit Run History">
-        <!-- Toolbar -->
-        <div class="d-flex align-center mb-4">
-          <v-btn
-            color="secondary"
-            variant="tonal"
-            size="small"
-            @click="fetchRuns()"
-          >
-            <RefreshIcon size="18" class="mr-1" stroke-width="1.5" />
-            Refresh
-          </v-btn>
+        <!-- Filters & Toolbar -->
+        <v-row class="mb-4 align-center">
+          <v-col cols="12" sm="6" md="3">
+            <v-select
+              v-model="selectedClinicFilter"
+              :items="clinicFilterItems"
+              label="Filter by Clinic"
+              variant="outlined"
+              color="primary"
+              density="compact"
+              hide-details="auto"
+            >
+              <template #prepend-inner>
+                <BuildingIcon size="18" class="text-medium-emphasis" stroke-width="1.5" />
+              </template>
+            </v-select>
+          </v-col>
+          <v-col cols="12" sm="6" md="3">
+            <v-select
+              v-model="selectedStatusFilter"
+              :items="statusOptions"
+              label="Filter by Status"
+              variant="outlined"
+              color="primary"
+              density="compact"
+              hide-details="auto"
+            >
+              <template #prepend-inner>
+                <FilterIcon size="18" class="text-medium-emphasis" stroke-width="1.5" />
+              </template>
+            </v-select>
+          </v-col>
           <v-spacer />
-          <v-btn
-            v-if="isAdmin"
-            color="primary"
-            variant="flat"
-            @click="openTriggerDialog"
-          >
-            <PlayerPlayIcon size="18" class="mr-1" stroke-width="1.5" />
-            Trigger Run
-          </v-btn>
-        </div>
+          <v-col cols="auto" class="d-flex gap-2">
+            <v-btn
+              color="secondary"
+              variant="tonal"
+              size="small"
+              @click="fetchRuns(buildFilterParams())"
+            >
+              <RefreshIcon size="18" class="mr-1" stroke-width="1.5" />
+              Refresh
+            </v-btn>
+            <v-btn
+              v-if="isAdmin"
+              color="primary"
+              variant="flat"
+              @click="openTriggerDialog"
+            >
+              <PlayerPlayIcon size="18" class="mr-1" stroke-width="1.5" />
+              Trigger Run
+            </v-btn>
+          </v-col>
+        </v-row>
 
         <!-- Data table -->
         <v-data-table-server
@@ -175,9 +310,54 @@ onMounted(async () => {
             <span v-else class="text-medium-emphasis">—</span>
           </template>
 
+          <template #item.actions="{ item }">
+            <div class="d-flex align-center justify-center gap-1">
+              <v-btn
+                icon
+                variant="text"
+                size="small"
+                color="primary"
+                title="View Records"
+                @click="viewRecords(item.clinic_id)"
+              >
+                <EyeIcon size="18" stroke-width="1.5" />
+              </v-btn>
+              <v-btn
+                icon
+                variant="text"
+                size="small"
+                color="success"
+                :disabled="item.status !== 'COMPLETED'"
+                title="Export CSV"
+                @click="exportRunCsv(item.id, item.status)"
+              >
+                <DownloadIcon size="18" stroke-width="1.5" />
+              </v-btn>
+            </div>
+          </template>
+
           <template #no-data>
             <div class="text-center pa-8 text-medium-emphasis">
-              No credit runs found. Click "Trigger Run" to start.
+              <template v-if="selectedClinicFilter || selectedStatusFilter">
+                <div class="text-body-1 mb-2">No runs match your filters</div>
+                <div class="text-body-2">
+                  Try adjusting the clinic or status filters, or
+                  <v-btn
+                    variant="text"
+                    color="primary"
+                    size="small"
+                    @click="selectedClinicFilter = ''; selectedStatusFilter = ''"
+                  >
+                    clear all filters
+                  </v-btn>
+                </div>
+              </template>
+              <template v-else>
+                <div class="text-body-1 mb-2">No credit runs found</div>
+                <div class="text-body-2">
+                  Click "Trigger Run" to start analyzing credits for your clinics.
+                </div>
+              </template>
             </div>
           </template>
         </v-data-table-server>
