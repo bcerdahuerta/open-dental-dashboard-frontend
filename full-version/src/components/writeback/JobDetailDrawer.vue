@@ -137,7 +137,8 @@ async function handleRetry() {
 </script>
 
 <template>
-  <v-navigation-drawer v-model="drawerOpen" location="right" temporary width="480">
+  <Teleport to="body">
+    <v-navigation-drawer v-model="drawerOpen" location="right" temporary width="480">
     <template v-if="detailLoading">
       <div class="d-flex align-center justify-center" style="height: 100%">
         <v-progress-circular indeterminate color="primary" />
@@ -373,4 +374,5 @@ async function handleRetry() {
       </div>
     </template>
   </v-navigation-drawer>
+  </Teleport>
 </template>
