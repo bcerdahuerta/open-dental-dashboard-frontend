@@ -17,6 +17,11 @@ import type {
   EncargadoWorkloadSummary,
   ExtractionManualTriggerRequest,
   ExtractionManualTriggerResponse,
+  ExtractionHealth,
+  ExtractionNotificationStatus,
+  ExtractionOperationEvent,
+  ExtractionEffectivePolicy,
+  ExtractionRolloutCheck,
   ExtractionRun,
   ExtractionRunFilters,
   ExtractionSchedule,
@@ -85,6 +90,117 @@ function normalizeAnalyticsStatus(value: unknown): EncargadoAnalyticsStatus {
     state: typeof payload.state === 'string' ? payload.state as EncargadoAnalyticsStatus['state'] : 'pending',
     missing_metrics: normalizeStringArray(payload.missing_metrics),
     updated_at: typeof payload.updated_at === 'string' ? payload.updated_at : null
+  };
+}
+
+function normalizeNumberArray(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is number => typeof item === 'number')
+    : [];
+}
+
+function normalizeEffectivePolicy(value: unknown): ExtractionEffectivePolicy | null {
+  if (!isRecord(value)) return null;
+  return {
+    extraction_time: typeof value.extraction_time === 'string' ? value.extraction_time : '06:00:00',
+    review_times: normalizeStringArray(value.review_times),
+    days_in_advance: typeof value.days_in_advance === 'number' ? value.days_in_advance : 0,
+    horizon_mode: typeof value.horizon_mode === 'string' ? value.horizon_mode : 'business_days',
+    working_days: normalizeNumberArray(value.working_days),
+    review_day_offsets: normalizeNumberArray(value.review_day_offsets),
+    slack_webhook: typeof value.slack_webhook === 'string' ? value.slack_webhook : null,
+    slack_mentions: normalizeStringArray(value.slack_mentions),
+    max_parallel_clinics: typeof value.max_parallel_clinics === 'number' ? value.max_parallel_clinics : 1,
+    max_parallel_runs_per_clinic: typeof value.max_parallel_runs_per_clinic === 'number' ? value.max_parallel_runs_per_clinic : 1,
+    timezone: typeof value.timezone === 'string' ? value.timezone : 'UTC'
+  };
+}
+
+function normalizeNotificationStatus(value: unknown): ExtractionNotificationStatus {
+  const payload = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  return {
+    pending_count: typeof payload.pending_count === 'number' ? payload.pending_count : 0,
+    failed_count: typeof payload.failed_count === 'number' ? payload.failed_count : 0,
+    last_sent_at: typeof payload.last_sent_at === 'string' ? payload.last_sent_at : null
+  };
+}
+
+function normalizeHealth(value: unknown, clinic_id = ''): ExtractionHealth {
+  const payload = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  return {
+    clinic_id: typeof payload.clinic_id === 'string' ? payload.clinic_id : clinic_id,
+    status: payload.status === 'DOWN' ? 'DOWN' : payload.status === 'DEGRADED' ? 'DEGRADED' : 'HEALTHY',
+    reason_code: typeof payload.reason_code === 'string' ? payload.reason_code : 'healthy',
+    reason_summary: typeof payload.reason_summary === 'string' ? payload.reason_summary : null,
+    consecutive_failure_count: typeof payload.consecutive_failure_count === 'number' ? payload.consecutive_failure_count : 0,
+    overdue_run_count: typeof payload.overdue_run_count === 'number' ? payload.overdue_run_count : 0,
+    pending_notification_count: typeof payload.pending_notification_count === 'number' ? payload.pending_notification_count : 0,
+    failed_notification_count: typeof payload.failed_notification_count === 'number' ? payload.failed_notification_count : 0,
+    last_success_at: typeof payload.last_success_at === 'string' ? payload.last_success_at : null,
+    last_failure_at: typeof payload.last_failure_at === 'string' ? payload.last_failure_at : null,
+    last_od_error_at: typeof payload.last_od_error_at === 'string' ? payload.last_od_error_at : null,
+    last_event_at: typeof payload.last_event_at === 'string' ? payload.last_event_at : null,
+    computed_at: typeof payload.computed_at === 'string' ? payload.computed_at : null,
+    signal_snapshot_json: isRecord(payload.signal_snapshot_json) ? payload.signal_snapshot_json : {}
+  };
+}
+
+function normalizeOperationEvent(value: unknown): ExtractionOperationEvent {
+  const payload = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  return {
+    id: typeof payload.id === 'string' ? payload.id : '',
+    clinic_id: typeof payload.clinic_id === 'string' ? payload.clinic_id : '',
+    extraction_run_id: typeof payload.extraction_run_id === 'string' ? payload.extraction_run_id : null,
+    event_type: typeof payload.event_type === 'string' ? payload.event_type : 'unknown',
+    severity: typeof payload.severity === 'string' ? payload.severity : 'INFO',
+    message: typeof payload.message === 'string' ? payload.message : null,
+    payload_json: isRecord(payload.payload_json) ? payload.payload_json : {},
+    created_at: typeof payload.created_at === 'string' ? payload.created_at : null
+  };
+}
+
+function normalizeRun(raw: ExtractionRun): ExtractionRun {
+  return {
+    ...raw,
+    recent_events: Array.isArray(raw.recent_events) ? raw.recent_events.map(normalizeOperationEvent) : []
+  };
+}
+
+function normalizeSchedule(raw: ExtractionSchedule): ExtractionSchedule {
+  return {
+    ...raw,
+    review_times: normalizeStringArray(raw.review_times),
+    working_days: normalizeNumberArray(raw.working_days).length
+      ? normalizeNumberArray(raw.working_days)
+      : normalizeNumberArray(raw.effective_policy?.working_days),
+    review_day_offsets: normalizeNumberArray(raw.review_day_offsets),
+    slack_webhook: typeof raw.slack_webhook === 'string' ? raw.slack_webhook : null,
+    slack_mentions: normalizeStringArray(raw.slack_mentions),
+    effective_policy: normalizeEffectivePolicy(raw.effective_policy),
+    notification_status: normalizeNotificationStatus(raw.notification_status),
+    health: normalizeHealth(raw.health, raw.clinic_id)
+  };
+}
+
+function normalizeRolloutCheck(raw: ExtractionRolloutCheck): ExtractionRolloutCheck {
+  return {
+    ...raw,
+    blockers: normalizeStringArray(raw.blockers),
+    effective_policy: normalizeEffectivePolicy(raw.effective_policy) ?? {
+      extraction_time: '06:00:00',
+      review_times: [],
+      days_in_advance: 0,
+      horizon_mode: 'business_days',
+      working_days: [],
+      review_day_offsets: [],
+      max_parallel_clinics: 1,
+      max_parallel_runs_per_clinic: 1,
+      timezone: 'UTC'
+    },
+    health: normalizeHealth(raw.health, raw.clinic_id),
+    notification_status: normalizeNotificationStatus(raw.notification_status),
+    recent_runs: Array.isArray(raw.recent_runs) ? raw.recent_runs.map(normalizeRun) : [],
+    recent_events: Array.isArray(raw.recent_events) ? raw.recent_events.map(normalizeOperationEvent) : []
   };
 }
 
@@ -213,6 +329,9 @@ export const useExtractionStore = defineStore('extraction', () => {
   const runs = ref<ExtractionRun[]>([]);
   const selectedRun = ref<ExtractionRun | null>(null);
   const schedules = ref<ExtractionSchedule[]>([]);
+  const health = ref<ExtractionHealth[]>([]);
+  const events = ref<ExtractionOperationEvent[]>([]);
+  const rolloutChecks = ref<Record<string, ExtractionRolloutCheck>>({});
   const encargados = ref<Encargado[]>([]);
   const encargadoAnalytics = ref<Record<string, EncargadoAnalytics>>({});
   const selectedEncargadoId = ref<string | null>(null);
@@ -257,6 +376,13 @@ export const useExtractionStore = defineStore('extraction', () => {
       appointments_today: appointmentsToday,
     };
   });
+
+  const healthSummary = computed(() => ({
+    healthy: health.value.filter((item) => item.status === 'HEALTHY').length,
+    degraded: health.value.filter((item) => item.status === 'DEGRADED').length,
+    down: health.value.filter((item) => item.status === 'DOWN').length,
+    notification_backlog: health.value.reduce((sum, item) => sum + item.pending_notification_count + item.failed_notification_count, 0)
+  }));
 
   const clinicNameMap = computed<Record<string, string>>(() => {
     const clinicStore = useClinicStore();
@@ -337,7 +463,7 @@ export const useExtractionStore = defineStore('extraction', () => {
 
       const url = query.toString() ? `${baseUrl}/runs?${query.toString()}` : `${baseUrl}/runs`;
       const payload = await fetchWrapper.get(url) as RunsResponse | ExtractionRun[];
-      const allRuns = Array.isArray(payload) ? payload : (payload.runs ?? []);
+      const allRuns = (Array.isArray(payload) ? payload : (payload.runs ?? [])).map(normalizeRun);
 
       const filtered = applyRunFilters(allRuns, merged);
       const start = (page - 1) * perPage;
@@ -367,7 +493,7 @@ export const useExtractionStore = defineStore('extraction', () => {
     loading.value = true;
     error.value = null;
     try {
-      selectedRun.value = await fetchWrapper.get(`${baseUrl}/runs/${id}`);
+      selectedRun.value = normalizeRun(await fetchWrapper.get(`${baseUrl}/runs/${id}`) as ExtractionRun);
       return selectedRun.value;
     } catch (err: unknown) {
       error.value = getErrorMessage(err, 'Failed to fetch extraction run detail');
@@ -407,7 +533,7 @@ export const useExtractionStore = defineStore('extraction', () => {
       const query = new URLSearchParams();
       if (client_id) query.set('client_id', client_id);
       const url = query.toString() ? `${baseUrl}/schedules?${query.toString()}` : `${baseUrl}/schedules`;
-      schedules.value = await fetchWrapper.get(url);
+      schedules.value = (await fetchWrapper.get(url) as ExtractionSchedule[]).map(normalizeSchedule);
       return schedules.value;
     } catch (err: unknown) {
       error.value = getErrorMessage(err, 'Failed to fetch extraction schedules');
@@ -422,12 +548,67 @@ export const useExtractionStore = defineStore('extraction', () => {
     loading.value = true;
     error.value = null;
     try {
-      const updated = await fetchWrapper.patch(`${baseUrl}/schedules/${id}`, data as Record<string, unknown>) as ExtractionSchedule;
+      const updated = normalizeSchedule(await fetchWrapper.patch(`${baseUrl}/schedules/${id}`, data as Record<string, unknown>) as ExtractionSchedule);
       const idx = schedules.value.findIndex((item) => item.id === id);
       if (idx !== -1) schedules.value[idx] = updated;
       return updated;
     } catch (err: unknown) {
       error.value = getErrorMessage(err, 'Failed to update extraction schedule');
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchHealth(clinic_id?: string) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const query = new URLSearchParams();
+      if (clinic_id) query.set('clinic_id', clinic_id);
+      const url = query.toString() ? `${baseUrl}/health?${query.toString()}` : `${baseUrl}/health`;
+      health.value = (await fetchWrapper.get(url) as ExtractionHealth[]).map((item) => normalizeHealth(item, item.clinic_id));
+      return health.value;
+    } catch (err: unknown) {
+      error.value = getErrorMessage(err, 'Failed to fetch extraction health');
+      health.value = [];
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchEvents(clinic_id?: string, limit = 25) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const query = new URLSearchParams();
+      if (clinic_id) query.set('clinic_id', clinic_id);
+      query.set('limit', String(limit));
+      events.value = (await fetchWrapper.get(`${baseUrl}/events?${query.toString()}`) as ExtractionOperationEvent[])
+        .map(normalizeOperationEvent);
+      return events.value;
+    } catch (err: unknown) {
+      error.value = getErrorMessage(err, 'Failed to fetch extraction events');
+      events.value = [];
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchRolloutCheck(clinic_id: string) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const payload = normalizeRolloutCheck(await fetchWrapper.get(`${baseUrl}/rollout-check/${clinic_id}`) as ExtractionRolloutCheck);
+      rolloutChecks.value = {
+        ...rolloutChecks.value,
+        [clinic_id]: payload,
+      };
+      return payload;
+    } catch (err: unknown) {
+      error.value = getErrorMessage(err, 'Failed to fetch rollout check');
       throw err;
     } finally {
       loading.value = false;
@@ -705,6 +886,9 @@ export const useExtractionStore = defineStore('extraction', () => {
     runs,
     selectedRun,
     schedules,
+    health,
+    events,
+    rolloutChecks,
     encargados,
     encargadoAnalytics,
     selectedEncargadoId,
@@ -717,6 +901,7 @@ export const useExtractionStore = defineStore('extraction', () => {
     runsPagination,
     recentRuns,
     dashboardSummary,
+    healthSummary,
     clinicNameMap,
     hydrateLookups,
     fetchRuns,
@@ -724,6 +909,9 @@ export const useExtractionStore = defineStore('extraction', () => {
     triggerExtraction,
     fetchSchedules,
     updateSchedule,
+    fetchHealth,
+    fetchEvents,
+    fetchRolloutCheck,
     fetchEncargados,
     createEncargado,
     updateEncargado,

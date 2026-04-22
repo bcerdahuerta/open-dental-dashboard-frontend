@@ -10,8 +10,8 @@ import {
 import type { ExtractionRun, ExtractionRunFilters } from '@/types/extraction';
 
 const extractionStore = useExtractionStore();
-const { runs, runsPagination, selectedRun, clinicNameMap, loading, error } = storeToRefs(extractionStore);
-const { hydrateLookups, fetchRuns, fetchRunDetail } = extractionStore;
+const { runs, runsPagination, selectedRun, clinicNameMap, loading, error, schedules } = storeToRefs(extractionStore);
+const { hydrateLookups, fetchRuns, fetchRunDetail, fetchSchedules } = extractionStore;
 
 const pageMeta = ref({ title: 'Extraction Run History' });
 const breadcrumbs = ref([
@@ -66,6 +66,11 @@ const clinicItems = computed(() => {
   return [{ value: '', title: 'All Clinics' }, ...items];
 });
 
+const selectedRunSchedule = computed(() => {
+  if (!selectedRun.value) return null;
+  return schedules.value.find((item) => item.clinic_id === selectedRun.value?.clinic_id) || null;
+});
+
 function clinicName(clinicId: string): string {
   return clinicNameMap.value[clinicId] || `${clinicId.slice(0, 8)}…`;
 }
@@ -106,6 +111,42 @@ function formatDuration(item: ExtractionRun): string {
     return `${hours}h ${mins}m`;
   }
   return `${minutes}m ${seconds}s`;
+}
+
+function eventColor(severity?: string | null): string {
+  if (severity === 'ERROR') return 'error';
+  if (severity === 'WARNING') return 'warning';
+  return 'info';
+}
+
+function weekdayTitle(day: number): string {
+  return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][day] || `Day ${day}`;
+}
+
+function workingDaysText(days: number[]): string {
+  if (!days.length) return 'No weekdays configured';
+  return days.map(weekdayTitle).join(', ');
+}
+
+function slackTargetText(webhook?: string | null): string {
+  if (!webhook) return 'No Slack target configured';
+  try {
+    const url = new URL(webhook);
+    const parts = url.pathname.split('/').filter(Boolean);
+    return `${url.host} · …/${parts.slice(-2).join('/')}`;
+  } catch {
+    return webhook.length > 36 ? `${webhook.slice(0, 36)}…` : webhook;
+  }
+}
+
+function slackMentionsText(mentions?: string[]): string {
+  if (!mentions?.length) return 'No mentions configured';
+  return mentions.join(', ');
+}
+
+function reviewOffsetsText(offsets: number[]): string {
+  if (!offsets.length) return 'No review offsets';
+  return offsets.map((offset) => offset === 0 ? 'D+0 same day' : `D+${offset}`).join(', ');
 }
 
 function showSnack(message: string, color: string) {
@@ -172,6 +213,7 @@ async function onRowClick(_: Event, payload: { item: ExtractionRun }) {
 onMounted(async () => {
   try {
     await hydrateLookups();
+    await fetchSchedules();
     await refreshRuns();
   } catch (err: any) {
     showSnack(err?.message || String(err), 'error');
@@ -378,6 +420,34 @@ onMounted(async () => {
             <v-alert type="error" variant="tonal">
               <strong>Error:</strong> {{ selectedRun.error_message }}
             </v-alert>
+          </v-col>
+
+          <v-col cols="12" v-if="selectedRun.recent_events?.length">
+            <div class="text-caption text-medium-emphasis mb-2">Recent Ops Events</div>
+            <div class="d-flex flex-column ga-2">
+              <v-card v-for="event in selectedRun.recent_events" :key="event.id" variant="outlined">
+                <v-card-text class="py-3">
+                  <div class="d-flex align-center ga-2 mb-1">
+                    <v-chip size="x-small" :color="eventColor(event.severity)" variant="tonal">{{ event.severity }}</v-chip>
+                    <span class="font-weight-medium">{{ event.event_type }}</span>
+                    <span class="text-caption text-medium-emphasis">{{ formatDate(event.created_at) }}</span>
+                  </div>
+                  <div class="text-body-2">{{ event.message || 'No event message.' }}</div>
+                </v-card-text>
+              </v-card>
+            </div>
+          </v-col>
+
+          <v-col cols="12" v-if="selectedRunSchedule">
+            <div class="text-caption text-medium-emphasis mb-2">Schedule Policy Snapshot</div>
+            <v-card variant="outlined">
+              <v-card-text class="py-3">
+                <div class="text-body-2 mb-1">Slack target: {{ slackTargetText(selectedRunSchedule.effective_policy?.slack_webhook ?? selectedRunSchedule.slack_webhook) }}</div>
+                <div class="text-body-2 mb-1">Mentions: {{ slackMentionsText(selectedRunSchedule.effective_policy?.slack_mentions ?? selectedRunSchedule.slack_mentions) }}</div>
+                <div class="text-body-2 mb-1">Working days: {{ workingDaysText(selectedRunSchedule.effective_policy?.working_days ?? selectedRunSchedule.working_days ?? []) }}</div>
+                <div class="text-body-2">Review offsets: {{ reviewOffsetsText(selectedRunSchedule.effective_policy?.review_day_offsets ?? selectedRunSchedule.review_day_offsets ?? []) }}</div>
+              </v-card-text>
+            </v-card>
           </v-col>
         </v-row>
       </v-card-text>

@@ -2,10 +2,77 @@
 
 export type ExtractionRunStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
 export type ExtractionRunType = 'NEW_DATE' | 'REVIEW' | 'MANUAL';
+export type ExtractionHealthStatus = 'HEALTHY' | 'DEGRADED' | 'DOWN';
+
+export interface ExtractionEffectivePolicy {
+  extraction_time: string;
+  review_times: string[];
+  days_in_advance: number;
+  horizon_mode: 'business_days' | 'calendar_days' | string;
+  working_days: number[];
+  review_day_offsets: number[];
+  slack_webhook?: string | null;
+  slack_mentions?: string[];
+  max_parallel_clinics: number;
+  max_parallel_runs_per_clinic: number;
+  timezone: string;
+}
+
+export interface ExtractionNotificationStatus {
+  pending_count: number;
+  failed_count: number;
+  last_sent_at: string | null;
+}
+
+export interface ExtractionHealth {
+  clinic_id: string;
+  status: ExtractionHealthStatus;
+  reason_code: string;
+  reason_summary: string | null;
+  consecutive_failure_count: number;
+  overdue_run_count: number;
+  pending_notification_count: number;
+  failed_notification_count: number;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  last_od_error_at: string | null;
+  last_event_at: string | null;
+  computed_at: string | null;
+  signal_snapshot_json: Record<string, unknown>;
+}
+
+export interface ExtractionOperationEvent {
+  id: string;
+  clinic_id: string;
+  extraction_run_id?: string | null;
+  event_type: string;
+  severity: 'INFO' | 'WARNING' | 'ERROR' | string;
+  message: string | null;
+  payload_json: Record<string, unknown>;
+  created_at: string | null;
+}
+
+export interface ExtractionRolloutCheck {
+  clinic_id: string;
+  clinic_name: string;
+  client_id: string;
+  client_name: string;
+  dry_run: boolean;
+  safe_for_rollout: boolean;
+  blockers: string[];
+  effective_policy: ExtractionEffectivePolicy;
+  health: ExtractionHealth;
+  notification_status: ExtractionNotificationStatus;
+  recent_runs: ExtractionRun[];
+  recent_events: ExtractionOperationEvent[];
+}
 
 export interface ExtractionSchedule {
   id: string;
   clinic_id: string;
+  clinic_name?: string | null;
+  client_id?: string | null;
+  client_name?: string | null;
   auto_extract_enabled: boolean;
   extraction_time: string;
   review_times: string[];
@@ -20,6 +87,15 @@ export interface ExtractionSchedule {
   resolved_assignment_scope?: EncargadoAssignmentScope | null;
   created_at?: string | null;
   updated_at?: string | null;
+  horizon_mode?: string;
+  working_days?: number[];
+  review_day_offsets?: number[];
+  slack_webhook?: string | null;
+  slack_mentions?: string[];
+  max_parallel_runs_per_clinic?: number | null;
+  effective_policy?: ExtractionEffectivePolicy | null;
+  notification_status?: ExtractionNotificationStatus | null;
+  health?: ExtractionHealth | null;
 }
 
 export interface ExtractionRun {
@@ -39,6 +115,7 @@ export interface ExtractionRun {
   template_name?: string | null;
   sheet_tab_name?: string | null;
   status_message?: string | null;
+  recent_events?: ExtractionOperationEvent[];
 }
 
 export interface Encargado {

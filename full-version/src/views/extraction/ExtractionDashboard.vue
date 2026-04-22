@@ -6,6 +6,8 @@ import { useExtractionStore } from '@/stores/extraction';
 import {
   ActivityIcon,
   CircleCheckIcon,
+  AlertTriangleIcon,
+  AlertCircleIcon,
   SettingsIcon,
   CalendarStatsIcon,
   PlayerPlayIcon,
@@ -13,8 +15,8 @@ import {
 } from 'vue-tabler-icons';
 
 const extractionStore = useExtractionStore();
-const { runs, recentRuns, schedules, dashboardSummary, clinicNameMap, loading, error } = storeToRefs(extractionStore);
-const { hydrateLookups, fetchRuns, fetchSchedules, triggerExtraction, statusColor } = extractionStore;
+const { recentRuns, dashboardSummary, healthSummary, clinicNameMap, loading, error, events, schedules } = storeToRefs(extractionStore);
+const { hydrateLookups, fetchRuns, fetchSchedules, fetchHealth, fetchEvents, triggerExtraction, statusColor } = extractionStore;
 
 const triggerDialog = ref(false);
 const triggerLoading = ref(false);
@@ -35,6 +37,10 @@ const clinicItems = computed(() =>
   Object.entries(clinicNameMap.value).map(([value, title]) => ({ value, title })),
 );
 
+const slackConfiguredCount = computed(() => schedules.value.filter((item) => Boolean(item.effective_policy?.slack_webhook ?? item.slack_webhook)).length);
+const explicitWeekdayCount = computed(() => schedules.value.filter((item) => (item.effective_policy?.working_days ?? item.working_days ?? []).length > 0).length);
+const policySnapshot = computed(() => schedules.value.slice(0, 5));
+
 const headers = [
   { title: 'Clinic', key: 'clinic_id', sortable: false },
   { title: 'Type', key: 'run_type', sortable: false },
@@ -42,6 +48,14 @@ const headers = [
   { title: 'Target Date', key: 'target_date', sortable: false },
   { title: 'Rows', key: 'inserted_rows_count', align: 'end' as const },
   { title: 'Started', key: 'started_at', sortable: false },
+];
+
+const eventHeaders = [
+  { title: 'Clinic', key: 'clinic_id', sortable: false },
+  { title: 'Severity', key: 'severity', sortable: false },
+  { title: 'Event', key: 'event_type', sortable: false },
+  { title: 'Message', key: 'message', sortable: false },
+  { title: 'At', key: 'created_at', sortable: false },
 ];
 
 function clinicName(clinicId: string): string {
@@ -62,7 +76,40 @@ async function refreshDashboard() {
   await Promise.all([
     fetchRuns({ page: 1, per_page: 20 }),
     fetchSchedules(),
+    fetchHealth(),
+    fetchEvents(undefined, 10),
   ]);
+}
+
+function eventColor(severity: string): string {
+  if (severity === 'ERROR') return 'error';
+  if (severity === 'WARNING') return 'warning';
+  return 'info';
+}
+
+function weekdayTitle(day: number): string {
+  return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][day] || `Day ${day}`;
+}
+
+function workingDaysText(days: number[]): string {
+  if (!days.length) return 'No weekdays configured';
+  return days.map(weekdayTitle).join(', ');
+}
+
+function slackTargetText(webhook?: string | null): string {
+  if (!webhook) return 'No Slack target configured';
+  try {
+    const url = new URL(webhook);
+    const parts = url.pathname.split('/').filter(Boolean);
+    return `${url.host} · …/${parts.slice(-2).join('/')}`;
+  } catch {
+    return webhook.length > 36 ? `${webhook.slice(0, 36)}…` : webhook;
+  }
+}
+
+function slackMentionsText(mentions?: string[]): string {
+  if (!mentions?.length) return 'No mentions configured';
+  return mentions.join(', ');
 }
 
 function openTriggerDialog() {
@@ -167,29 +214,105 @@ onMounted(async () => {
           </v-col>
 
           <v-col cols="12" sm="6" lg="3">
-            <UiParentCard title="Active Schedules">
+            <UiParentCard title="Healthy Clinics">
               <div class="d-flex align-center">
                 <v-avatar size="44" class="bg-lightwarning mr-3" rounded>
                   <SettingsIcon size="22" class="text-warning" stroke-width="1.5" />
                 </v-avatar>
                 <div>
-                  <h3 class="text-h5 font-weight-bold text-warning">{{ dashboardSummary.active_schedules }}</h3>
-                  <span class="text-body-2 text-medium-emphasis">Auto extraction enabled</span>
+                  <h3 class="text-h5 font-weight-bold text-warning">{{ healthSummary.healthy }}</h3>
+                  <span class="text-body-2 text-medium-emphasis">Clinics currently healthy</span>
                 </div>
               </div>
             </UiParentCard>
           </v-col>
 
           <v-col cols="12" sm="6" lg="3">
-            <UiParentCard title="Appointments Today">
+            <UiParentCard title="Notification Backlog">
               <div class="d-flex align-center">
                 <v-avatar size="44" class="bg-lightinfo mr-3" rounded>
                   <CalendarStatsIcon size="22" class="text-info" stroke-width="1.5" />
                 </v-avatar>
                 <div>
-                  <h3 class="text-h5 font-weight-bold">{{ dashboardSummary.appointments_today }}</h3>
-                  <span class="text-body-2 text-medium-emphasis">Rows inserted</span>
+                  <h3 class="text-h5 font-weight-bold">{{ healthSummary.notification_backlog }}</h3>
+                  <span class="text-body-2 text-medium-emphasis">Pending + failed notifications</span>
                 </div>
+              </div>
+            </UiParentCard>
+          </v-col>
+        </v-row>
+
+        <v-row>
+          <v-col cols="12" md="6">
+            <UiParentCard title="Degraded Clinics">
+              <div class="d-flex align-center">
+                <v-avatar size="44" class="bg-lightwarning mr-3" rounded>
+                  <AlertTriangleIcon size="22" class="text-warning" stroke-width="1.5" />
+                </v-avatar>
+                <div>
+                  <h3 class="text-h5 font-weight-bold text-warning">{{ healthSummary.degraded }}</h3>
+                  <span class="text-body-2 text-medium-emphasis">Need operator attention</span>
+                </div>
+              </div>
+            </UiParentCard>
+          </v-col>
+          <v-col cols="12" md="6">
+            <UiParentCard title="Down Clinics">
+              <div class="d-flex align-center">
+                <v-avatar size="44" class="bg-lighterror mr-3" rounded>
+                  <AlertCircleIcon size="22" class="text-error" stroke-width="1.5" />
+                </v-avatar>
+                <div>
+                  <h3 class="text-h5 font-weight-bold text-error">{{ healthSummary.down }}</h3>
+                  <span class="text-body-2 text-medium-emphasis">Rollout blockers</span>
+                </div>
+              </div>
+            </UiParentCard>
+          </v-col>
+        </v-row>
+
+        <v-row>
+          <v-col cols="12" md="6">
+            <UiParentCard title="Slack Coverage">
+              <div class="d-flex align-center">
+                <v-avatar size="44" class="bg-lightsuccess mr-3" rounded>
+                  <SettingsIcon size="22" class="text-success" stroke-width="1.5" />
+                </v-avatar>
+                <div>
+                  <h3 class="text-h5 font-weight-bold text-success">{{ slackConfiguredCount }}/{{ schedules.length }}</h3>
+                  <span class="text-body-2 text-medium-emphasis">Clinics with clinic-level Slack target override visible</span>
+                </div>
+              </div>
+            </UiParentCard>
+          </v-col>
+          <v-col cols="12" md="6">
+            <UiParentCard title="Weekday Policies">
+              <div class="d-flex align-center">
+                <v-avatar size="44" class="bg-lightinfo mr-3" rounded>
+                  <CalendarStatsIcon size="22" class="text-info" stroke-width="1.5" />
+                </v-avatar>
+                <div>
+                  <h3 class="text-h5 font-weight-bold">{{ explicitWeekdayCount }}</h3>
+                  <span class="text-body-2 text-medium-emphasis">Schedules exposing explicit working-day lists</span>
+                </div>
+              </div>
+            </UiParentCard>
+          </v-col>
+        </v-row>
+
+        <v-row>
+          <v-col cols="12">
+            <UiParentCard title="Policy Snapshot">
+              <div class="d-flex flex-column ga-3">
+                <v-card v-for="schedule in policySnapshot" :key="schedule.id" variant="outlined">
+                  <v-card-text class="py-3">
+                    <div class="font-weight-medium mb-1">{{ clinicName(schedule.clinic_id) }}</div>
+                    <div class="text-body-2 mb-1">Slack target: {{ slackTargetText(schedule.effective_policy?.slack_webhook ?? schedule.slack_webhook) }}</div>
+                    <div class="text-body-2 mb-1">Mentions: {{ slackMentionsText(schedule.effective_policy?.slack_mentions ?? schedule.slack_mentions) }}</div>
+                    <div class="text-body-2">Working days: {{ workingDaysText(schedule.effective_policy?.working_days ?? schedule.working_days ?? []) }}</div>
+                  </v-card-text>
+                </v-card>
+                <div v-if="!policySnapshot.length" class="text-medium-emphasis">No schedule policies loaded yet.</div>
               </div>
             </UiParentCard>
           </v-col>
@@ -227,6 +350,32 @@ onMounted(async () => {
 
                 <template #item.started_at="{ item }">
                   {{ formatDate(item.started_at) }}
+                </template>
+              </v-data-table>
+            </UiParentCard>
+          </v-col>
+        </v-row>
+
+        <v-row>
+          <v-col cols="12">
+            <UiParentCard title="Recent Ops Events">
+              <v-data-table
+                :headers="eventHeaders"
+                :items="events"
+                :loading="loading"
+                item-value="id"
+                density="comfortable"
+              >
+                <template #item.clinic_id="{ item }">
+                  <span class="font-weight-medium">{{ clinicName(item.clinic_id) }}</span>
+                </template>
+                <template #item.severity="{ item }">
+                  <v-chip :color="eventColor(item.severity)" size="small" variant="tonal">
+                    {{ item.severity }}
+                  </v-chip>
+                </template>
+                <template #item.created_at="{ item }">
+                  {{ formatDate(item.created_at) }}
                 </template>
               </v-data-table>
             </UiParentCard>
