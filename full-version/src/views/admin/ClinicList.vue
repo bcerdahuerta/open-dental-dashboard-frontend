@@ -203,6 +203,7 @@ watch(selectedClientId, (newVal) => {
         <v-data-table
           :headers="headers"
           :items="clinics"
+          :items-per-page="25"
           :loading="loading"
           item-value="id"
           class="border rounded-md"
