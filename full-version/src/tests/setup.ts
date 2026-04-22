@@ -13,6 +13,26 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
   globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 }
 
+if (typeof globalThis.visualViewport === 'undefined') {
+  const visualViewportMock = {
+    width: 1280,
+    height: 720,
+    offsetTop: 0,
+    offsetLeft: 0,
+    pageTop: 0,
+    pageLeft: 0,
+    scale: 1,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false
+  };
+
+  Object.defineProperty(globalThis, 'visualViewport', {
+    writable: true,
+    value: visualViewportMock
+  });
+}
+
 // Mock matchMedia for Vuetify components like v-switch that use media queries
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

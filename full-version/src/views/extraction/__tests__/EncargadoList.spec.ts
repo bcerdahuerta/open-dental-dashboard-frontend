@@ -14,7 +14,7 @@ vi.mock('@/utils/helpers/fetch-wrapper', () => ({
   }
 }));
 
-describe('EncargadoList clinic assignment UI', () => {
+describe('EncargadoList workforce shell', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
@@ -32,33 +32,23 @@ describe('EncargadoList clinic assignment UI', () => {
     });
   });
 
-  it('renders clinic-first assignment copy and keeps legacy fallback visible', async () => {
+  it('renders shell actions and workforce composition without expandable rows', async () => {
     const wrapper = shallowMount(EncargadoList, {
       global: {
         stubs: {
           BaseBreadcrumb: { template: '<div class="breadcrumb-stub"></div>' },
-          UiParentCard: { template: '<div><slot /></div>' },
-          VDataTable: { template: '<div class="v-data-table-stub"><slot name="no-data" /></div>' },
-          VDialog: { template: '<div class="v-dialog-stub"><slot /></div>' },
-          VCard: { template: '<div><slot /></div>' },
-          VCardTitle: { template: '<div><slot /></div>' },
-          VCardText: { template: '<div><slot /></div>' },
-          VCardActions: { template: '<div><slot /></div>' },
-          VForm: { template: '<form><slot /></form>' },
+          UiParentCard: { template: '<div><slot /><slot name="action" /></div>' },
+          WorkforceTable: { template: '<div class="workforce-table-stub">workforce table</div>' },
+          WorkforceDrawer: { template: '<div class="workforce-drawer-stub">workforce drawer</div>' },
           VRow: { template: '<div><slot /></div>' },
           VCol: { template: '<div><slot /></div>' },
           VBtn: { template: '<button><slot /></button>' },
-          VSpacer: true,
           VTextField: { template: '<input />' },
-          VSwitch: { template: '<input type="checkbox" />' },
-          VSelect: { template: '<select></select>' },
-          VChip: { template: '<span><slot /></span>' },
           VAlert: { template: '<div><slot /></div>' },
           VSnackbar: { template: '<div><slot /></div>' },
+          VNavigationDrawer: { template: '<div><slot /></div>' },
           PlusIcon: true,
-          PencilIcon: true,
-          RefreshIcon: true,
-          UsersIcon: true
+          RefreshIcon: true
         }
       }
     });
@@ -66,9 +56,10 @@ describe('EncargadoList clinic assignment UI', () => {
     await flushPromises();
 
     const text = wrapper.text();
-    expect(text).toContain('Clinic Assignments');
-    expect(text).toContain('Clinics');
-    expect(text).toContain('Legacy Fallback (Clients)');
-    expect(text).toContain('Create one to start assigning clinics');
+    expect(text).toContain('workforce table');
+    expect(text).toContain('workforce drawer');
+    expect(text).toContain('Refresh');
+    expect(text).toContain('New Team Member');
+    expect(text).not.toContain('Create Team Member');
   });
 });

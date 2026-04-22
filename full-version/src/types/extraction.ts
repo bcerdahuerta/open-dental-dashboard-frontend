@@ -52,22 +52,83 @@ export interface Encargado {
   resolved_assignment_scope?: EncargadoAssignmentScope;
   resolved_assignment_client_ids?: string[];
   resolved_assignment_clinic_ids?: string[];
+  resolved_clinic_ownership?: EncargadoClinicOwnership[];
+  workload_summary?: EncargadoWorkloadSummary;
+  capacity?: EncargadoCapacity;
+  analytics_status?: EncargadoAnalyticsStatus;
   created_at: string | null;
   updated_at?: string | null;
 }
 
 export type EncargadoAssignmentScope = 'clinic' | 'client' | 'unassigned';
 
+export type WorkforceMetricState = 'pending' | 'partial' | 'ready' | 'unavailable';
+
+export interface EncargadoClinicOwnership {
+  clinic_id: string;
+  clinic_name: string;
+  client_id: string;
+  client_name: string;
+  assignment_source: 'clinic' | 'client';
+}
+
+export interface EncargadoWorkloadSummary {
+  resolved_client_count: number;
+  resolved_clinic_count: number;
+  direct_clinic_count: number;
+  legacy_client_count: number;
+}
+
+export interface EncargadoCapacity {
+  status: WorkforceMetricState;
+  max_clinics: number | null;
+  assigned_clinic_count: number;
+  available_clinic_slots: number | null;
+  utilization_ratio: number | null;
+}
+
+export interface EncargadoAnalyticsStatus {
+  state: WorkforceMetricState;
+  missing_metrics: string[];
+  updated_at: string | null;
+}
+
+export interface EncargadoAnalyticsMetrics {
+  client_count: number;
+  clinic_count: number;
+  verification_volume: number | null;
+  completion_rate: number | null;
+}
+
 export interface EncargadoAnalytics {
   encargado_id: string;
-  client_count: number;
-  clinic_count?: number;
   resolved_assignment_scope?: EncargadoAssignmentScope;
   resolved_assignment_client_ids?: string[];
   resolved_assignment_clinic_ids?: string[];
-  verification_volume: number;
-  completion_rate: number;
+  resolved_clinic_ownership?: EncargadoClinicOwnership[];
+  workload_summary?: EncargadoWorkloadSummary;
+  capacity?: EncargadoCapacity;
+  analytics_status?: EncargadoAnalyticsStatus;
+  metrics: EncargadoAnalyticsMetrics;
 }
+
+export interface EncargadoAssignmentChange {
+  encargado_id: string;
+  changed: boolean;
+  requested_clinic_ids: string[];
+  previous_clinic_ids: string[];
+  added_clinic_ids: string[];
+  removed_clinic_ids: string[];
+  affected_analytics_fields: string[];
+}
+
+export interface AssignClinicsResponse {
+  member: Encargado;
+  rollback_member: Encargado;
+  assignment_change: EncargadoAssignmentChange;
+}
+
+export type WorkforceDrawerMode = 'closed' | 'create' | 'detail' | 'edit';
 
 export interface Pagination {
   page: number;

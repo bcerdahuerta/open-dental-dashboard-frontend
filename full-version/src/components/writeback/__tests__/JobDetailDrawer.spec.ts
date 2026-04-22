@@ -3,6 +3,24 @@ import { mount } from '@vue/test-utils';
 import { ref, nextTick } from 'vue';
 import JobDetailDrawer from '@/components/writeback/JobDetailDrawer.vue';
 
+if (!('visualViewport' in window)) {
+  Object.defineProperty(window, 'visualViewport', {
+    writable: true,
+    value: {
+      width: 1280,
+      height: 720,
+      offsetTop: 0,
+      offsetLeft: 0,
+      pageTop: 0,
+      pageLeft: 0,
+      scale: 1,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    },
+  });
+}
+
 const selectedJobRef = ref<Record<string, unknown> | null>(null);
 const jobsLoadingRef = ref(false);
 const detailLoadingRef = ref(false);
@@ -29,18 +47,22 @@ vi.mock('@/stores/writeback', () => ({
 function mountDrawer(props: { modelValue: boolean; jobId: string | null }) {
   return mount(JobDetailDrawer, {
     props,
-    global: {
-      stubs: {
-        UiParentCard: {
-          props: ['title'],
-          template: '<section><h3>{{ title }}</h3><slot /><template v-if="$slots.action"><slot name="action" /></template></section>',
-        },
-        VNavigationDrawer: { template: '<div><slot /></div>' },
-        VProgressCircular: true,
-        VToolbar: { template: '<div><slot /></div>' },
-        VToolbarTitle: { template: '<div><slot /></div>' },
-        VSpacer: { template: '<div />' },
-        VChip: { template: '<span><slot /></span>' },
+     global: {
+       stubs: {
+          UiParentCard: {
+            props: ['title'],
+            template: '<section><h3>{{ title }}</h3><slot /><template v-if="$slots.action"><slot name="action" /></template></section>',
+          },
+          VDialog: { template: '<div><slot /></div>' },
+          VCard: { template: '<div><slot /></div>' },
+          VCardTitle: { template: '<div><slot /></div>' },
+          VCardText: { template: '<div><slot /></div>' },
+          VCardActions: { template: '<div><slot /></div>' },
+          VProgressCircular: true,
+          VToolbar: { template: '<div><slot /></div>' },
+          VToolbarTitle: { template: '<div><slot /></div>' },
+          VSpacer: { template: '<div />' },
+          VChip: { template: '<span><slot /></span>' },
         VBtn: { template: '<button @click="$emit(\'click\')"><slot /></button>' },
         VDivider: { template: '<hr />' },
         VList: { template: '<div><slot /></div>' },
@@ -50,8 +72,7 @@ function mountDrawer(props: { modelValue: boolean; jobId: string | null }) {
         VAlert: { template: '<div><slot /></div>' },
         VTimeline: { template: '<div><slot /></div>' },
         VTimelineItem: { template: '<div><slot /></div>' },
-        VCard: { template: '<div><slot /></div>' },
-        VRow: { template: '<div><slot /></div>' },
+          VRow: { template: '<div><slot /></div>' },
         VCol: { template: '<div><slot /></div>' },
         VExpansionPanels: { template: '<div><slot /></div>' },
         VExpansionPanel: { template: '<div><slot /></div>' },
