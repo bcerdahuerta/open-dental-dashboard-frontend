@@ -51,6 +51,7 @@ const timezoneOptions = [
 
 const headers = [
   { title: 'Clinic', key: 'clinic_id', sortable: false },
+  { title: 'Owner', key: 'resolved_encargado_name', sortable: false },
   { title: 'Auto Extract', key: 'auto_extract_enabled', sortable: false },
   { title: 'Extraction Time', key: 'extraction_time', sortable: false },
   { title: 'Review Times', key: 'review_times', sortable: false },
@@ -70,6 +71,12 @@ function businessDaysText(item: ExtractionSchedule): string {
   if (item.include_saturday) extras.push('+Sat');
   if (item.include_sunday) extras.push('+Sun');
   return extras.length ? `Mon-Fri ${extras.join(' ')}` : 'Mon-Fri';
+}
+
+function resolvedOwnerText(item: ExtractionSchedule): string {
+  if (!item.resolved_encargado_name) return '—';
+  if (!item.resolved_assignment_scope) return item.resolved_encargado_name;
+  return `${item.resolved_encargado_name} (${item.resolved_assignment_scope})`;
 }
 
 function showSnack(message: string, color: string) {
@@ -182,12 +189,16 @@ onMounted(async () => {
         <v-data-table
           :headers="headers"
           :items="schedules"
-          :loading="loading"
+          :loading="loading" :items-per-page="25"
           item-value="id"
           hover
         >
           <template #item.clinic_id="{ item }">
             <span class="font-weight-medium">{{ clinicName(item.clinic_id) }}</span>
+          </template>
+
+          <template #item.resolved_encargado_name="{ item }">
+            <span class="text-medium-emphasis">{{ resolvedOwnerText(item) }}</span>
           </template>
 
           <template #item.auto_extract_enabled="{ item }">
