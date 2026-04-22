@@ -4,6 +4,7 @@ import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
 import { useClinicStore } from '@/stores/clinics';
 import { useClientStore } from '@/stores/clients';
 import type {
+  AssignClinicsRequest,
   AssignClientsRequest,
   Encargado,
   EncargadoAnalytics,
@@ -301,6 +302,23 @@ export const useExtractionStore = defineStore('extraction', () => {
     }
   }
 
+  async function assignClinics(encargado_id: string, clinic_ids: string[]) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const payload: AssignClinicsRequest = { clinic_ids };
+      const updated = await fetchWrapper.post(`${apiUrl}/encargados/${encargado_id}/clinics`, payload) as Encargado;
+      const idx = encargados.value.findIndex((item) => item.id === encargado_id);
+      if (idx !== -1) encargados.value[idx] = updated;
+      return updated;
+    } catch (err: any) {
+      error.value = err?.message || String(err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function fetchAnalytics(encargado_id: string) {
     loading.value = true;
     error.value = null;
@@ -352,6 +370,7 @@ export const useExtractionStore = defineStore('extraction', () => {
     fetchEncargados,
     createEncargado,
     updateEncargado,
+    assignClinics,
     assignClients,
     fetchAnalytics,
     statusColor,

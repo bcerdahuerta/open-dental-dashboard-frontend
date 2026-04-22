@@ -15,6 +15,9 @@ export interface ExtractionSchedule {
   include_saturday: boolean;
   include_sunday: boolean;
   timezone: string;
+  resolved_encargado_id?: string | null;
+  resolved_encargado_name?: string | null;
+  resolved_assignment_scope?: EncargadoAssignmentScope | null;
   created_at?: string | null;
   updated_at?: string | null;
 }
@@ -43,14 +46,25 @@ export interface Encargado {
   name: string;
   email: string;
   is_active: boolean;
+  clinic_ids: string[];
+  /** Legacy fallback only. Clinic assignment is source of truth. */
   client_ids: string[];
+  resolved_assignment_scope?: EncargadoAssignmentScope;
+  resolved_assignment_client_ids?: string[];
+  resolved_assignment_clinic_ids?: string[];
   created_at: string | null;
   updated_at?: string | null;
 }
 
+export type EncargadoAssignmentScope = 'clinic' | 'client' | 'unassigned';
+
 export interface EncargadoAnalytics {
   encargado_id: string;
   client_count: number;
+  clinic_count?: number;
+  resolved_assignment_scope?: EncargadoAssignmentScope;
+  resolved_assignment_client_ids?: string[];
+  resolved_assignment_clinic_ids?: string[];
   verification_volume: number;
   completion_rate: number;
 }
@@ -91,7 +105,12 @@ export interface ExtractionManualTriggerResponse {
 }
 
 export interface AssignClientsRequest {
+  /** Legacy fallback only. Prefer clinic assignments. */
   client_ids: string[];
+}
+
+export interface AssignClinicsRequest {
+  clinic_ids: string[];
 }
 
 export interface RunsResponse {

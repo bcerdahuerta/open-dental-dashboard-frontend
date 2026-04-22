@@ -4,16 +4,20 @@ import { storeToRefs } from 'pinia';
 import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import { useExtractionStore } from '@/stores/extraction';
+import { useClinicStore } from '@/stores/clinics';
 import { useClientStore } from '@/stores/clients';
 import { PlusIcon, PencilIcon, RefreshIcon, UsersIcon } from 'vue-tabler-icons';
-import type { Encargado } from '@/types/extraction';
+import type { Encargado, EncargadoAssignmentScope } from '@/types/extraction';
 
 const extractionStore = useExtractionStore();
+const clinicStore = useClinicStore();
 const clientStore = useClientStore();
 
 const { encargados, encargadoAnalytics, loading, error } = storeToRefs(extractionStore);
+const { clinics } = storeToRefs(clinicStore);
 const { clients } = storeToRefs(clientStore);
-const { fetchEncargados, createEncargado, updateEncargado, assignClients, fetchAnalytics } = extractionStore;
+const { fetchEncargados, createEncargado, updateEncargado, assignClinics, fetchAnalytics } = extractionStore;
+const { fetchClinicCatalog } = clinicStore;
 const { fetchClients } = clientStore;
 
 const pageMeta = ref({ title: 'Team Members' });
@@ -27,7 +31,7 @@ const headers = [
   { title: 'Name', key: 'name', sortable: false },
   { title: 'Email', key: 'email', sortable: false },
   { title: 'Status', key: 'is_active', sortable: false },
-  { title: 'Clients', key: 'client_count', align: 'end' as const, sortable: false },
+  { title: 'Clinics', key: 'clinic_count', align: 'end' as const, sortable: false },
   { title: 'Actions', key: 'actions', sortable: false, align: 'center' as const },
 ];
 
@@ -57,8 +61,16 @@ const editForm = ref({
   is_active: true,
 });
 
-const assignForm = ref<{ client_ids: string[] }>({
-  client_ids: [],
+const assignForm = ref<{ clinic_ids: string[]; legacy_client_ids: string[] }>({
+  clinic_ids: [],
+  legacy_client_ids: [],
+});
+
+const clinicItems = computed(() => {
+  return (clinics.value || []).map((clinic) => ({
+    title: clinic.clinic_name,
+    value: clinic.id,
+  }));
 });
 
 const clientItems = computed(() => {
@@ -66,6 +78,13 @@ const clientItems = computed(() => {
     title: client.client_name,
     value: client.id,
   }));
+});
+
+const clinicNameMap = computed<Record<string, string>>(() => {
+  return (clinics.value || []).reduce((acc, clinic) => {
+    acc[clinic.id] = clinic.clinic_name;
+    return acc;
+  }, {} as Record<string, string>);
 });
 
 const clientNameMap = computed<Record<string, string>>(() => {
@@ -85,12 +104,28 @@ function statusColor(isActive: boolean): string {
   return isActive ? 'success' : 'grey';
 }
 
-function clientCount(item: Encargado): number {
-  return Array.isArray(item.client_ids) ? item.client_ids.length : 0;
+function clinicCount(item: Encargado): number {
+  return Array.isArray(item.clinic_ids) ? item.clinic_ids.length : 0;
+}
+
+function assignedClinicNames(item: Encargado): string[] {
+  return (item.clinic_ids || []).map((id) => clinicNameMap.value[id] || id.slice(0, 8));
 }
 
 function assignedClientNames(item: Encargado): string[] {
   return (item.client_ids || []).map((id) => clientNameMap.value[id] || id.slice(0, 8));
+}
+
+function resolvedScopeLabel(scope?: EncargadoAssignmentScope): string {
+  if (scope === 'clinic') return 'Clinic-first';
+  if (scope === 'client') return 'Legacy fallback';
+  return 'Unassigned';
+}
+
+function resolvedScopeColor(scope?: EncargadoAssignmentScope): string {
+  if (scope === 'clinic') return 'success';
+  if (scope === 'client') return 'warning';
+  return 'grey';
 }
 
 function resetCreateForm() {
@@ -102,7 +137,7 @@ function resetEditForm() {
 }
 
 function resetAssignForm() {
-  assignForm.value = { client_ids: [] };
+  assignForm.value = { clinic_ids: [], legacy_client_ids: [] };
 }
 
 function validateBasicFields(name: string, email: string): string | null {
@@ -130,7 +165,8 @@ function openEditDialog(item: Encargado) {
 function openAssignDialog(item: Encargado) {
   selectedEncargado.value = item;
   assignForm.value = {
-    client_ids: [...(item.client_ids || [])],
+    clinic_ids: [...(item.clinic_ids || [])],
+    legacy_client_ids: [...(item.client_ids || [])],
   };
   showAssignDialog.value = true;
 }
@@ -211,11 +247,11 @@ async function submitAssign() {
 
   submitLoading.value = true;
   try {
-    await assignClients(selectedEncargado.value.id, assignForm.value.client_ids);
+    await assignClinics(selectedEncargado.value.id, assignForm.value.clinic_ids);
     closeAssignDialog();
-    showSnack('Client assignments saved successfully.', 'success');
+    showSnack('Clinic assignments saved successfully.', 'success');
   } catch (err: any) {
-    showSnack(err?.message || 'Failed to assign clients', 'error');
+    showSnack(err?.message || 'Failed to assign clinics', 'error');
   } finally {
     submitLoading.value = false;
   }
@@ -243,8 +279,11 @@ watch(expanded, async (newExpanded, oldExpanded) => {
 
 onMounted(async () => {
   try {
-    await fetchClients({ limit: 500, includeInactive: true });
-    await fetchEncargados();
+    await Promise.all([
+      fetchClinicCatalog({ limit: 500, includeInactive: true }),
+      fetchClients({ limit: 500, includeInactive: true }),
+      fetchEncargados(),
+    ]);
   } catch (err: any) {
     showSnack(err?.message || String(err), 'error');
   }
@@ -280,14 +319,23 @@ onMounted(async () => {
           show-expand
           hover
         >
+          <template #item.name="{ item }">
+            <div class="d-flex align-center ga-2 flex-wrap">
+              <span class="font-weight-medium">{{ item.name }}</span>
+              <v-chip size="x-small" variant="tonal" :color="resolvedScopeColor(item.resolved_assignment_scope)">
+                {{ resolvedScopeLabel(item.resolved_assignment_scope) }}
+              </v-chip>
+            </div>
+          </template>
+
           <template #item.is_active="{ item }">
             <v-chip size="small" :color="statusColor(item.is_active)" variant="tonal">
               {{ item.is_active ? 'Active' : 'Inactive' }}
             </v-chip>
           </template>
 
-          <template #item.client_count="{ item }">
-            <span class="font-weight-medium">{{ clientCount(item) }}</span>
+          <template #item.clinic_count="{ item }">
+            <span class="font-weight-medium">{{ clinicCount(item) }}</span>
           </template>
 
           <template #item.actions="{ item }">
@@ -306,10 +354,10 @@ onMounted(async () => {
               <td :colspan="columns.length" class="bg-containerBg pa-4">
                 <v-row>
                   <v-col cols="12" md="4">
-                    <div class="text-caption text-medium-emphasis mb-1">Assigned Clients</div>
+                    <div class="text-caption text-medium-emphasis mb-1">Assigned Clinics</div>
                     <div class="d-flex ga-1 flex-wrap">
                       <v-chip
-                        v-for="name in assignedClientNames(item)"
+                        v-for="name in assignedClinicNames(item)"
                         :key="name"
                         size="x-small"
                         variant="tonal"
@@ -317,34 +365,50 @@ onMounted(async () => {
                       >
                         {{ name }}
                       </v-chip>
-                      <span v-if="!assignedClientNames(item).length" class="text-medium-emphasis">No clients assigned.</span>
+                      <span v-if="!assignedClinicNames(item).length" class="text-medium-emphasis">No clinics assigned.</span>
                     </div>
                   </v-col>
 
-                  <v-col cols="12" md="8">
+                  <v-col cols="12" md="4">
+                    <div class="text-caption text-medium-emphasis mb-1">Legacy Fallback (Clients)</div>
+                    <div class="d-flex ga-1 flex-wrap">
+                      <v-chip
+                        v-for="name in assignedClientNames(item)"
+                        :key="`legacy-${name}`"
+                        size="x-small"
+                        variant="outlined"
+                        color="warning"
+                      >
+                        {{ name }}
+                      </v-chip>
+                      <span v-if="!assignedClientNames(item).length" class="text-medium-emphasis">No legacy fallback clients.</span>
+                    </div>
+                  </v-col>
+
+                  <v-col cols="12" md="4">
                     <div class="text-caption text-medium-emphasis mb-2">Analytics (stub)</div>
                     <v-row>
-                      <v-col cols="12" sm="4">
+                      <v-col cols="12">
                         <v-sheet border rounded class="pa-3">
-                          <div class="text-caption text-medium-emphasis">Client Count</div>
+                          <div class="text-caption text-medium-emphasis">Resolved Client Count</div>
                           <div class="text-h6">
-                            {{ encargadoAnalytics[item.id]?.client_count ?? clientCount(item) }}
+                            {{ encargadoAnalytics[item.id]?.client_count ?? item.resolved_assignment_client_ids?.length ?? 0 }}
                           </div>
                         </v-sheet>
                       </v-col>
-                      <v-col cols="12" sm="4">
+                      <v-col cols="12">
                         <v-sheet border rounded class="pa-3">
-                          <div class="text-caption text-medium-emphasis">Verification Volume</div>
+                          <div class="text-caption text-medium-emphasis">Resolved Clinic Count</div>
                           <div class="text-h6">
-                            {{ encargadoAnalytics[item.id]?.verification_volume ?? '—' }}
+                            {{ encargadoAnalytics[item.id]?.clinic_count ?? item.resolved_assignment_clinic_ids?.length ?? clinicCount(item) }}
                           </div>
                         </v-sheet>
                       </v-col>
-                      <v-col cols="12" sm="4">
+                      <v-col cols="12">
                         <v-sheet border rounded class="pa-3">
-                          <div class="text-caption text-medium-emphasis">Completion Rate</div>
+                          <div class="text-caption text-medium-emphasis">Resolved Scope</div>
                           <div class="text-h6">
-                            {{ encargadoAnalytics[item.id]?.completion_rate ?? '—' }}
+                            {{ resolvedScopeLabel(item.resolved_assignment_scope) }}
                           </div>
                         </v-sheet>
                       </v-col>
@@ -357,7 +421,7 @@ onMounted(async () => {
 
           <template #no-data>
             <div class="text-center pa-8 text-medium-emphasis">
-              No team members found. Create one to start assigning clients.
+              No team members found. Create one to start assigning clinics.
             </div>
           </template>
         </v-data-table>
@@ -444,22 +508,41 @@ onMounted(async () => {
   <v-dialog v-model="showAssignDialog" max-width="680">
     <v-card>
       <v-card-title class="text-h6">
-        Assign Clients
+        Clinic Assignments
       </v-card-title>
       <v-card-text>
         <v-form>
           <v-row>
             <v-col cols="12">
+              <div class="text-caption text-medium-emphasis mb-2">
+                Clinics are source of truth. Legacy client assignments remain visible as fallback only.
+              </div>
+              <div class="text-caption text-medium-emphasis mb-1">Clinics</div>
               <v-select
-                v-model="assignForm.client_ids"
-                :items="clientItems"
+                v-model="assignForm.clinic_ids"
+                :items="clinicItems"
                 item-title="title"
                 item-value="value"
-                label="Clients"
+                label="Clinics"
                 variant="outlined"
                 multiple
                 chips
                 closable-chips
+                hide-details
+              />
+            </v-col>
+            <v-col cols="12">
+              <div class="text-caption text-medium-emphasis mb-1">Legacy Fallback (Clients)</div>
+              <v-select
+                v-model="assignForm.legacy_client_ids"
+                :items="clientItems"
+                item-title="title"
+                item-value="value"
+                label="Legacy Fallback (Clients)"
+                variant="outlined"
+                multiple
+                chips
+                disabled
                 hide-details
               />
             </v-col>
