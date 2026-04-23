@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import { useExtractionStore } from '@/stores/extraction';
+import { useClientStore } from '@/stores/clients';
+import { useClinicStore } from '@/stores/clinics';
 import {
   ActivityIcon,
   CircleCheckIcon,
@@ -15,12 +17,18 @@ import {
 } from 'vue-tabler-icons';
 
 const extractionStore = useExtractionStore();
-const { recentRuns, dashboardSummary, healthSummary, clinicNameMap, loading, error, events, schedules } = storeToRefs(extractionStore);
+const clientStore = useClientStore();
+const clinicStore = useClinicStore();
+
+const { clinicNameMap, loading, error, events, schedules, runs, health } = storeToRefs(extractionStore);
+const { clients } = storeToRefs(clientStore);
+const { clinics } = storeToRefs(clinicStore);
 const { hydrateLookups, fetchRuns, fetchSchedules, fetchHealth, fetchEvents, triggerExtraction, statusColor } = extractionStore;
 
 const triggerDialog = ref(false);
 const triggerLoading = ref(false);
 const triggerError = ref('');
+const selectedClientId = ref('');
 
 const triggerForm = ref({
   clinic_id: '',
@@ -33,13 +41,66 @@ const snackbar = ref(false);
 const snackbarText = ref('');
 const snackbarColor = ref<'success' | 'error' | 'warning'>('success');
 
-const clinicItems = computed(() =>
-  Object.entries(clinicNameMap.value).map(([value, title]) => ({ value, title })),
-);
+const clientItems = computed(() => [{ value: '', title: 'All Clients' }, ...clients.value.map((client) => ({
+  value: client.id,
+  title: client.client_name,
+}))]);
 
-const slackConfiguredCount = computed(() => schedules.value.filter((item) => Boolean(item.effective_policy?.slack_webhook ?? item.slack_webhook)).length);
-const explicitWeekdayCount = computed(() => schedules.value.filter((item) => (item.effective_policy?.working_days ?? item.working_days ?? []).length > 0).length);
-const policySnapshot = computed(() => schedules.value.slice(0, 5));
+const selectedClientClinicIds = computed(() => clinics.value
+  .filter((clinic) => !selectedClientId.value || clinic.client_id === selectedClientId.value)
+  .map((clinic) => clinic.id));
+
+const clinicItems = computed(() => clinics.value
+  .filter((clinic) => !selectedClientId.value || clinic.client_id === selectedClientId.value)
+  .map((clinic) => ({ value: clinic.id, title: clinic.clinic_name })));
+
+const filteredRuns = computed(() => {
+  if (!selectedClientId.value) return runs.value;
+  const allowed = new Set(selectedClientClinicIds.value);
+  return runs.value.filter((run) => allowed.has(run.clinic_id));
+});
+
+const filteredSchedules = computed(() => {
+  if (!selectedClientId.value) return schedules.value;
+  const allowed = new Set(selectedClientClinicIds.value);
+  return schedules.value.filter((schedule) => allowed.has(schedule.clinic_id));
+});
+
+const filteredHealth = computed(() => {
+  if (!selectedClientId.value) return health.value;
+  const allowed = new Set(selectedClientClinicIds.value);
+  return health.value.filter((item) => allowed.has(item.clinic_id));
+});
+
+const filteredEvents = computed(() => {
+  if (!selectedClientId.value) return events.value;
+  const allowed = new Set(selectedClientClinicIds.value);
+  return events.value.filter((item) => allowed.has(item.clinic_id));
+});
+
+const dashboardSummary = computed(() => {
+  const totalRuns = filteredRuns.value.length;
+  const completedRuns = filteredRuns.value.filter((run) => run.status === 'COMPLETED').length;
+
+  return {
+    total_runs: totalRuns,
+    success_rate: totalRuns > 0 ? Math.round((completedRuns / totalRuns) * 100) : 0,
+    active_schedules: filteredSchedules.value.filter((schedule) => schedule.auto_extract_enabled).length,
+    appointments_today: filteredRuns.value.reduce((sum, run) => sum + (run.inserted_rows_count || 0), 0),
+  };
+});
+
+const healthSummary = computed(() => ({
+  healthy: filteredHealth.value.filter((item) => item.status === 'HEALTHY').length,
+  degraded: filteredHealth.value.filter((item) => item.status === 'DEGRADED').length,
+  down: filteredHealth.value.filter((item) => item.status === 'DOWN').length,
+  notification_backlog: filteredHealth.value.reduce((sum, item) => sum + item.pending_notification_count + item.failed_notification_count, 0),
+}));
+
+const slackConfiguredCount = computed(() => filteredSchedules.value.filter((item) => Boolean(item.effective_policy?.slack_webhook ?? item.slack_webhook)).length);
+const explicitWeekdayCount = computed(() => filteredSchedules.value.filter((item) => (item.effective_policy?.working_days ?? item.working_days ?? []).length > 0).length);
+const policySnapshot = computed(() => filteredSchedules.value.slice(0, 5));
+const recentRunsScoped = computed(() => filteredRuns.value.slice(0, 10));
 
 const headers = [
   { title: 'Clinic', key: 'clinic_id', sortable: false },
@@ -73,11 +134,15 @@ function formatDate(iso: string | null): string {
 }
 
 async function refreshDashboard() {
+  const clinicScope = selectedClientId.value
+    ? (selectedClientClinicIds.value.length > 0 ? selectedClientClinicIds.value : ['__no-clinics__'])
+    : [];
+
   await Promise.all([
-    fetchRuns({ page: 1, per_page: 20 }),
-    fetchSchedules(),
+    fetchRuns({ page: 1, per_page: 20, clinic_ids: clinicScope }),
+    fetchSchedules(selectedClientId.value || undefined),
     fetchHealth(),
-    fetchEvents(undefined, 10),
+    fetchEvents(undefined, selectedClientId.value ? 100 : 10),
   ]);
 }
 
@@ -165,6 +230,13 @@ onMounted(async () => {
   await hydrateLookups();
   await refreshDashboard();
 });
+
+async function onClientChange() {
+  if (triggerForm.value.clinic_id && !selectedClientClinicIds.value.includes(triggerForm.value.clinic_id)) {
+    triggerForm.value.clinic_id = '';
+  }
+  await refreshDashboard();
+}
 </script>
 
 <template>
@@ -183,6 +255,22 @@ onMounted(async () => {
             </v-btn>
           </div>
         </template>
+
+        <v-row class="mb-1">
+          <v-col cols="12" md="4" lg="3">
+            <v-select
+              v-model="selectedClientId"
+              :items="clientItems"
+              item-title="title"
+              item-value="value"
+              label="Client"
+              variant="outlined"
+              color="primary"
+              hide-details="auto"
+              @update:model-value="onClientChange"
+            />
+          </v-col>
+        </v-row>
 
         <v-row>
           <v-col cols="12" sm="6" lg="3">
@@ -279,7 +367,7 @@ onMounted(async () => {
                   <SettingsIcon size="22" class="text-success" stroke-width="1.5" />
                 </v-avatar>
                 <div>
-                  <h3 class="text-h5 font-weight-bold text-success">{{ slackConfiguredCount }}/{{ schedules.length }}</h3>
+                  <h3 class="text-h5 font-weight-bold text-success">{{ slackConfiguredCount }}/{{ filteredSchedules.length }}</h3>
                   <span class="text-body-2 text-medium-emphasis">Clinics with clinic-level Slack target override visible</span>
                 </div>
               </div>
@@ -322,7 +410,7 @@ onMounted(async () => {
           <v-col cols="12">
             <UiParentCard title="Recent Runs">
               <v-alert
-                v-if="!loading && !recentRuns.length"
+                v-if="!loading && !recentRunsScoped.length"
                 type="info"
                 variant="tonal"
                 closable
@@ -333,7 +421,7 @@ onMounted(async () => {
 
               <v-data-table
                 :headers="headers"
-                :items="recentRuns"
+                :items="recentRunsScoped"
                 :loading="loading"
                 item-value="id"
                 density="comfortable"
@@ -361,7 +449,7 @@ onMounted(async () => {
             <UiParentCard title="Recent Ops Events">
               <v-data-table
                 :headers="eventHeaders"
-                :items="events"
+                :items="filteredEvents"
                 :loading="loading"
                 item-value="id"
                 density="comfortable"

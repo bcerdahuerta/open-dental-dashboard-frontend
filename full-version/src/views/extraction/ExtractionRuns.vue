@@ -1,16 +1,23 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
 import { useExtractionStore } from '@/stores/extraction';
+import { useClientStore } from '@/stores/clients';
+import { useClinicStore } from '@/stores/clinics';
 import {
   RefreshIcon,
 } from 'vue-tabler-icons';
 import type { ExtractionRun, ExtractionRunFilters } from '@/types/extraction';
 
 const extractionStore = useExtractionStore();
+const clientStore = useClientStore();
+const clinicStore = useClinicStore();
+
 const { runs, runsPagination, selectedRun, clinicNameMap, loading, error, schedules } = storeToRefs(extractionStore);
+const { clients } = storeToRefs(clientStore);
+const { clinics } = storeToRefs(clinicStore);
 const { hydrateLookups, fetchRuns, fetchRunDetail, fetchSchedules } = extractionStore;
 
 const pageMeta = ref({ title: 'Extraction Run History' });
@@ -27,6 +34,7 @@ const snackbarColor = ref('success');
 const page = ref(1);
 const perPage = ref(20);
 
+const selectedClientId = ref<string>('');
 const selectedClinicId = ref<string>('');
 const selectedStatus = ref<ExtractionRunFilters['status']>('');
 const selectedRunType = ref<ExtractionRunFilters['run_type']>('');
@@ -61,9 +69,21 @@ const headers = [
   { title: 'Duration', key: 'duration', sortable: false },
 ];
 
+const clientItems = computed(() => [{ value: '', title: 'All Clients' }, ...clients.value.map((client) => ({
+  value: client.id,
+  title: client.client_name,
+}))]);
+
+const selectedClientClinicIds = computed(() => clinics.value
+  .filter((clinic) => !selectedClientId.value || clinic.client_id === selectedClientId.value)
+  .map((clinic) => clinic.id));
+
 const clinicItems = computed(() => {
-  const items = Object.entries(clinicNameMap.value || {}).map(([value, title]) => ({ value, title }));
-  return [{ value: '', title: 'All Clinics' }, ...items];
+  const items = clinics.value
+    .filter((clinic) => !selectedClientId.value || clinic.client_id === selectedClientId.value)
+    .map((clinic) => ({ value: clinic.id, title: clinic.clinic_name }));
+  const allTitle = selectedClientId.value ? 'All Client Clinics' : 'All Clinics';
+  return [{ value: '', title: allTitle }, ...items];
 });
 
 const selectedRunSchedule = computed(() => {
@@ -157,7 +177,9 @@ function showSnack(message: string, color: string) {
 
 function currentFilters(): ExtractionRunFilters {
   const filters: ExtractionRunFilters = {
-    clinic_ids: selectedClinicId.value ? [selectedClinicId.value] : [],
+    clinic_ids: selectedClinicId.value
+      ? [selectedClinicId.value]
+      : (selectedClientId.value ? selectedClientClinicIds.value : []),
     status: selectedStatus.value,
     run_type: selectedRunType.value,
   };
@@ -186,6 +208,7 @@ async function applyFilters() {
 }
 
 async function clearFilters() {
+  selectedClientId.value = '';
   selectedClinicId.value = '';
   selectedStatus.value = '';
   selectedRunType.value = '';
@@ -219,6 +242,15 @@ onMounted(async () => {
     showSnack(err?.message || String(err), 'error');
   }
 });
+
+watch(selectedClientId, async () => {
+  if (selectedClinicId.value && !selectedClientClinicIds.value.includes(selectedClinicId.value)) {
+    selectedClinicId.value = '';
+  }
+
+  page.value = 1;
+  await refreshRuns();
+});
 </script>
 
 <template>
@@ -242,6 +274,19 @@ onMounted(async () => {
         </div>
 
         <v-row class="mb-2">
+          <v-col cols="12" md="4" lg="3">
+            <v-select
+              v-model="selectedClientId"
+              :items="clientItems"
+              item-title="title"
+              item-value="value"
+              label="Client"
+              variant="outlined"
+              color="primary"
+              hide-details="auto"
+            />
+          </v-col>
+
           <v-col cols="12" md="4" lg="3">
             <v-select
               v-model="selectedClinicId"

@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
 import { useExtractionStore } from '@/stores/extraction';
+import { useClientStore } from '@/stores/clients';
 import { RefreshIcon, PencilIcon, ActivityIcon } from 'vue-tabler-icons';
 import type { ExtractionRolloutCheck, ExtractionSchedule } from '@/types/extraction';
 
 const extractionStore = useExtractionStore();
+const clientStore = useClientStore();
+
 const { schedules, clinicNameMap, loading, error } = storeToRefs(extractionStore);
+const { clients } = storeToRefs(clientStore);
 const { hydrateLookups, fetchSchedules, updateSchedule, fetchRolloutCheck } = extractionStore;
 
 const pageMeta = ref({ title: 'Extraction Schedules' });
@@ -28,6 +32,14 @@ const selectedSchedule = ref<ExtractionSchedule | null>(null);
 const newReviewTime = ref('');
 const rolloutDialog = ref(false);
 const rolloutCheck = ref<ExtractionRolloutCheck | null>(null);
+const selectedClientId = ref('');
+
+const clientItems = computed(() => clients.value.map((client) => ({
+  title: client.client_name,
+  value: client.id,
+})));
+
+const visibleSchedules = computed(() => selectedClientId.value ? schedules.value : []);
 
 const editForm = ref({
   auto_extract_enabled: false,
@@ -236,8 +248,10 @@ function removeReviewTime(index: number) {
 }
 
 async function refreshSchedules() {
+  if (!selectedClientId.value) return;
+
   try {
-    await fetchSchedules();
+    await fetchSchedules(selectedClientId.value);
   } catch (err: any) {
     showSnack(err?.message || 'Failed to refresh schedules', 'error');
   }
@@ -291,10 +305,14 @@ async function openRolloutDialog(schedule: ExtractionSchedule) {
 onMounted(async () => {
   try {
     await hydrateLookups();
-    await refreshSchedules();
   } catch (err: any) {
     showSnack(err?.message || String(err), 'error');
   }
+});
+
+watch(selectedClientId, async (clientId) => {
+  if (!clientId) return;
+  await refreshSchedules();
 });
 </script>
 
@@ -303,17 +321,36 @@ onMounted(async () => {
   <v-row>
     <v-col cols="12">
       <UiParentCard title="Extraction Schedules">
-        <div class="d-flex align-center mb-4">
-          <v-btn color="secondary" variant="tonal" size="small" @click="refreshSchedules">
-            <RefreshIcon size="18" class="mr-1" stroke-width="1.5" />
-            Refresh
-          </v-btn>
-          <v-spacer />
-        </div>
+        <v-row class="mb-2 align-center">
+          <v-col cols="12" md="4" lg="3">
+            <v-select
+              v-model="selectedClientId"
+              :items="clientItems"
+              item-title="title"
+              item-value="value"
+              label="Client"
+              placeholder="Select client"
+              variant="outlined"
+              color="primary"
+              hide-details="auto"
+              clearable
+            />
+          </v-col>
+          <v-col cols="12" md="8" lg="9" class="d-flex justify-end">
+            <v-btn color="secondary" variant="tonal" size="small" :disabled="!selectedClientId" @click="refreshSchedules">
+              <RefreshIcon size="18" class="mr-1" stroke-width="1.5" />
+              Refresh
+            </v-btn>
+          </v-col>
+        </v-row>
+
+        <v-alert v-if="!selectedClientId" type="info" variant="tonal" class="mb-4">
+          Select client to load schedules. This keeps operators out of mixed-client views.
+        </v-alert>
 
         <v-data-table
           :headers="headers"
-          :items="schedules"
+          :items="visibleSchedules"
           :loading="loading" :items-per-page="25"
           item-value="id"
           hover
@@ -369,9 +406,14 @@ onMounted(async () => {
               <v-btn icon variant="text" size="small" @click="openEditDialog(item)">
                 <PencilIcon size="16" stroke-width="1.5" />
               </v-btn>
-              <v-btn icon variant="text" size="small" @click="openRolloutDialog(item)">
-                <ActivityIcon size="16" stroke-width="1.5" />
-              </v-btn>
+              <v-tooltip text="Rollout Check — verify policy, health, and blockers">
+                <template #activator="{ props }">
+                  <v-btn v-bind="props" variant="text" size="small" color="info" @click="openRolloutDialog(item)">
+                    <ActivityIcon size="16" class="mr-1" stroke-width="1.5" />
+                    Rollout Check
+                  </v-btn>
+                </template>
+              </v-tooltip>
             </div>
           </template>
 
