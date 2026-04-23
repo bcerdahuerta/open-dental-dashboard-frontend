@@ -11,9 +11,9 @@ import type { ExtractionRolloutCheck, ExtractionSchedule } from '@/types/extract
 const extractionStore = useExtractionStore();
 const clientStore = useClientStore();
 
-const { schedules, clinicNameMap, loading, error } = storeToRefs(extractionStore);
+const { schedules, clinicNameMap, loading, error, encargados } = storeToRefs(extractionStore);
 const { clients } = storeToRefs(clientStore);
-const { hydrateLookups, fetchSchedules, updateSchedule, fetchRolloutCheck } = extractionStore;
+const { hydrateLookups, fetchSchedules, updateSchedule, fetchRolloutCheck, fetchEncargados } = extractionStore;
 
 const pageMeta = ref({ title: 'Extraction Schedules' });
 const breadcrumbs = ref([
@@ -40,6 +40,32 @@ const clientItems = computed(() => clients.value.map((client) => ({
 })));
 
 const visibleSchedules = computed(() => selectedClientId.value ? schedules.value : []);
+
+const fallbackOwnerMap = computed<Record<string, { name: string; scope?: string }>>(() => {
+  const ownerMap: Record<string, { name: string; scope?: string }> = {};
+
+  for (const member of encargados.value) {
+    const ownership = member.resolved_clinic_ownership ?? [];
+
+    for (const clinic of ownership) {
+      if (!clinic.clinic_id || ownerMap[clinic.clinic_id]) continue;
+      ownerMap[clinic.clinic_id] = {
+        name: member.name,
+        scope: clinic.assignment_source,
+      };
+    }
+
+    for (const clinicId of member.clinic_ids ?? []) {
+      if (!clinicId || ownerMap[clinicId]) continue;
+      ownerMap[clinicId] = {
+        name: member.name,
+        scope: 'clinic',
+      };
+    }
+  }
+
+  return ownerMap;
+});
 
 const editForm = ref({
   auto_extract_enabled: false,
@@ -116,9 +142,14 @@ function workingDaysText(item: ExtractionSchedule): string {
 }
 
 function resolvedOwnerText(item: ExtractionSchedule): string {
-  if (!item.resolved_encargado_name) return '—';
-  if (!item.resolved_assignment_scope) return item.resolved_encargado_name;
-  return `${item.resolved_encargado_name} (${item.resolved_assignment_scope})`;
+  const ownerName = item.resolved_encargado_name || fallbackOwnerMap.value[item.clinic_id]?.name;
+  const ownerScope = item.resolved_encargado_name
+    ? item.resolved_assignment_scope
+    : fallbackOwnerMap.value[item.clinic_id]?.scope;
+
+  if (!ownerName) return '—';
+  if (!ownerScope) return ownerName;
+  return `${ownerName} (${ownerScope})`;
 }
 
 function healthColor(status?: string | null): string {
@@ -251,7 +282,10 @@ async function refreshSchedules() {
   if (!selectedClientId.value) return;
 
   try {
-    await fetchSchedules(selectedClientId.value);
+    await Promise.all([
+      fetchSchedules(selectedClientId.value),
+      fetchEncargados(),
+    ]);
   } catch (err: any) {
     showSnack(err?.message || 'Failed to refresh schedules', 'error');
   }
@@ -304,7 +338,10 @@ async function openRolloutDialog(schedule: ExtractionSchedule) {
 
 onMounted(async () => {
   try {
-    await hydrateLookups();
+    await Promise.all([
+      hydrateLookups(),
+      fetchEncargados(),
+    ]);
   } catch (err: any) {
     showSnack(err?.message || String(err), 'error');
   }
