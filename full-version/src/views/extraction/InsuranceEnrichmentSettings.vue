@@ -5,7 +5,17 @@ import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import { useClientStore } from '@/stores/clients';
 import { useExtractionStore } from '@/stores/extraction';
-import type { InsuranceEnrichmentClinicConfigRow, InsuranceEnrichmentConfigShape } from '@/types/extraction';
+import type {
+  InsuranceEnrichmentApplicationMode,
+  InsuranceEnrichmentClinicConfigRow,
+  InsuranceEnrichmentConfigShape,
+  InsuranceEnrichmentFieldsApplied,
+} from '@/types/extraction';
+
+type ClinicOverrideForm = Partial<Omit<InsuranceEnrichmentConfigShape, 'application_mode' | 'fields_applied' | 'gemini_model'>> & {
+  application_mode?: InsuranceEnrichmentApplicationMode | null;
+  fields_applied: Partial<InsuranceEnrichmentFieldsApplied>;
+};
 
 const extractionStore = useExtractionStore();
 const clientStore = useClientStore();
@@ -32,7 +42,7 @@ const clinicDialogOpen = ref(false);
 const selectedClinicRow = ref<InsuranceEnrichmentClinicConfigRow | null>(null);
 const clinicOverrideEnabled = ref(false);
 
-const fieldOptions = [
+const fieldOptions: Array<{ key: keyof InsuranceEnrichmentFieldsApplied; label: string }> = [
   { key: 'carrier_name', label: 'Carrier Name' },
   { key: 'member_id', label: 'Member ID' },
   { key: 'subscriber_fname', label: 'Subscriber First Name' },
@@ -46,6 +56,21 @@ const fieldOptions = [
   { key: 'verification_type', label: 'Verification Type' },
   { key: 'file_name', label: 'File Name' },
 ] as const;
+
+const defaultFieldsApplied: InsuranceEnrichmentFieldsApplied = {
+  carrier_name: true,
+  member_id: true,
+  subscriber_fname: true,
+  subscriber_lname: true,
+  subscriber_dob: true,
+  subscriber_zip: true,
+  relationship: true,
+  subscriber_patnum: true,
+  group_number: true,
+  group_name: true,
+  verification_type: true,
+  file_name: true,
+};
 
 const clinicHeaders = [
   { title: 'Clinic', key: 'clinic_name', sortable: false },
@@ -92,23 +117,10 @@ const clientForm = ref<InsuranceEnrichmentConfigShape>({
   set_verification_type_on_enrichment: true,
   verification_type_value: 'FBD',
   update_filenames: true,
-  fields_applied: {
-    carrier_name: true,
-    member_id: true,
-    subscriber_fname: true,
-    subscriber_lname: true,
-    subscriber_dob: true,
-    subscriber_zip: true,
-    relationship: true,
-    subscriber_patnum: true,
-    group_number: true,
-    group_name: true,
-    verification_type: true,
-    file_name: true,
-  },
+  fields_applied: { ...defaultFieldsApplied },
 });
 
-const clinicOverrideForm = ref<Partial<InsuranceEnrichmentConfigShape>>({
+const clinicOverrideForm = ref<ClinicOverrideForm>({
   enabled: false,
   application_mode: 'preview',
   gemini_enabled: false,
@@ -189,7 +201,7 @@ function openClinicDialog(row: InsuranceEnrichmentClinicConfigRow) {
     set_verification_type_on_enrichment: row.clinic_override?.set_verification_type_on_enrichment ?? row.effective_config.set_verification_type_on_enrichment,
     verification_type_value: row.clinic_override?.verification_type_value ?? row.effective_config.verification_type_value,
     update_filenames: row.clinic_override?.update_filenames ?? row.effective_config.update_filenames,
-    fields_applied: row.clinic_override?.fields_applied ?? {},
+    fields_applied: { ...(row.clinic_override?.fields_applied ?? {}) },
   };
 }
 
