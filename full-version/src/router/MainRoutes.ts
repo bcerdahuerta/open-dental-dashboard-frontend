@@ -122,6 +122,12 @@ const MainRoutes = {
       meta: { requiredProduct: 'extraction' },
       component: () => import('@/views/extraction/EncargadoList.vue')
     },
+    {
+      name: 'InsuranceEnrichmentSettings',
+      path: '/main/extraction/insurance-enrichment',
+      meta: { requiredProduct: 'extraction' },
+      component: () => import('@/views/extraction/InsuranceEnrichmentSettings.vue')
+    },
 
     {
       name: 'UserProfile',

@@ -258,6 +258,116 @@ export interface RunsResponse {
   pages?: number;
 }
 
+export type InsuranceEnrichmentApplicationMode = 'preview' | 'apply';
+
+export interface InsuranceEnrichmentFieldsApplied {
+  carrier_name: boolean;
+  member_id: boolean;
+  subscriber_fname: boolean;
+  subscriber_lname: boolean;
+  subscriber_dob: boolean;
+  subscriber_zip: boolean;
+  relationship: boolean;
+  subscriber_patnum: boolean;
+  group_number: boolean;
+  group_name: boolean;
+  verification_type: boolean;
+  file_name: boolean;
+}
+
+export interface InsuranceEnrichmentConfigShape {
+  enabled: boolean;
+  application_mode: InsuranceEnrichmentApplicationMode;
+  gemini_enabled: boolean;
+  gemini_model: string;
+  gemini_only_when_parser_incomplete: boolean;
+  max_gemini_calls_per_run: number;
+  apply_only_when_carrier_generic: boolean;
+  set_verification_type_on_enrichment: boolean;
+  verification_type_value: string;
+  update_filenames: boolean;
+  fields_applied: InsuranceEnrichmentFieldsApplied;
+}
+
+export interface InsuranceEnrichmentClinicOverride {
+  id: string;
+  clinic_id: string;
+  enabled: boolean | null;
+  application_mode: InsuranceEnrichmentApplicationMode | null;
+  gemini_enabled: boolean | null;
+  gemini_model: string;
+  gemini_only_when_parser_incomplete: boolean | null;
+  max_gemini_calls_per_run: number | null;
+  apply_only_when_carrier_generic: boolean | null;
+  set_verification_type_on_enrichment: boolean | null;
+  verification_type_value: string | null;
+  update_filenames: boolean | null;
+  fields_applied: Partial<InsuranceEnrichmentFieldsApplied> | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface InsuranceEnrichmentClinicConfigRow {
+  clinic_id: string;
+  clinic_name: string;
+  has_override: boolean;
+  effective_status: 'enabled' | 'disabled';
+  effective_config: InsuranceEnrichmentConfigShape;
+  clinic_override: InsuranceEnrichmentClinicOverride | null;
+  inheritance: {
+    source: 'global_default' | 'client_config' | 'clinic_override' | string;
+    application_mode: InsuranceEnrichmentApplicationMode;
+  };
+}
+
+export interface InsuranceEnrichmentAuditRow {
+  id: string;
+  created_at: string | null;
+  clinic_id: string;
+  clinic_name: string;
+  mode: InsuranceEnrichmentApplicationMode;
+  rows_seen: number;
+  rows_enriched: number;
+  status: 'ok' | 'error' | string;
+  event_type: string;
+}
+
+export interface InsuranceEnrichmentConfigPayload {
+  client_id: string;
+  client_name: string;
+  defaults: InsuranceEnrichmentConfigShape;
+  client_config: (InsuranceEnrichmentConfigShape & {
+    id: string;
+    client_id: string;
+    created_at: string | null;
+    updated_at: string | null;
+  }) | null;
+  effective_client_config: InsuranceEnrichmentConfigShape;
+  clinics: InsuranceEnrichmentClinicConfigRow[];
+  audit_trail: InsuranceEnrichmentAuditRow[];
+}
+
+export interface InsuranceEnrichmentPreviewResult {
+  clinic_id: string;
+  clinic_name?: string;
+  target_date?: string;
+  run_type?: 'NEW_DATE' | 'REVIEW' | string;
+  enabled: boolean;
+  dry_run: boolean;
+  application_mode: InsuranceEnrichmentApplicationMode;
+  rows_seen: number;
+  candidate_rows: number;
+  rows_enriched: number;
+  gemini_calls: number;
+  sources: Record<string, number>;
+  fields_updated: Record<string, number>;
+  sample_changes: Array<{
+    patient_id: string;
+    sources?: string[];
+    fields: Record<string, { before: string; after: string }>;
+  }>;
+}
+
 export const extractionStatusColorMap: Record<string, string> = {
   COMPLETED: 'success',
   RUNNING: 'info',

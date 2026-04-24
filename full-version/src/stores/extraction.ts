@@ -28,6 +28,10 @@ import type {
   Pagination,
   RunsResponse,
   WorkforceDrawerMode,
+  InsuranceEnrichmentConfigPayload,
+  InsuranceEnrichmentConfigShape,
+  InsuranceEnrichmentClinicConfigRow,
+  InsuranceEnrichmentPreviewResult,
 } from '@/types/extraction';
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -97,6 +101,140 @@ function normalizeNumberArray(value: unknown): number[] {
   return Array.isArray(value)
     ? value.filter((item): item is number => typeof item === 'number')
     : [];
+}
+
+function normalizeInsuranceFields(value: unknown): InsuranceEnrichmentConfigShape['fields_applied'] {
+  const payload = isRecord(value) ? value : {};
+  return {
+    carrier_name: Boolean(payload.carrier_name ?? true),
+    member_id: Boolean(payload.member_id ?? true),
+    subscriber_fname: Boolean(payload.subscriber_fname ?? true),
+    subscriber_lname: Boolean(payload.subscriber_lname ?? true),
+    subscriber_dob: Boolean(payload.subscriber_dob ?? true),
+    subscriber_zip: Boolean(payload.subscriber_zip ?? true),
+    relationship: Boolean(payload.relationship ?? true),
+    subscriber_patnum: Boolean(payload.subscriber_patnum ?? true),
+    group_number: Boolean(payload.group_number ?? true),
+    group_name: Boolean(payload.group_name ?? true),
+    verification_type: Boolean(payload.verification_type ?? true),
+    file_name: Boolean(payload.file_name ?? true),
+  };
+}
+
+function normalizeInsuranceConfigShape(value: unknown): InsuranceEnrichmentConfigShape {
+  const payload = isRecord(value) ? value : {};
+  return {
+    enabled: Boolean(payload.enabled ?? false),
+    application_mode: payload.application_mode === 'apply' ? 'apply' : 'preview',
+    gemini_enabled: Boolean(payload.gemini_enabled ?? false),
+    gemini_model: typeof payload.gemini_model === 'string' ? payload.gemini_model : 'gemini-3.1-flash-lite-preview',
+    gemini_only_when_parser_incomplete: Boolean(payload.gemini_only_when_parser_incomplete ?? true),
+    max_gemini_calls_per_run: typeof payload.max_gemini_calls_per_run === 'number' ? payload.max_gemini_calls_per_run : 25,
+    apply_only_when_carrier_generic: Boolean(payload.apply_only_when_carrier_generic ?? true),
+    set_verification_type_on_enrichment: Boolean(payload.set_verification_type_on_enrichment ?? true),
+    verification_type_value: typeof payload.verification_type_value === 'string' ? payload.verification_type_value : 'FBD',
+    update_filenames: Boolean(payload.update_filenames ?? true),
+    fields_applied: normalizeInsuranceFields(payload.fields_applied),
+  };
+}
+
+function normalizeInsuranceClinicRow(value: unknown): InsuranceEnrichmentClinicConfigRow {
+  const payload = isRecord(value) ? value : {};
+  const inheritanceRaw = isRecord(payload.inheritance) ? payload.inheritance : {};
+  return {
+    clinic_id: typeof payload.clinic_id === 'string' ? payload.clinic_id : '',
+    clinic_name: typeof payload.clinic_name === 'string' ? payload.clinic_name : '',
+    has_override: Boolean(payload.has_override ?? false),
+    effective_status: payload.effective_status === 'enabled' ? 'enabled' : 'disabled',
+    effective_config: normalizeInsuranceConfigShape(payload.effective_config),
+    clinic_override: isRecord(payload.clinic_override)
+      ? {
+          id: typeof payload.clinic_override.id === 'string' ? payload.clinic_override.id : '',
+          clinic_id: typeof payload.clinic_override.clinic_id === 'string' ? payload.clinic_override.clinic_id : '',
+          enabled: payload.clinic_override.enabled === null ? null : Boolean(payload.clinic_override.enabled),
+          application_mode: payload.clinic_override.application_mode === 'apply' ? 'apply' : payload.clinic_override.application_mode === 'preview' ? 'preview' : null,
+          gemini_enabled: payload.clinic_override.gemini_enabled === null ? null : Boolean(payload.clinic_override.gemini_enabled),
+          gemini_model: typeof payload.clinic_override.gemini_model === 'string' ? payload.clinic_override.gemini_model : 'gemini-3.1-flash-lite-preview',
+          gemini_only_when_parser_incomplete: payload.clinic_override.gemini_only_when_parser_incomplete === null ? null : Boolean(payload.clinic_override.gemini_only_when_parser_incomplete),
+          max_gemini_calls_per_run: typeof payload.clinic_override.max_gemini_calls_per_run === 'number' ? payload.clinic_override.max_gemini_calls_per_run : null,
+          apply_only_when_carrier_generic: payload.clinic_override.apply_only_when_carrier_generic === null ? null : Boolean(payload.clinic_override.apply_only_when_carrier_generic),
+          set_verification_type_on_enrichment: payload.clinic_override.set_verification_type_on_enrichment === null ? null : Boolean(payload.clinic_override.set_verification_type_on_enrichment),
+          verification_type_value: typeof payload.clinic_override.verification_type_value === 'string' ? payload.clinic_override.verification_type_value : null,
+          update_filenames: payload.clinic_override.update_filenames === null ? null : Boolean(payload.clinic_override.update_filenames),
+          fields_applied: isRecord(payload.clinic_override.fields_applied)
+            ? payload.clinic_override.fields_applied as Record<string, boolean>
+            : null,
+          created_at: typeof payload.clinic_override.created_at === 'string' ? payload.clinic_override.created_at : null,
+          updated_at: typeof payload.clinic_override.updated_at === 'string' ? payload.clinic_override.updated_at : null,
+        }
+      : null,
+    inheritance: {
+      source: typeof inheritanceRaw.source === 'string' ? inheritanceRaw.source : 'global_default',
+      application_mode: inheritanceRaw.application_mode === 'apply' ? 'apply' : 'preview',
+    },
+  };
+}
+
+function normalizeInsuranceConfigPayload(value: unknown): InsuranceEnrichmentConfigPayload {
+  const payload = isRecord(value) ? value : {};
+  return {
+    client_id: typeof payload.client_id === 'string' ? payload.client_id : '',
+    client_name: typeof payload.client_name === 'string' ? payload.client_name : '',
+    defaults: normalizeInsuranceConfigShape(payload.defaults),
+    client_config: isRecord(payload.client_config)
+      ? {
+          ...normalizeInsuranceConfigShape(payload.client_config),
+          id: typeof payload.client_config.id === 'string' ? payload.client_config.id : '',
+          client_id: typeof payload.client_config.client_id === 'string' ? payload.client_config.client_id : '',
+          created_at: typeof payload.client_config.created_at === 'string' ? payload.client_config.created_at : null,
+          updated_at: typeof payload.client_config.updated_at === 'string' ? payload.client_config.updated_at : null,
+        }
+      : null,
+    effective_client_config: normalizeInsuranceConfigShape(payload.effective_client_config),
+    clinics: Array.isArray(payload.clinics) ? payload.clinics.map(normalizeInsuranceClinicRow) : [],
+    audit_trail: Array.isArray(payload.audit_trail)
+      ? payload.audit_trail.map((item) => {
+          const row = isRecord(item) ? item : {};
+          return {
+            id: typeof row.id === 'string' ? row.id : '',
+            created_at: typeof row.created_at === 'string' ? row.created_at : null,
+            clinic_id: typeof row.clinic_id === 'string' ? row.clinic_id : '',
+            clinic_name: typeof row.clinic_name === 'string' ? row.clinic_name : '',
+            mode: row.mode === 'apply' ? 'apply' : 'preview',
+            rows_seen: typeof row.rows_seen === 'number' ? row.rows_seen : 0,
+            rows_enriched: typeof row.rows_enriched === 'number' ? row.rows_enriched : 0,
+            status: typeof row.status === 'string' ? row.status : 'ok',
+            event_type: typeof row.event_type === 'string' ? row.event_type : 'insurance_enrichment_plan',
+          };
+        })
+      : [],
+  };
+}
+
+function normalizeInsurancePreviewResult(value: unknown): InsuranceEnrichmentPreviewResult {
+  const payload = isRecord(value) ? value : {};
+  return {
+    clinic_id: typeof payload.clinic_id === 'string' ? payload.clinic_id : '',
+    clinic_name: typeof payload.clinic_name === 'string' ? payload.clinic_name : undefined,
+    target_date: typeof payload.target_date === 'string' ? payload.target_date : undefined,
+    run_type: typeof payload.run_type === 'string' ? payload.run_type : undefined,
+    enabled: Boolean(payload.enabled ?? false),
+    dry_run: Boolean(payload.dry_run ?? true),
+    application_mode: payload.application_mode === 'apply' ? 'apply' : 'preview',
+    rows_seen: typeof payload.rows_seen === 'number' ? payload.rows_seen : 0,
+    candidate_rows: typeof payload.candidate_rows === 'number' ? payload.candidate_rows : 0,
+    rows_enriched: typeof payload.rows_enriched === 'number' ? payload.rows_enriched : 0,
+    gemini_calls: typeof payload.gemini_calls === 'number' ? payload.gemini_calls : 0,
+    sources: isRecord(payload.sources) ? payload.sources as Record<string, number> : {},
+    fields_updated: isRecord(payload.fields_updated) ? payload.fields_updated as Record<string, number> : {},
+    sample_changes: Array.isArray(payload.sample_changes)
+      ? payload.sample_changes.filter((item): item is InsuranceEnrichmentPreviewResult['sample_changes'][number] => isRecord(item) && typeof item.patient_id === 'string' && isRecord(item.fields)).map((item) => ({
+          patient_id: item.patient_id,
+          sources: Array.isArray(item.sources) ? item.sources.filter((s): s is string => typeof s === 'string') : [],
+          fields: item.fields as Record<string, { before: string; after: string }>,
+        }))
+      : [],
+  };
 }
 
 function normalizeEffectivePolicy(value: unknown): ExtractionEffectivePolicy | null {
@@ -332,6 +470,8 @@ export const useExtractionStore = defineStore('extraction', () => {
   const health = ref<ExtractionHealth[]>([]);
   const events = ref<ExtractionOperationEvent[]>([]);
   const rolloutChecks = ref<Record<string, ExtractionRolloutCheck>>({});
+  const insuranceEnrichmentConfig = ref<InsuranceEnrichmentConfigPayload | null>(null);
+  const insuranceEnrichmentPreview = ref<InsuranceEnrichmentPreviewResult | null>(null);
   const encargados = ref<Encargado[]>([]);
   const encargadoAnalytics = ref<Record<string, EncargadoAnalytics>>({});
   const selectedEncargadoId = ref<string | null>(null);
@@ -615,6 +755,76 @@ export const useExtractionStore = defineStore('extraction', () => {
     }
   }
 
+  async function fetchInsuranceEnrichmentConfig(client_id: string) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const query = new URLSearchParams({ client_id });
+      insuranceEnrichmentConfig.value = normalizeInsuranceConfigPayload(
+        await fetchWrapper.get(`${baseUrl}/insurance-enrichment/config?${query.toString()}`)
+      );
+      return insuranceEnrichmentConfig.value;
+    } catch (err: unknown) {
+      error.value = getErrorMessage(err, 'Failed to fetch insurance enrichment config');
+      insuranceEnrichmentConfig.value = null;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function updateInsuranceEnrichmentClientConfig(client_id: string, data: Record<string, unknown>) {
+    loading.value = true;
+    error.value = null;
+    try {
+      insuranceEnrichmentConfig.value = normalizeInsuranceConfigPayload(
+        await fetchWrapper.patch(`${baseUrl}/insurance-enrichment/config/${client_id}`, data)
+      );
+      return insuranceEnrichmentConfig.value;
+    } catch (err: unknown) {
+      error.value = getErrorMessage(err, 'Failed to update insurance enrichment client config');
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function updateInsuranceEnrichmentClinicOverride(clinic_id: string, data: Record<string, unknown>) {
+    loading.value = true;
+    error.value = null;
+    try {
+      insuranceEnrichmentConfig.value = normalizeInsuranceConfigPayload(
+        await fetchWrapper.patch(`${baseUrl}/insurance-enrichment/config/clinics/${clinic_id}`, data)
+      );
+      return insuranceEnrichmentConfig.value;
+    } catch (err: unknown) {
+      error.value = getErrorMessage(err, 'Failed to update insurance enrichment clinic override');
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function runInsuranceEnrichmentPreview(payload: {
+    clinic_id: string;
+    target_date: string;
+    run_type: 'NEW_DATE' | 'REVIEW';
+  }) {
+    loading.value = true;
+    error.value = null;
+    try {
+      insuranceEnrichmentPreview.value = normalizeInsurancePreviewResult(
+        await fetchWrapper.post(`${baseUrl}/insurance-enrichment/preview`, payload)
+      );
+      return insuranceEnrichmentPreview.value;
+    } catch (err: unknown) {
+      error.value = getErrorMessage(err, 'Failed to run insurance enrichment preview');
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function fetchEncargados() {
     loading.value = true;
     error.value = null;
@@ -889,6 +1099,8 @@ export const useExtractionStore = defineStore('extraction', () => {
     health,
     events,
     rolloutChecks,
+    insuranceEnrichmentConfig,
+    insuranceEnrichmentPreview,
     encargados,
     encargadoAnalytics,
     selectedEncargadoId,
@@ -912,6 +1124,10 @@ export const useExtractionStore = defineStore('extraction', () => {
     fetchHealth,
     fetchEvents,
     fetchRolloutCheck,
+    fetchInsuranceEnrichmentConfig,
+    updateInsuranceEnrichmentClientConfig,
+    updateInsuranceEnrichmentClinicOverride,
+    runInsuranceEnrichmentPreview,
     fetchEncargados,
     createEncargado,
     updateEncargado,
