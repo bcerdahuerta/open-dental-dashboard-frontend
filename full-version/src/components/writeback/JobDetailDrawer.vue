@@ -13,6 +13,7 @@ import {
 } from 'vue-tabler-icons';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import { useWritebackStore } from '@/stores/writeback';
+import { getWritebackStatusPresentation } from '@/utils/writebackStatus';
 import type { WritebackJobDetail } from '@/types/writeback';
 
 const props = defineProps<{
@@ -67,26 +68,11 @@ watch(
 );
 
 function statusColor(status: string): string {
-  const colors: Record<string, string> = {
-    PENDING: 'warning',
-    POLLING: 'primary',
-    EXTRACTING: 'primary',
-    EXECUTING: 'primary',
-    DONE: 'success',
-    FAILED: 'error',
-    SUCCESS: 'success',
-    SKIPPED: 'grey',
-    RECORDED: 'info',
-    REVERSED: 'warning',
-    EXTRACTED: 'info',
-    EXECUTED: 'info',
-    PARTIAL: 'orange',
-    SYNCING: 'primary',
-    SYNCED: 'success',
-    EXTRACT_FAILED: 'error',
-    SYNC_FAILED: 'error',
-  };
-  return colors[status] || 'grey';
+  return getWritebackStatusPresentation(status).color;
+}
+
+function statusLabel(status: string): string {
+  return getWritebackStatusPresentation(status).label;
 }
 
 function stepIcon(status: string) {
@@ -147,7 +133,7 @@ async function handleRetry() {
           <span class="text-h6">{{ selectedJob.patient_name || 'Unknown Patient' }}</span>
           <v-spacer />
           <v-chip :color="statusColor(selectedJob.status)" variant="tonal" size="small" class="mr-2">
-            {{ selectedJob.status }}
+            {{ statusLabel(selectedJob.status) }}
           </v-chip>
           <v-btn icon variant="text" size="small" @click="dialogOpen = false">
             <XIcon size="20" />

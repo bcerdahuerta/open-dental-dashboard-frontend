@@ -12,6 +12,7 @@ import JobDetailDrawer from '@/components/writeback/JobDetailDrawer.vue';
 import { useWritebackStore } from '@/stores/writeback';
 import { useClientStore } from '@/stores/clients';
 import { useClinicStore } from '@/stores/clinics';
+import { getWritebackStatusPresentation } from '@/utils/writebackStatus';
 import type { WritebackJob, JobStatus } from '@/types/writeback';
 
 const writebackStore = useWritebackStore();
@@ -79,6 +80,9 @@ const statusOptions = [
   { title: 'Extracted', value: 'EXTRACTED' },
   { title: 'Executed', value: 'EXECUTED' },
   { title: 'Partial', value: 'PARTIAL' },
+  { title: 'Retry deferred', value: 'RETRY_DEFERRED' },
+  { title: 'Blocked: eConnector', value: 'BLOCKED_ECONNECTOR' },
+  { title: 'Retrying Sheets', value: 'SHEETS_RETRYING' },
   { title: 'Syncing', value: 'SYNCING' },
   { title: 'Synced', value: 'SYNCED' },
   { title: 'Done', value: 'DONE' },
@@ -102,23 +106,11 @@ const headers = [
 ];
 
 function statusColor(status: string): string {
-  const colors: Record<string, string> = {
-    PENDING: 'warning',
-    POLLING: 'primary',
-    EXTRACTING: 'primary',
-    EXECUTING: 'primary',
-    DONE: 'success',
-    FAILED: 'error',
-    // v2 statuses
-    EXTRACTED: 'info',
-    EXECUTED: 'info',
-    PARTIAL: 'orange',
-    SYNCING: 'primary',
-    SYNCED: 'success',
-    EXTRACT_FAILED: 'error',
-    SYNC_FAILED: 'error',
-  };
-  return colors[status] || 'grey';
+  return getWritebackStatusPresentation(status).color;
+}
+
+function statusLabel(status: string): string {
+  return getWritebackStatusPresentation(status).label;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -427,7 +419,7 @@ onUnmounted(() => {
                 variant="tonal"
                 size="small"
               >
-                {{ item.status }}
+                {{ statusLabel(item.status) }}
               </v-chip>
               <v-chip
                 v-if="item.error_category === 'source_file_invalid'"

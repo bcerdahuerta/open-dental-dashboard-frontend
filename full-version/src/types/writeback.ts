@@ -4,7 +4,8 @@ export type JobStatus =
   // v1 statuses
   | 'PENDING' | 'POLLING' | 'EXTRACTING' | 'EXECUTING' | 'DONE' | 'FAILED'
   // v2 event-pipeline statuses
-  | 'EXTRACTED' | 'EXECUTED' | 'PARTIAL' | 'SYNCING' | 'SYNCED' | 'EXTRACT_FAILED' | 'SYNC_FAILED';
+  | 'EXTRACTED' | 'EXECUTED' | 'PARTIAL' | 'RETRY_DEFERRED' | 'BLOCKED_ECONNECTOR' | 'SHEETS_RETRYING'
+  | 'SYNCING' | 'SYNCED' | 'EXTRACT_FAILED' | 'SYNC_FAILED';
 
 export interface WritebackJob {
     id: string;
@@ -59,6 +60,9 @@ export interface QueueStats {
     EXTRACTED: number;
     EXECUTED: number;
     PARTIAL: number;
+    RETRY_DEFERRED: number;
+    BLOCKED_ECONNECTOR: number;
+    SHEETS_RETRYING: number;
     SYNCING: number;
     SYNCED: number;
     EXTRACT_FAILED: number;

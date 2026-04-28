@@ -99,7 +99,23 @@ async function onClientChange(clientId: string | undefined) {
 // Helper to get stats for a specific clinic
 function getClinicStats(clinicId: string): QueueStats {
   return clinicStatsMap.value[clinicId] || {
-    PENDING: 0, POLLING: 0, EXTRACTING: 0, EXECUTING: 0, DONE: 0, FAILED: 0, total: 0,
+    PENDING: 0,
+    POLLING: 0,
+    EXTRACTING: 0,
+    EXECUTING: 0,
+    DONE: 0,
+    FAILED: 0,
+    EXTRACTED: 0,
+    EXECUTED: 0,
+    PARTIAL: 0,
+    RETRY_DEFERRED: 0,
+    BLOCKED_ECONNECTOR: 0,
+    SHEETS_RETRYING: 0,
+    SYNCING: 0,
+    SYNCED: 0,
+    EXTRACT_FAILED: 0,
+    SYNC_FAILED: 0,
+    total: 0,
   };
 }
 
