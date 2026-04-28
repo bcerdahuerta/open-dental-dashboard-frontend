@@ -41,6 +41,28 @@ const selectedClientId = ref<string | null>(null);
 const selectedClinicId = ref<string | null>(null);
 const statsLoading = ref(false);
 
+function createEmptyQueueStats(): QueueStats {
+  return {
+    PENDING: 0,
+    POLLING: 0,
+    EXTRACTING: 0,
+    EXECUTING: 0,
+    DONE: 0,
+    FAILED: 0,
+    EXTRACTED: 0,
+    EXECUTED: 0,
+    PARTIAL: 0,
+    RETRY_DEFERRED: 0,
+    BLOCKED_ECONNECTOR: 0,
+    SHEETS_RETRYING: 0,
+    SYNCING: 0,
+    SYNCED: 0,
+    EXTRACT_FAILED: 0,
+    SYNC_FAILED: 0,
+    total: 0,
+  };
+}
+
 // --- Clinic dropdown items (includes "All Clinics") ---
 const clinicSelectItems = computed(() => {
   const items: { title: string; value: string | null }[] = [
@@ -61,17 +83,13 @@ const scopedStats = computed<QueueStats>(() => {
 
   // Client selected w/ "All Clinics" → aggregate from clinicStatsMap
   if (selectedClientId.value && clinics.value.length > 0) {
-    const agg: QueueStats = { PENDING: 0, POLLING: 0, EXTRACTING: 0, EXECUTING: 0, DONE: 0, FAILED: 0, EXTRACTED: 0, EXECUTED: 0, PARTIAL: 0, SYNCING: 0, SYNCED: 0, EXTRACT_FAILED: 0, SYNC_FAILED: 0, total: 0 };
+    const agg = createEmptyQueueStats();
     for (const clinic of clinics.value) {
       const cs = clinicStatsMap.value[clinic.id];
       if (cs) {
-        agg.PENDING += cs.PENDING ?? 0;
-        agg.POLLING += cs.POLLING ?? 0;
-        agg.EXTRACTING += cs.EXTRACTING ?? 0;
-        agg.EXECUTING += cs.EXECUTING ?? 0;
-        agg.DONE += cs.DONE ?? 0;
-        agg.FAILED += cs.FAILED ?? 0;
-        agg.total += cs.total ?? 0;
+        for (const key of Object.keys(agg) as Array<keyof QueueStats>) {
+          agg[key] += cs[key] ?? 0;
+        }
       }
     }
     return agg;
@@ -121,7 +139,7 @@ const clinicHealthRows = computed(() =>
   clinics.value.map((c) => ({
     clinicId: c.id,
     clinicName: c.clinic_name,
-    stats: clinicStatsMap.value[c.id] ?? { PENDING: 0, POLLING: 0, EXTRACTING: 0, EXECUTING: 0, DONE: 0, FAILED: 0, total: 0 },
+    stats: clinicStatsMap.value[c.id] ?? createEmptyQueueStats(),
   }))
 );
 
