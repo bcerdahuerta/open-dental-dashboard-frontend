@@ -260,6 +260,20 @@ export interface RunsResponse {
 
 export type InsuranceEnrichmentApplicationMode = 'preview' | 'apply';
 
+export type InsuranceEnrichmentDocumentFileNamingEffectiveSource = 'client_config' | 'clinic_override';
+
+export interface InsuranceEnrichmentDocumentFileNamingConfig {
+  form_with_print: boolean;
+  short_form: boolean;
+  effective_source: InsuranceEnrichmentDocumentFileNamingEffectiveSource;
+}
+
+export interface InsuranceEnrichmentDocumentFileNamingOverride {
+  form_with_print: boolean | null;
+  short_form: boolean | null;
+  effective_source: InsuranceEnrichmentDocumentFileNamingEffectiveSource;
+}
+
 export interface InsuranceEnrichmentFieldsApplied {
   carrier_name: boolean;
   member_id: boolean;
@@ -287,6 +301,7 @@ export interface InsuranceEnrichmentConfigShape {
   verification_type_value: string;
   update_filenames: boolean;
   fields_applied: InsuranceEnrichmentFieldsApplied;
+  document_file_naming: InsuranceEnrichmentDocumentFileNamingConfig;
 }
 
 export interface InsuranceEnrichmentClinicOverride {
@@ -303,6 +318,7 @@ export interface InsuranceEnrichmentClinicOverride {
   verification_type_value: string | null;
   update_filenames: boolean | null;
   fields_applied: Partial<InsuranceEnrichmentFieldsApplied> | null;
+  document_file_naming: InsuranceEnrichmentDocumentFileNamingOverride | null;
   created_at: string | null;
   updated_at: string | null;
 }

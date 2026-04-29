@@ -9,12 +9,14 @@ import type {
   InsuranceEnrichmentApplicationMode,
   InsuranceEnrichmentClinicConfigRow,
   InsuranceEnrichmentConfigShape,
+  InsuranceEnrichmentDocumentFileNamingOverride,
   InsuranceEnrichmentFieldsApplied,
 } from '@/types/extraction';
 
 type ClinicOverrideForm = Partial<Omit<InsuranceEnrichmentConfigShape, 'application_mode' | 'fields_applied' | 'gemini_model'>> & {
   application_mode?: InsuranceEnrichmentApplicationMode | null;
   fields_applied: Partial<InsuranceEnrichmentFieldsApplied>;
+  document_file_naming: InsuranceEnrichmentDocumentFileNamingOverride;
 };
 
 const extractionStore = useExtractionStore();
@@ -75,6 +77,7 @@ const defaultFieldsApplied: InsuranceEnrichmentFieldsApplied = {
 const clinicHeaders = [
   { title: 'Clinic', key: 'clinic_name', sortable: false },
   { title: 'Effective Status', key: 'effective_status', sortable: false },
+  { title: 'File Naming Effective', key: 'document_file_naming_effective', sortable: false },
   { title: 'Settings / Inheritance', key: 'inheritance', sortable: false },
   { title: 'Configure', key: 'actions', sortable: false, align: 'center' as const },
 ];
@@ -118,6 +121,11 @@ const clientForm = ref<InsuranceEnrichmentConfigShape>({
   verification_type_value: 'FBD',
   update_filenames: true,
   fields_applied: { ...defaultFieldsApplied },
+  document_file_naming: {
+    form_with_print: true,
+    short_form: false,
+    effective_source: 'client_config',
+  },
 });
 
 const clinicOverrideForm = ref<ClinicOverrideForm>({
@@ -131,6 +139,11 @@ const clinicOverrideForm = ref<ClinicOverrideForm>({
   verification_type_value: 'FBD',
   update_filenames: true,
   fields_applied: {},
+  document_file_naming: {
+    form_with_print: true,
+    short_form: false,
+    effective_source: 'client_config',
+  },
 });
 
 const previewSummaryRows = computed(() => {
@@ -202,6 +215,11 @@ function openClinicDialog(row: InsuranceEnrichmentClinicConfigRow) {
     verification_type_value: row.clinic_override?.verification_type_value ?? row.effective_config.verification_type_value,
     update_filenames: row.clinic_override?.update_filenames ?? row.effective_config.update_filenames,
     fields_applied: { ...(row.clinic_override?.fields_applied ?? {}) },
+    document_file_naming: {
+      form_with_print: row.clinic_override?.document_file_naming?.form_with_print ?? row.effective_config.document_file_naming.form_with_print,
+      short_form: row.clinic_override?.document_file_naming?.short_form ?? row.effective_config.document_file_naming.short_form,
+      effective_source: row.effective_config.document_file_naming.effective_source,
+    },
   };
 }
 
@@ -226,6 +244,10 @@ async function saveClinicOverride() {
     verification_type_value: clinicOverrideForm.value.verification_type_value,
     update_filenames: clinicOverrideForm.value.update_filenames,
     fields_applied: clinicOverrideForm.value.fields_applied,
+    document_file_naming: {
+      form_with_print: clinicOverrideForm.value.document_file_naming?.form_with_print ?? null,
+      short_form: clinicOverrideForm.value.document_file_naming?.short_form ?? null,
+    },
   });
   showSnack('Clinic override saved.', 'success');
   clinicDialogOpen.value = false;
@@ -337,6 +359,29 @@ watch(selectedClientId, async (value) => {
             </UiParentCard>
           </v-col>
 
+          <v-col cols="12">
+            <UiParentCard title="Document File Naming">
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-switch
+                    v-model="clientForm.document_file_naming.form_with_print"
+                    color="primary"
+                    hide-details="auto"
+                    label="Include Form + Print token"
+                  />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-switch
+                    v-model="clientForm.document_file_naming.short_form"
+                    color="primary"
+                    hide-details="auto"
+                    label="Use short-form naming token"
+                  />
+                </v-col>
+              </v-row>
+            </UiParentCard>
+          </v-col>
+
           <v-col cols="12" class="d-flex justify-end">
             <v-btn color="primary" :loading="loading" @click="saveClientConfig">Save Client Config</v-btn>
           </v-col>
@@ -347,15 +392,20 @@ watch(selectedClientId, async (value) => {
     <v-col cols="12" v-if="insuranceEnrichmentConfig">
       <UiParentCard title="Clinic-specific settings">
         <v-data-table :headers="clinicHeaders" :items="insuranceEnrichmentConfig.clinics" :items-per-page="25" hover>
-          <template #item.effective_status="{ item }">
+          <template #[`item.effective_status`]="{ item }">
             <v-chip :color="item.effective_status === 'enabled' ? 'success' : 'warning'" size="small" variant="flat">
               {{ item.effective_status }}
             </v-chip>
           </template>
-          <template #item.inheritance="{ item }">
+          <template #[`item.inheritance`]="{ item }">
             <span class="text-medium-emphasis">{{ item.inheritance.source }} · {{ item.inheritance.application_mode }}</span>
           </template>
-          <template #item.actions="{ item }">
+          <template #[`item.document_file_naming_effective`]="{ item }">
+            <span class="text-medium-emphasis">
+              form_with_print={{ item.effective_config.document_file_naming.form_with_print }} · short_form={{ item.effective_config.document_file_naming.short_form }} · source={{ item.effective_config.document_file_naming.effective_source }}
+            </span>
+          </template>
+          <template #[`item.actions`]="{ item }">
             <v-btn size="small" variant="tonal" color="primary" @click="openClinicDialog(item)">Configure</v-btn>
           </template>
         </v-data-table>
@@ -465,6 +515,30 @@ watch(selectedClientId, async (value) => {
                 color="primary"
                 hide-details="auto"
               />
+            </v-col>
+            <v-col cols="12">
+              <div class="text-subtitle-2 mb-2">Document File Naming (clinic override)</div>
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-switch
+                v-model="clinicOverrideForm.document_file_naming.form_with_print"
+                label="Include Form + Print token"
+                color="primary"
+                hide-details="auto"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-switch
+                v-model="clinicOverrideForm.document_file_naming.short_form"
+                label="Use short-form naming token"
+                color="primary"
+                hide-details="auto"
+              />
+            </v-col>
+            <v-col cols="12">
+              <div class="text-caption text-medium-emphasis">
+                Effective source: {{ selectedClinicRow?.effective_config.document_file_naming.effective_source ?? 'client_config' }}
+              </div>
             </v-col>
           </template>
         </v-row>

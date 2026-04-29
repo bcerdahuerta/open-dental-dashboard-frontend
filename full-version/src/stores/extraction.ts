@@ -123,6 +123,8 @@ function normalizeInsuranceFields(value: unknown): InsuranceEnrichmentConfigShap
 
 function normalizeInsuranceConfigShape(value: unknown): InsuranceEnrichmentConfigShape {
   const payload = isRecord(value) ? value : {};
+  const documentFileNamingPayload = isRecord(payload.document_file_naming) ? payload.document_file_naming : {};
+  const documentFileNamingEffectiveSource = documentFileNamingPayload.effective_source === 'clinic_override' ? 'clinic_override' : 'client_config';
   return {
     enabled: Boolean(payload.enabled ?? false),
     application_mode: payload.application_mode === 'apply' ? 'apply' : 'preview',
@@ -135,6 +137,11 @@ function normalizeInsuranceConfigShape(value: unknown): InsuranceEnrichmentConfi
     verification_type_value: typeof payload.verification_type_value === 'string' ? payload.verification_type_value : 'FBD',
     update_filenames: Boolean(payload.update_filenames ?? true),
     fields_applied: normalizeInsuranceFields(payload.fields_applied),
+    document_file_naming: {
+      form_with_print: Boolean(documentFileNamingPayload.form_with_print ?? true),
+      short_form: Boolean(documentFileNamingPayload.short_form ?? false),
+      effective_source: documentFileNamingEffectiveSource,
+    },
   };
 }
 
@@ -164,6 +171,19 @@ function normalizeInsuranceClinicRow(value: unknown): InsuranceEnrichmentClinicC
           fields_applied: isRecord(payload.clinic_override.fields_applied)
             ? payload.clinic_override.fields_applied as Record<string, boolean>
             : null,
+          document_file_naming: isRecord(payload.clinic_override.document_file_naming)
+            ? {
+                form_with_print: payload.clinic_override.document_file_naming.form_with_print === null
+                  ? null
+                  : Boolean(payload.clinic_override.document_file_naming.form_with_print),
+                short_form: payload.clinic_override.document_file_naming.short_form === null
+                  ? null
+                  : Boolean(payload.clinic_override.document_file_naming.short_form),
+                effective_source: payload.clinic_override.document_file_naming.effective_source === 'clinic_override'
+                  ? 'clinic_override'
+                  : 'client_config',
+              }
+            : null,
           created_at: typeof payload.clinic_override.created_at === 'string' ? payload.clinic_override.created_at : null,
           updated_at: typeof payload.clinic_override.updated_at === 'string' ? payload.clinic_override.updated_at : null,
         }
@@ -173,6 +193,41 @@ function normalizeInsuranceClinicRow(value: unknown): InsuranceEnrichmentClinicC
       application_mode: inheritanceRaw.application_mode === 'apply' ? 'apply' : 'preview',
     },
   };
+}
+
+function buildDocumentFileNamingClientPayload(value: unknown): Record<string, boolean> {
+  const payload = isRecord(value) ? value : {};
+  return {
+    form_with_print: Boolean(payload.form_with_print ?? true),
+    short_form: Boolean(payload.short_form ?? false),
+  };
+}
+
+function buildDocumentFileNamingClinicPayload(value: unknown): Record<string, boolean | null> {
+  const payload = isRecord(value) ? value : {};
+  return {
+    form_with_print: payload.form_with_print === null ? null : Boolean(payload.form_with_print ?? true),
+    short_form: payload.short_form === null ? null : Boolean(payload.short_form ?? false),
+  };
+}
+
+function buildInsuranceClientPatchPayload(data: Record<string, unknown>): Record<string, unknown> {
+  const payload = { ...data };
+  if ('document_file_naming' in payload) {
+    payload.document_file_naming = buildDocumentFileNamingClientPayload(payload.document_file_naming);
+  }
+  return payload;
+}
+
+function buildInsuranceClinicPatchPayload(data: Record<string, unknown>): Record<string, unknown> {
+  const payload = { ...data };
+  if ('inherit_all' in payload && payload.inherit_all === true) {
+    return payload;
+  }
+  if ('document_file_naming' in payload) {
+    payload.document_file_naming = buildDocumentFileNamingClinicPayload(payload.document_file_naming);
+  }
+  return payload;
 }
 
 function normalizeInsuranceConfigPayload(value: unknown): InsuranceEnrichmentConfigPayload {
@@ -778,7 +833,7 @@ export const useExtractionStore = defineStore('extraction', () => {
     error.value = null;
     try {
       insuranceEnrichmentConfig.value = normalizeInsuranceConfigPayload(
-        await fetchWrapper.patch(`${baseUrl}/insurance-enrichment/config/${client_id}`, data)
+        await fetchWrapper.patch(`${baseUrl}/insurance-enrichment/config/${client_id}`, buildInsuranceClientPatchPayload(data))
       );
       return insuranceEnrichmentConfig.value;
     } catch (err: unknown) {
@@ -794,7 +849,7 @@ export const useExtractionStore = defineStore('extraction', () => {
     error.value = null;
     try {
       insuranceEnrichmentConfig.value = normalizeInsuranceConfigPayload(
-        await fetchWrapper.patch(`${baseUrl}/insurance-enrichment/config/clinics/${clinic_id}`, data)
+        await fetchWrapper.patch(`${baseUrl}/insurance-enrichment/config/clinics/${clinic_id}`, buildInsuranceClinicPatchPayload(data))
       );
       return insuranceEnrichmentConfig.value;
     } catch (err: unknown) {
