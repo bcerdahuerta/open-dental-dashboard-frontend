@@ -109,6 +109,40 @@ export interface SimulatorHistoryEntry {
 }
 
 // ============================================
+// Effective Pipeline Types (read-only runtime resolved view)
+// ============================================
+
+export type EffectivePipelineSource = 'clinic_override' | 'client_assignment';
+
+export interface EffectivePipelineBaseProfile {
+    id: string;
+    profile_name: string;
+    verification_type: string;
+    target_status: string;
+    is_base: boolean;
+}
+
+export interface EffectivePipelineStep {
+    step_order: number;
+    step_type: string;
+    step_config: Record<string, unknown>;
+    is_enabled: boolean;
+    on_failure: string;
+    run_condition: Record<string, unknown> | null;
+}
+
+export interface EffectivePipeline {
+    source: EffectivePipelineSource;
+    source_id: string;
+    verification_type: string;
+    target_statuses: string[];
+    precedence: number;
+    context_rules: Record<string, unknown>;
+    base_profile: EffectivePipelineBaseProfile;
+    steps: EffectivePipelineStep[];
+}
+
+// ============================================
 // Form Types for Admin Editing Workflow
 // ============================================
 

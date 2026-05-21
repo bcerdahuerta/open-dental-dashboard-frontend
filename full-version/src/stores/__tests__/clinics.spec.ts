@@ -111,4 +111,41 @@ describe('clinics store', () => {
       {}
     );
   });
+
+  it('fetches effective pipelines for a clinic', async () => {
+    const store = useClinicStore();
+    const mockResponse = {
+      effective_pipelines: [
+        {
+          source: 'client_assignment',
+          source_id: 'assign-1',
+          verification_type: 'ELG',
+          target_statuses: ['Active'],
+          precedence: 1,
+          context_rules: {},
+          base_profile: { id: 'bp-1', profile_name: 'DR Basic Writeback', verification_type: 'ELG', target_status: 'Active', is_base: true },
+          steps: [{ step_order: 1, step_type: 'plan_matching', step_config: {}, is_enabled: true, on_failure: 'HALT', run_condition: null }]
+        }
+      ]
+    };
+    vi.mocked(fetchWrapper.get).mockResolvedValue(mockResponse);
+
+    const result = await store.fetchEffectivePipelines('clinic-1');
+
+    expect(fetchWrapper.get).toHaveBeenCalledWith(
+      expect.stringContaining('/clinics/clinic-1/effective-pipelines')
+    );
+    expect(result).toEqual(mockResponse);
+    expect(store.effectivePipelines).toEqual(mockResponse.effective_pipelines);
+  });
+
+  it('handles empty effective pipelines gracefully', async () => {
+    const store = useClinicStore();
+    vi.mocked(fetchWrapper.get).mockResolvedValue({ effective_pipelines: [] });
+
+    const result = await store.fetchEffectivePipelines('clinic-2');
+
+    expect(result.effective_pipelines).toEqual([]);
+    expect(store.effectivePipelines).toEqual([]);
+  });
 });

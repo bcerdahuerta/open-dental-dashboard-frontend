@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
+import type { EffectivePipeline } from '@/types/profileResolution';
 
 const apiUrl = import.meta.env.VITE_API_URL;
 const clinicsUrl = `${apiUrl}/clinics`;
@@ -59,6 +60,7 @@ export const useClinicStore = defineStore('clinics', () => {
     const currentClinic = ref<ClinicItem | null>(null);
     const credentials = ref<CredentialItem[]>([]);
     const enrollments = ref<ProductEnrollment[]>([]);
+    const effectivePipelines = ref<EffectivePipeline[]>([]);
     const loading = ref(false);
     const error = ref<string | null>(null);
 
@@ -299,12 +301,26 @@ export const useClinicStore = defineStore('clinics', () => {
         return await fetchWrapper.get(`${apiUrl}/pipeline/step-types`);
     }
 
+    async function fetchEffectivePipelines(clinicId: string) {
+        try {
+            const data = await fetchWrapper.get(`${clinicsUrl}/${clinicId}/effective-pipelines`);
+            effectivePipelines.value = Array.isArray(data?.effective_pipelines)
+                ? data.effective_pipelines
+                : [];
+            return data;
+        } catch (err: unknown) {
+            error.value = getErrorMessage(err);
+            effectivePipelines.value = [];
+            throw err;
+        }
+    }
+
     async function createProfile(clientId: string, data: Record<string, unknown>) {
         return await fetchWrapper.post(`${clientsUrl}/${clientId}/profiles`, data);
     }
 
     return {
-        clinics, currentClinic, credentials, enrollments, loading, error,
+        clinics, currentClinic, credentials, enrollments, effectivePipelines, loading, error,
         fetchClinics, fetchClinicCatalog, fetchClinic, createClinic, updateClinic,
         fetchCredentials, upsertCredential, testConnection,
         fetchCatalogue, cloneConfig,
@@ -314,5 +330,6 @@ export const useClinicStore = defineStore('clinics', () => {
         fetchFrequencyMappings, saveFrequencyMappings,
         fetchAgeLimitMappings, saveAgeLimitMappings,
         fetchProfiles, fetchProfileSteps, saveProfileSteps, fetchPipelineStepTypes, createProfile,
+        fetchEffectivePipelines,
     };
 });

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useClinicStore } from '@/stores/clinics';
 import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
+import UiParentCard from '@/components/shared/UiParentCard.vue';
+import type { EffectivePipeline } from '@/types/profileResolution';
 import {
   PlusIcon,
   DeviceFloppyIcon as SaveIcon,
@@ -9,6 +11,8 @@ import {
   InfoCircleIcon,
   SettingsIcon,
   TrashIcon,
+  CheckIcon,
+  XIcon,
 } from 'vue-tabler-icons';
 
 const props = defineProps<{ clinicId: string; clientId?: string }>();
@@ -65,6 +69,11 @@ const saving = ref(false);
 const snackbar = ref(false);
 const snackbarMsg = ref('');
 const snackbarColor = ref('success');
+
+const effectivePipelines = ref<EffectivePipeline[]>([]);
+const loadingEffective = ref(false);
+
+const showLegacyControls = computed(() => profiles.value.length > 0);
 
 // JSON config dialog
 const configDialog = ref(false);
@@ -123,6 +132,21 @@ async function loadProfiles() {
     profiles.value = [];
   } finally {
     loadingProfiles.value = false;
+  }
+}
+
+async function loadEffectivePipelines() {
+  if (!props.clinicId) return;
+  loadingEffective.value = true;
+  try {
+    const data = await clinicStore.fetchEffectivePipelines(props.clinicId);
+    effectivePipelines.value = Array.isArray(data?.effective_pipelines)
+      ? data.effective_pipelines
+      : [];
+  } catch {
+    effectivePipelines.value = [];
+  } finally {
+    loadingEffective.value = false;
   }
 }
 
@@ -317,6 +341,7 @@ async function createNewProfile() {
 
 onMounted(loadProfiles);
 onMounted(loadStepTypes);
+onMounted(loadEffectivePipelines);
 
 async function seedDefaults() {
   if (!props.clientId) return;
@@ -356,7 +381,7 @@ async function openGuideDialog(stepType: string) {
   <div>
     <div class="d-flex align-center justify-space-between mb-4">
       <h6 class="text-h6 font-weight-bold">Pipeline Configuration</h6>
-      <div class="d-flex ga-2">
+      <div v-if="showLegacyControls" class="d-flex ga-2">
         <v-btn color="warning" variant="tonal" size="small" :loading="seeding" @click="seedDefaults">
           <SettingsIcon size="16" stroke-width="1.5" class="mr-1" />
           Load Default Profiles
@@ -368,14 +393,74 @@ async function openGuideDialog(stepType: string) {
       </div>
     </div>
 
-    <v-progress-circular v-if="loadingProfiles" indeterminate color="primary" class="d-block mx-auto my-6" />
+    <v-alert
+      v-if="profiles.length > 0 && effectivePipelines.length > 0"
+      type="info"
+      variant="tonal"
+      class="mb-4"
+    >
+      Effective pipeline configuration is also active for this clinic.
+    </v-alert>
+
+    <v-progress-circular v-if="loadingProfiles || loadingEffective" indeterminate color="primary" class="d-block mx-auto my-6" />
 
     <template v-else>
-      <v-alert v-if="profiles.length === 0" type="info" variant="tonal" class="mb-4">
-        No pipeline profiles found. Create one to configure steps.
-      </v-alert>
+      <!-- Read-only effective pipeline view -->
+      <template v-if="!profiles.length && effectivePipelines.length">
+        <UiParentCard
+          v-for="ep in effectivePipelines"
+          :key="ep.source_id"
+          :title="ep.base_profile.profile_name"
+          class="mb-4"
+        >
+          <v-row dense>
+            <v-col cols="12" md="6">
+              <div class="text-caption text-medium-emphasis mb-1">Source</div>
+              <v-chip size="small" color="primary" variant="tonal" class="mb-3">
+                {{ ep.source === 'clinic_override' ? 'Clinic Override' : 'Client Assignment' }}
+              </v-chip>
+            </v-col>
+            <v-col cols="12" md="6">
+              <div class="text-caption text-medium-emphasis mb-1">Verification Type</div>
+              <div class="text-body-2 font-weight-medium mb-3">{{ ep.verification_type }}</div>
+            </v-col>
+            <v-col cols="12" md="6">
+              <div class="text-caption text-medium-emphasis mb-1">Target Statuses</div>
+              <div class="text-body-2 font-weight-medium mb-3">{{ ep.target_statuses.join(', ') }}</div>
+            </v-col>
+            <v-col cols="12" md="6">
+              <div class="text-caption text-medium-emphasis mb-1">Precedence</div>
+              <div class="text-body-2 font-weight-medium mb-3">{{ ep.precedence }}</div>
+            </v-col>
+          </v-row>
 
-      <template v-else>
+          <div class="text-subtitle-2 font-weight-bold text-primary mb-2">Steps</div>
+          <v-table density="compact" class="rounded-lg border mb-2">
+            <thead>
+              <tr>
+                <th style="width: 50px">#</th>
+                <th>Step Type</th>
+                <th style="width: 140px">On Failure</th>
+                <th style="width: 100px" class="text-center">Enabled</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="step in ep.steps" :key="step.step_order">
+                <td class="text-body-2 text-medium-emphasis">{{ step.step_order }}</td>
+                <td class="text-body-2">{{ step.step_type }}</td>
+                <td class="text-body-2">{{ step.on_failure }}</td>
+                <td class="text-center">
+                  <CheckIcon v-if="step.is_enabled" size="16" class="text-success" />
+                  <XIcon v-else size="16" class="text-error" />
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
+        </UiParentCard>
+      </template>
+
+      <!-- Legacy editable view -->
+      <template v-else-if="profiles.length">
         <v-select
           v-model="selectedProfileId"
           :items="profiles"
@@ -493,6 +578,11 @@ async function openGuideDialog(stepType: string) {
           </div>
         </template>
       </template>
+
+      <!-- Empty state: neither legacy nor effective -->
+      <v-alert v-else type="info" variant="tonal" class="mb-4">
+        No effective pipeline configured for this clinic.
+      </v-alert>
     </template>
 
     <!-- JSON Config Dialog -->
