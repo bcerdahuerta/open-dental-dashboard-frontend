@@ -1,3 +1,4 @@
+import type { Component } from 'vue';
 import {
   DashboardIcon,
   ActivityIcon,
@@ -19,7 +20,7 @@ import {
 export interface menu {
   header?: string;
   title?: string;
-  icon?: any;
+  icon?: Component;
   to?: string;
   children?: menu[];
   divider?: boolean;
@@ -49,6 +50,7 @@ const sidebarItem: menu[] = [
   { title: 'Dashboard', icon: DashboardIcon, to: '/main/extraction', requiredProduct: 'extraction' },
   { title: 'Runs', icon: ListIcon, to: '/main/extraction/runs', requiredProduct: 'extraction' },
   { title: 'Schedules', icon: SettingsIcon, to: '/main/extraction/schedules', requiredProduct: 'extraction' },
+  { title: 'Robot Monitor', icon: ActivityIcon, to: '/main/extraction/robots', requiredProduct: 'extraction' },
   { title: 'Insurance Enrichment', icon: SettingsIcon, to: '/main/extraction/insurance-enrichment', requiredProduct: 'extraction' },
   { title: 'Team Members', icon: UsersIcon, to: '/main/extraction/encargados', requiredProduct: 'extraction' },
 

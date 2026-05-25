@@ -117,6 +117,12 @@ const MainRoutes = {
       component: () => import('@/views/extraction/ExtractionSchedules.vue')
     },
     {
+      name: 'RobotMonitor',
+      path: '/main/extraction/robots',
+      meta: { requiredProduct: 'extraction' },
+      component: () => import('@/views/extraction/RobotMonitor.vue')
+    },
+    {
       name: 'EncargadoList',
       path: '/main/extraction/encargados',
       meta: { requiredProduct: 'extraction' },

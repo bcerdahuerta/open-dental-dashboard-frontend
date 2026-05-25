@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import { useExtractionStore } from '@/stores/extraction';
+import { useRobotStore } from '@/stores/robot';
 import { useClientStore } from '@/stores/clients';
 import { useClinicStore } from '@/stores/clinics';
 import {
@@ -17,13 +18,16 @@ import {
 } from 'vue-tabler-icons';
 
 const extractionStore = useExtractionStore();
+const robotStore = useRobotStore();
 const clientStore = useClientStore();
 const clinicStore = useClinicStore();
 
 const { clinicNameMap, loading, error, events, schedules, runs, health } = storeToRefs(extractionStore);
+const { healthyCount: robotHealthyCount, staleCount: robotStaleCount, totalCount: robotTotalCount } = storeToRefs(robotStore);
 const { clients } = storeToRefs(clientStore);
 const { clinics } = storeToRefs(clinicStore);
 const { hydrateLookups, fetchRuns, fetchSchedules, fetchHealth, fetchEvents, triggerExtraction, statusColor } = extractionStore;
+const { fetchWorkstations } = robotStore;
 
 const triggerDialog = ref(false);
 const triggerLoading = ref(false);
@@ -143,6 +147,7 @@ async function refreshDashboard() {
     fetchSchedules(selectedClientId.value || undefined),
     fetchHealth(),
     fetchEvents(undefined, selectedClientId.value ? 100 : 10),
+    fetchWorkstations(),
   ]);
 }
 
@@ -175,6 +180,11 @@ function slackTargetText(webhook?: string | null): string {
 function slackMentionsText(mentions?: string[]): string {
   if (!mentions?.length) return 'No mentions configured';
   return mentions.join(', ');
+}
+
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  return String(err || fallback);
 }
 
 function openTriggerDialog() {
@@ -217,8 +227,8 @@ async function onTrigger() {
     snackbarColor.value = 'success';
     triggerDialog.value = false;
     await refreshDashboard();
-  } catch (err: any) {
-    snackbarText.value = err || 'Failed to trigger extraction.';
+  } catch (err: unknown) {
+    snackbarText.value = getErrorMessage(err, 'Failed to trigger extraction.');
     snackbarColor.value = 'error';
   } finally {
     triggerLoading.value = false;
@@ -354,6 +364,28 @@ async function onClientChange() {
                   <h3 class="text-h5 font-weight-bold text-error">{{ healthSummary.down }}</h3>
                   <span class="text-body-2 text-medium-emphasis">Rollout blockers</span>
                 </div>
+              </div>
+            </UiParentCard>
+          </v-col>
+          <v-col cols="12" md="6">
+            <UiParentCard title="Robot Health">
+              <div class="d-flex align-center justify-space-between ga-3">
+                <div class="d-flex align-center">
+                  <v-avatar size="44" class="bg-lightprimary mr-3" rounded>
+                    <ActivityIcon size="22" class="text-primary" stroke-width="1.5" />
+                  </v-avatar>
+                  <div>
+                    <h3 class="text-h5 font-weight-bold">
+                      {{ robotHealthyCount }}/{{ robotTotalCount }} online
+                    </h3>
+                    <span class="text-body-2 text-medium-emphasis">
+                      {{ robotStaleCount }} stale workstations
+                    </span>
+                  </div>
+                </div>
+                <v-btn color="primary" variant="tonal" to="/main/extraction/robots">
+                  View robots
+                </v-btn>
               </div>
             </UiParentCard>
           </v-col>
