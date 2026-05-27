@@ -7,6 +7,7 @@
 Dashboard UI for managing insurance verification writebacks and patient credit identification across multi-tenant dental practices.
 
 > For the full system architecture, see [`architecture_documentation.md`](../architecture_documentation.md) in the workspace root.
+> For contribution rules, branch workflow, and Merge Request expectations, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Features
 
