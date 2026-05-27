@@ -7,6 +7,8 @@
 Dashboard UI for managing insurance verification writebacks and patient credit identification across multi-tenant dental practices.
 
 > This README is the frontend entrypoint for local setup, architecture notes, and contributor workflow.
+> For the cross-repo architecture overview, see [`architecture_documentation.md`](./architecture_documentation.md).
+> For the backend API setup, see the [backend README](https://gitlab.com/ralop-tech/rocketbot/dentalrobot-library/open-dental-dashboard-backend/-/blob/main/README.md?ref_type=heads).
 > For contribution rules, branch workflow, and Merge Request expectations, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Features
@@ -41,7 +43,7 @@ Dashboard UI for managing insurance verification writebacks and patient credit i
 ### Prerequisites
 
 - Node.js 20+ recommended (Node.js 18+ minimum)
-- Backend API running at `http://localhost:5000` (see [backend README](../open-dental-dashboard-backend/README.md))
+- Backend API running at `http://localhost:5000` (see the [backend README](https://gitlab.com/ralop-tech/rocketbot/dentalrobot-library/open-dental-dashboard-backend/-/blob/main/README.md?ref_type=heads))
 
 ### Local development
 
