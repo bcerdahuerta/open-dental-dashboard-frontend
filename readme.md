@@ -40,16 +40,52 @@ Dashboard UI for managing insurance verification writebacks and patient credit i
 
 ### Prerequisites
 
-- Node.js 18+
-- Backend API running (see [backend README](../open-dental-dashboard-backend/README.md))
+- Node.js 20+ recommended (Node.js 18+ minimum)
+- Backend API running at `http://localhost:5000` (see [backend README](../open-dental-dashboard-backend/README.md))
 
-### Setup
+### Local development
+
+1. Install dependencies.
+
+   ```powershell
+   cd open-dental-dashboard-frontend\full-version
+   npm ci
+   ```
+
+2. Create `.env` in `open-dental-dashboard-frontend/full-version/`.
+
+   ```env
+   VITE_API_URL=http://localhost:5000/api/v1
+   ```
+
+   `VITE_API_URL` must point to the backend API. Do not put secrets in `VITE_` variables because they are exposed in the browser bundle.
+
+3. Start the dev server.
+
+   ```powershell
+   npm run dev
+   ```
+
+The app starts at `http://localhost:5173`.
+
+Use the seeded backend admin account for local login when available:
+
+```text
+admin@dentalrobot.com
+Admin123456
+```
+
+If login fails, verify that the backend is running, migrations were applied, `flask --app wsgi.py seed` was executed, and `VITE_API_URL` matches the backend URL.
+
+### Legacy quick commands
+
+These commands are kept as a compact reference, but the local development steps above are preferred for a fresh workstation.
 
 ```bash
 cd open-dental-dashboard-frontend/full-version
 
 # Install dependencies
-npm install
+npm ci
 
 # Configure API endpoint
 # Create or edit .env with:
@@ -58,8 +94,6 @@ npm install
 # Start dev server
 npm run dev
 ```
-
-The app starts at `http://localhost:5173`.
 
 ### Available Scripts
 
