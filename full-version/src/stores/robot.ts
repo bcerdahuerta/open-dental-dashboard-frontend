@@ -21,6 +21,7 @@ function getErrorMessage(err: unknown): string {
 export const useRobotStore = defineStore('robot', () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const deletingIds = ref<string[]>([]);
   const workstations = ref<RobotWorkstation[]>([]);
 
   const healthyCount = computed(() => workstations.value.filter((item) => item.status === 'HEALTHY').length);
@@ -48,14 +49,35 @@ export const useRobotStore = defineStore('robot', () => {
     }
   }
 
+  async function deleteWorkstation(workstationId: string) {
+    if (!workstationId) return;
+
+    if (!deletingIds.value.includes(workstationId)) {
+      deletingIds.value = [...deletingIds.value, workstationId];
+    }
+    error.value = null;
+
+    try {
+      await fetchWrapper.delete(`${baseUrl}/workstations/${workstationId}`);
+      workstations.value = workstations.value.filter((item) => item.id !== workstationId);
+    } catch (err: unknown) {
+      error.value = getErrorMessage(err);
+      throw err;
+    } finally {
+      deletingIds.value = deletingIds.value.filter((id) => id !== workstationId);
+    }
+  }
+
   return {
     loading,
     error,
+    deletingIds,
     workstations,
     healthyCount,
     staleCount,
     totalCount,
     lastAlertAt,
-    fetchWorkstations
+    fetchWorkstations,
+    deleteWorkstation
   };
 });

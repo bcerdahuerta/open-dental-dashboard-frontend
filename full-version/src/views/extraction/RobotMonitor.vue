@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import { useRobotStore } from '@/stores/robot';
@@ -9,12 +9,23 @@ import {
   AlertTriangleIcon,
   CircleCheckIcon,
   ClockIcon,
-  RefreshIcon
+  RefreshIcon,
+  TrashIcon
 } from 'vue-tabler-icons';
 
 const robotStore = useRobotStore();
-const { loading, error, workstations, healthyCount, staleCount, totalCount, lastAlertAt } = storeToRefs(robotStore);
-const { fetchWorkstations } = robotStore;
+const { loading, error, deletingIds, workstations, healthyCount, staleCount, totalCount, lastAlertAt } = storeToRefs(robotStore);
+const { fetchWorkstations, deleteWorkstation } = robotStore;
+
+const confirmDialogOpen = ref(false);
+const selectedWorkstationId = ref<string | null>(null);
+const selectedWorkstationName = ref<string | null>(null);
+const deleteDialogError = ref<string | null>(null);
+
+const isDeletingSelected = computed(() => {
+  if (!selectedWorkstationId.value) return false;
+  return deletingIds.value.includes(selectedWorkstationId.value);
+});
 
 const headers = [
   { title: 'Workstation', key: 'workstation_name', sortable: true },
@@ -22,6 +33,7 @@ const headers = [
   { title: 'Last Seen', key: 'last_seen_at', sortable: true },
   { title: 'First Seen', key: 'first_seen_at', sortable: true },
   { title: 'Last Alert', key: 'alerted_at', sortable: true },
+  { title: 'Actions', key: 'actions', sortable: false },
 ];
 
 const sortedWorkstations = computed(() => [...workstations.value].sort((a, b) => {
@@ -48,6 +60,37 @@ function relativeTime(iso: string | null): string {
   if (diffHours < 48) return `${diffHours}h ago`;
   const diffDays = Math.round(diffHours / 24);
   return `${diffDays}d ago`;
+}
+
+function openDeleteDialog(workstationId: string, workstationName: string): void {
+  deleteDialogError.value = null;
+  selectedWorkstationId.value = workstationId;
+  selectedWorkstationName.value = workstationName;
+  confirmDialogOpen.value = true;
+}
+
+function closeDeleteDialog(): void {
+  if (isDeletingSelected.value) return;
+  confirmDialogOpen.value = false;
+  selectedWorkstationId.value = null;
+  selectedWorkstationName.value = null;
+  deleteDialogError.value = null;
+}
+
+function isDeletingRow(workstationId: string): boolean {
+  return deletingIds.value.includes(workstationId);
+}
+
+async function handleConfirmDelete(): Promise<void> {
+  if (!selectedWorkstationId.value) return;
+  deleteDialogError.value = null;
+
+  try {
+    await deleteWorkstation(selectedWorkstationId.value);
+    closeDeleteDialog();
+  } catch (err: unknown) {
+    deleteDialogError.value = err instanceof Error ? err.message : String(err || 'Unable to deregister workstation.');
+  }
 }
 
 onMounted(() => {
@@ -141,24 +184,41 @@ onMounted(() => {
             item-value="id"
             density="comfortable"
           >
-            <template #item.workstation_name="{ item }">
+            <template #[`item.workstation_name`]="{ item }">
               <div class="font-weight-medium">{{ item.workstation_name }}</div>
               <div class="text-caption text-medium-emphasis">{{ item.id }}</div>
             </template>
-            <template #item.status="{ item }">
+            <template #[`item.status`]="{ item }">
               <v-chip :color="getRobotStatusColor(item.status)" size="small" variant="flat">
                 {{ item.status === 'STALE' ? 'Stale' : 'Online' }}
               </v-chip>
             </template>
-            <template #item.last_seen_at="{ item }">
+            <template #[`item.last_seen_at`]="{ item }">
               <div class="font-weight-medium">{{ relativeTime(item.last_seen_at) }}</div>
               <div class="text-caption text-medium-emphasis">{{ formatDate(item.last_seen_at) }}</div>
             </template>
-            <template #item.first_seen_at="{ item }">
+            <template #[`item.first_seen_at`]="{ item }">
               {{ formatDate(item.first_seen_at) }}
             </template>
-            <template #item.alerted_at="{ item }">
+            <template #[`item.alerted_at`]="{ item }">
               {{ item.alerted_at ? relativeTime(item.alerted_at) : 'Not alerted' }}
+            </template>
+            <template #[`item.actions`]="{ item }">
+              <div class="d-flex justify-center">
+                <v-btn
+                  color="error"
+                  variant="tonal"
+                  size="small"
+                  :loading="isDeletingRow(item.id)"
+                  :disabled="isDeletingRow(item.id)"
+                  @click="openDeleteDialog(item.id, item.workstation_name)"
+                >
+                  <template #prepend>
+                    <TrashIcon size="16" stroke-width="1.5" />
+                  </template>
+                  Deregister
+                </v-btn>
+              </div>
             </template>
             <template #no-data>
               <div class="text-medium-emphasis py-6">
@@ -167,6 +227,40 @@ onMounted(() => {
             </template>
           </v-data-table>
         </UiParentCard>
+
+        <v-dialog v-model="confirmDialogOpen" max-width="520" persistent>
+          <v-card>
+            <v-card-title class="text-h6">Deregister Workstation</v-card-title>
+            <v-card-text>
+              <p class="text-body-2 mb-3">
+                Deregister
+                <strong>{{ selectedWorkstationName }}</strong>
+                from the Robot Monitor?
+              </p>
+              <v-alert type="warning" variant="tonal" class="mb-3">
+                If the robot is still running, this workstation may register again on the next heartbeat.
+              </v-alert>
+              <v-alert v-if="deleteDialogError" type="error" variant="tonal">
+                {{ deleteDialogError }}
+              </v-alert>
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer />
+              <v-btn color="secondary" variant="tonal" :disabled="isDeletingSelected" @click="closeDeleteDialog">
+                Cancel
+              </v-btn>
+              <v-btn
+                color="error"
+                variant="flat"
+                :loading="isDeletingSelected"
+                :disabled="isDeletingSelected"
+                @click="handleConfirmDelete"
+              >
+                {{ isDeletingSelected ? 'Removing...' : 'Deregister Workstation' }}
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
       </UiParentCard>
     </v-col>
   </v-row>

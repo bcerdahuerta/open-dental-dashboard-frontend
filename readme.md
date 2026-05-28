@@ -16,6 +16,7 @@ Dashboard UI for managing insurance verification writebacks and patient credit i
 - **Operations Hub** — KPI cards, job status overview, recent activity feed
 - **Writeback Management** — Job queue with clinic-wise view, live activity monitoring, circuit breaker status
 - **Credit Dashboard** — Business intelligence with 4 KPI cards, aging/disposition/exception/type charts
+- **Extraction Robot Monitor** — `/main/extraction/robots` monitor with per-workstation **Deregister** action for admin/operator roles
 - **Admin Console** — Clients, clinics, users, pipelines, templates, system logs
 - **Profile Resolution** — Resolution hierarchy management with simulator, base profiles, client assignments, and clinic overrides
 - **Clinic Configuration** — Full config editor with tabs for credentials, benefit/frequency/age-limit mappings, fee schedules
@@ -216,6 +217,7 @@ All authenticated routes live under `MainRoutes.ts` with `meta: { requiresAuth: 
 | `/admin/profile-resolution` | ProfileResolution | Admin |
 | `/writeback/queue` | JobQueue | Writeback |
 | `/writeback/live` | LiveActivity | Writeback |
+| `/main/extraction/robots` | RobotMonitor | Extraction |
 | `/credit` | CreditDashboard | Credit |
 | `/credit/records` | CreditRecords | Credit |
 | `/credit/records/:id` | CreditRecordDetail | Credit |
@@ -223,6 +225,13 @@ All authenticated routes live under `MainRoutes.ts` with `meta: { requiresAuth: 
 | `/profile` | UserProfile | Profile |
 
 **Navigation guard** (`router/index.ts`): Redirects unauthenticated users to `/login`. Redirects authenticated users from `/login` to `/dashboard/default`.
+
+**Robot Monitor deregistration semantics** (`/main/extraction/robots`):
+
+- The **Deregister** row action calls `DELETE /api/v1/robots/workstations/{workstation_id}`.
+- Successful delete removes the workstation from the table immediately and recomputes counts (no disabled-row fallback).
+- If the robot process is still running, a future valid heartbeat can auto-register the same workstation name again and the row can reappear as `HEALTHY`.
+- Delete authorization is enforced server-side for `admin` and `operator` roles.
 
 ### State Management (Pinia Stores)
 
