@@ -18,6 +18,13 @@ describe('writeback status presentation', () => {
     });
   });
 
+  it('maps no-appointment terminal status to a clear label', () => {
+    expect(getWritebackStatusPresentation('NO_APPOINTMENT')).toEqual({
+      label: 'No Appointment',
+      color: 'secondary',
+    });
+  });
+
   it('falls back safely for unknown statuses', () => {
     expect(getWritebackStatusPresentation('FUTURE_STATUS')).toEqual({
       label: 'FUTURE_STATUS',

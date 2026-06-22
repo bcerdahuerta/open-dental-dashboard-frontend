@@ -80,6 +80,7 @@ const statusOptions = [
   { title: 'Extracted', value: 'EXTRACTED' },
   { title: 'Executed', value: 'EXECUTED' },
   { title: 'Partial', value: 'PARTIAL' },
+  { title: 'No Appointment', value: 'NO_APPOINTMENT' },
   { title: 'Retry deferred', value: 'RETRY_DEFERRED' },
   { title: 'Blocked: eConnector', value: 'BLOCKED_ECONNECTOR' },
   { title: 'Retrying Sheets', value: 'SHEETS_RETRYING' },
@@ -123,6 +124,7 @@ const terminalStatuses = new Set<JobStatus>([
   'SYNCED',
   'FAILED',
   'PARTIAL',
+  'NO_APPOINTMENT',
   'EXTRACT_FAILED',
   'SYNC_FAILED',
 ]);

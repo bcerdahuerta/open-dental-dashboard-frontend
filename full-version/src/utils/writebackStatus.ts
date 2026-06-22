@@ -11,6 +11,7 @@ const STATUS_PRESENTATION: Record<string, WritebackStatusPresentation> = {
   EXTRACTED: { label: 'Extracted', color: 'info' },
   EXECUTED: { label: 'Executed', color: 'info' },
   PARTIAL: { label: 'Partial', color: 'orange' },
+  NO_APPOINTMENT: { label: 'No Appointment', color: 'secondary' },
   RETRY_DEFERRED: { label: 'Retry deferred', color: 'warning' },
   BLOCKED_ECONNECTOR: { label: 'Blocked: eConnector', color: 'error' },
   SHEETS_RETRYING: { label: 'Retrying Sheets', color: 'deep-orange' },

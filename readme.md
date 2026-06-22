@@ -393,6 +393,7 @@ Real-time view of running jobs with:
 - Auto-refresh polling
 - Execute button for pending jobs
 - Status badges and progress indicators
+- `NO_APPOINTMENT` rows display as **No Appointment** and do not show Retry, because the missing Open Dental appointment is a terminal business outcome rather than a retryable pipeline failure.
 
 ### JobQueue Preview→Sync Contract (`views/writeback/JobQueue.vue`)
 

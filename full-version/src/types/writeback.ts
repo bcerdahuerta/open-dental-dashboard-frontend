@@ -4,7 +4,7 @@ export type JobStatus =
   // v1 statuses
   | 'PENDING' | 'POLLING' | 'EXTRACTING' | 'EXECUTING' | 'DONE' | 'FAILED'
   // v2 event-pipeline statuses
-  | 'EXTRACTED' | 'EXECUTED' | 'PARTIAL' | 'RETRY_DEFERRED' | 'BLOCKED_ECONNECTOR' | 'SHEETS_RETRYING'
+  | 'EXTRACTED' | 'EXECUTED' | 'PARTIAL' | 'NO_APPOINTMENT' | 'RETRY_DEFERRED' | 'BLOCKED_ECONNECTOR' | 'SHEETS_RETRYING'
   | 'SYNCING' | 'SYNCED' | 'EXTRACT_FAILED' | 'SYNC_FAILED';
 
 export interface WritebackJob {
@@ -20,7 +20,7 @@ export interface WritebackJob {
     attempt: number;
     max_attempts: number;
     error_message: string | null;
-    error_category?: 'source_file_invalid' | null;
+    error_category?: 'source_file_invalid' | 'no_appointment' | null;
     retryable?: boolean | null;
     worker_id: string | null;
     priority: number;
@@ -60,6 +60,7 @@ export interface QueueStats {
     EXTRACTED: number;
     EXECUTED: number;
     PARTIAL: number;
+    NO_APPOINTMENT: number;
     RETRY_DEFERRED: number;
     BLOCKED_ECONNECTOR: number;
     SHEETS_RETRYING: number;

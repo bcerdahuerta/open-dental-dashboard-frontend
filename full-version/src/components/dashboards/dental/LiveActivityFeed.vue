@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { EyeIcon } from 'vue-tabler-icons';
 import { useWritebackStore } from '@/stores/writeback';
+import { getWritebackStatusPresentation } from '@/utils/writebackStatus';
 
 const props = defineProps<{
   clientId?: string | null;
@@ -23,22 +24,11 @@ const headers = [
 ];
 
 const getStatusColor = (status: string): string => {
-  const colors: Record<string, string> = {
-    PENDING: 'warning',
-    POLLING: 'primary',
-    EXTRACTING: 'primary',
-    EXECUTING: 'primary',
-    DONE: 'success',
-    FAILED: 'error',
-    EXTRACTED: 'info',
-    EXECUTED: 'info',
-    PARTIAL: 'orange',
-    SYNCING: 'primary',
-    SYNCED: 'success',
-    EXTRACT_FAILED: 'error',
-    SYNC_FAILED: 'error',
-  };
-  return colors[status] || 'grey';
+  return getWritebackStatusPresentation(status).color;
+};
+
+const getStatusLabel = (status: string): string => {
+  return getWritebackStatusPresentation(status).label;
 };
 
 const formatDate = (dateStr: string | null): string => {
@@ -91,7 +81,7 @@ watchEffect(() => {
     <!-- Status Column -->
     <template #[`item.status`]="{ item }">
       <v-chip :color="getStatusColor(item.status)" size="small" variant="tonal">
-        {{ item.status }}
+        {{ getStatusLabel(item.status) }}
       </v-chip>
     </template>
 

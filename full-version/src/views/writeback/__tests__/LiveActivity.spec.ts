@@ -104,7 +104,7 @@ function mountLiveActivity() {
           props: ['items'],
           emits: ['update:options'],
           template:
-            '<div><div v-for="rawItem in items" :key="rawItem.id"><slot name="item.actions" :item="rawItem" /></div></div>',
+            '<div><div v-for="rawItem in items" :key="rawItem.id"><slot name="item.status" :item="rawItem" /><slot name="item.actions" :item="rawItem" /></div></div>',
         },
         VBtn: { template: '<button @click="$emit(\'click\', $event)"><slot /></button>' },
         RefreshIcon: true,
@@ -178,5 +178,22 @@ describe('Writeback LiveActivity view', () => {
     expect(writebackStoreMock.retryJob).toHaveBeenCalled();
     expect(routeState.query.jobId).toBeUndefined();
     expect(wrapper.get('[data-testid="drawer"]').attributes('data-open')).toBe('false');
+  });
+
+  it('shows no-appointment as terminal without retry action', async () => {
+    jobsRef.value = [
+      makeJob({
+        id: 'job-no-appt',
+        status: 'NO_APPOINTMENT',
+        retryable: false,
+        error_category: 'no_appointment',
+      }),
+    ];
+
+    const wrapper = mountLiveActivity();
+    await nextTick();
+
+    expect(wrapper.text()).toContain('No Appointment');
+    expect(wrapper.text()).not.toContain('Retry');
   });
 });

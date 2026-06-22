@@ -71,7 +71,8 @@ describe('LiveActivityFeed', () => {
       { id: '5', patient_name: 'E', matched_profile: 'Default', status: 'SYNCED', created_at: '2026-04-02T10:00:00Z' },
       { id: '6', patient_name: 'F', matched_profile: 'Default', status: 'EXTRACT_FAILED', created_at: '2026-04-02T10:00:00Z' },
       { id: '7', patient_name: 'G', matched_profile: 'Default', status: 'SYNC_FAILED', created_at: '2026-04-02T10:00:00Z' },
-      { id: '8', patient_name: 'H', matched_profile: 'Default', status: 'FUTURE_STATUS', created_at: '2026-04-02T10:00:00Z' },
+      { id: '8', patient_name: 'H', matched_profile: 'Default', status: 'NO_APPOINTMENT', created_at: '2026-04-02T10:00:00Z' },
+      { id: '9', patient_name: 'I', matched_profile: 'Default', status: 'FUTURE_STATUS', created_at: '2026-04-02T10:00:00Z' },
     ];
 
     const wrapper = mount(LiveActivityFeed, {
@@ -92,7 +93,7 @@ describe('LiveActivityFeed', () => {
     });
 
     const chips = wrapper.findAll('[data-testid="status-chip"]');
-    expect(chips).toHaveLength(8);
+    expect(chips).toHaveLength(9);
 
     expect(chips[0].attributes('data-color')).toBe('info');
     expect(chips[1].attributes('data-color')).toBe('info');
@@ -101,7 +102,10 @@ describe('LiveActivityFeed', () => {
     expect(chips[4].attributes('data-color')).toBe('success');
     expect(chips[5].attributes('data-color')).toBe('error');
     expect(chips[6].attributes('data-color')).toBe('error');
-    expect(chips[7].attributes('data-color')).toBe('grey');
+    expect(chips[7].attributes('data-color')).toBe('secondary');
+    expect(chips[7].text()).toBe('No Appointment');
+    expect(chips[7].text()).not.toBe('NO_APPOINTMENT');
+    expect(chips[8].attributes('data-color')).toBe('grey');
   });
 
   it('keeps inspect action routing to WritebackLive with jobId query', async () => {

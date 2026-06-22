@@ -26,6 +26,7 @@ export const useWritebackStore = defineStore('writeback', () => {
         EXTRACTED: 0,
         EXECUTED: 0,
         PARTIAL: 0,
+        NO_APPOINTMENT: 0,
         RETRY_DEFERRED: 0,
         BLOCKED_ECONNECTOR: 0,
         SHEETS_RETRYING: 0,
