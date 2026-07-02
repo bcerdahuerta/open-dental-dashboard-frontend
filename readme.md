@@ -18,6 +18,7 @@ Dashboard UI for managing insurance verification writebacks and patient credit i
 - **Credit Dashboard** — Business intelligence with 4 KPI cards, aging/disposition/exception/type charts
 - **Extraction Robot Monitor** — `/main/extraction/robots` monitor with per-workstation **Deregister** action for admin/operator roles
 - **Admin Console** — Clients, clinics, users, pipelines, templates, system logs
+- **Client Automations Panel** — Internal client automation rule/run summaries embedded in Client Management without patient-level detail
 - **Profile Resolution** — Resolution hierarchy management with simulator, base profiles, client assignments, and clinic overrides
 - **Clinic Configuration** — Full config editor with tabs for credentials, benefit/frequency/age-limit mappings, fee schedules
 - **RBAC** — Role-aware navigation and actions (Superuser, Admin, Operator, Viewer)
@@ -71,11 +72,11 @@ Dashboard UI for managing insurance verification writebacks and patient credit i
 
 The app starts at `http://localhost:5173`.
 
-Use the seeded backend admin account for local login when available:
+Use the seeded backend admin account for local login when available. Generate or obtain the local seed password through the backend-approved seeding workflow; do not commit default passwords to docs or source control.
 
 ```text
 admin@dentalrobot.com
-Admin123456
+<local-seeded-admin-password>
 ```
 
 If login fails, verify that the backend is running, migrations were applied, `flask --app wsgi.py seed` was executed, and `VITE_API_URL` matches the backend URL.
@@ -103,7 +104,7 @@ npm run dev
 | Script | Command | Description |
 | --- | --- | --- |
 | `dev` | `npm run dev` | Vite dev server with HMR |
-| `build` | `npm run build` | Type-check + production build |
+| `build` | `npm run build` | Type-check + Vercel/root production build |
 | `typecheck` | `npm run typecheck` | `vue-tsc --noEmit` only |
 | `lint` | `npm run lint` | ESLint with auto-fix |
 | `preview` | `npm run preview` | Preview production build (port 5050) |
@@ -136,6 +137,7 @@ full-version/src/
 ├── stores/                        # Pinia state management
 │   ├── auth.ts                    # JWT login/refresh/logout, user state
 │   ├── clients.ts                 # Client CRUD operations
+│   ├── clientAutomations.ts       # Internal automation rule/run summaries
 │   ├── clinics.ts                 # Clinic CRUD + config tabs + enrollment
 │   ├── credit.ts                  # Credit module (summary, runs, records, clinics)
 │   ├── writeback.ts               # Job queue, stats, circuit breaker, live feed
@@ -146,6 +148,7 @@ full-version/src/
 │   ├── credit.ts                  # CreditSummary, CreditRun, CreditRecord, etc.
 │   ├── writeback.ts               # WritebackJob, QueueStats, JobsPagination
 │   ├── profileResolution.ts       # ProfileResolution, ResolutionInput, ResolutionResult
+│   ├── clientAutomations.ts       # ClientAutomationRuleSummary, ClientAutomationRunSummary
 │   └── vue-apexcharts.d.ts        # ApexCharts type shims
 │
 ├── views/
@@ -177,6 +180,8 @@ full-version/src/
 │   │   ├── UiChildCard.vue        # Nested card
 │   │   ├── WidgetCard.vue         # KPI widget card
 │   │   └── BaseBreadcrumb.vue     # Page breadcrumbs
+│   ├── admin/
+│   │   └── ClientAutomationsPanel.vue # Summary-only internal automation panel
 │   └── writeback/
 │       └── JobDetailDrawer.vue    # Job detail side panel + compensation log
 │
@@ -241,6 +246,7 @@ Each module has its own Pinia store using the **Composition API** (`defineStore`
 | --- | --- | --- |
 | `auth` | `user`, `access_token`, `refresh_token` | `login()`, `refresh()`, `logout()` |
 | `clients` | `clients`, `loading`, `error` | `fetchClients()`, `createClient()`, `updateClient()` |
+| `clientAutomations` | `rules`, `runs`, `loading`, `error` | `fetchRules()`, `fetchRuns()`, `updateRuleEnabled()`, `createManualRun()` |
 | `clinics` | `clinics`, `selectedClinic`, `benefitMappings`, ... | `fetchClinics()`, `fetchClinicDetail()`, config CRUD |
 | `writeback` | `jobs`, `queueStats`, `clinicStatsMap`, `selectedJob` | `fetchJobs()`, `executeJob()`, `fetchQueueStats()` |
 | `credit` | `summary`, `runs`, `records`, `creditClinics` | `fetchSummary()`, `fetchRuns()`, `triggerRun()`, `fetchRecords()` |
@@ -255,6 +261,7 @@ export const fetchWrapper = {
   get: request('GET'),
   post: request('POST'),
   put: request('PUT'),
+  patch: request('PATCH'),
   delete: request('DELETE')
 };
 ```
@@ -316,6 +323,21 @@ Manages the resolution hierarchy for determining the effective profile for any c
 - `ResolutionResult` — Effective profile + explanation trace
 
 **Tests**: 23 Vitest tests covering resolution logic, form validation, and guardrails.
+
+### Client Automations (`ClientAutomationsPanel.vue`)
+
+The Client Management page embeds an internal-only automation summary panel. It intentionally does not add a main sidebar item or patient-level drilldown.
+
+**API path**: `/api/v1/client-automations/*` through `fetchWrapper`.
+
+**Displayed summary fields**:
+- Rule type, enabled state, schedule time/timezone, source/target provider abbreviations, and internal owner.
+- Recent run target service date, final status, matched/changed/skipped/failed counts, retry count, and controlled non-PHI failure diagnostics when exposed by the backend (`error_category`, `error_code`, generic sanitized `error_summary`).
+
+**Privacy guardrails**:
+- Do not render patient names, `PatNum`, `AptNum`, appointment notes, action rows, or raw Open Dental error text.
+- Treat backend error diagnostics as controlled labels/summaries only; never surface raw API errors or patient-specific detail from store failures.
+- Keep this panel under Client Management unless a future spec explicitly creates a dedicated internal admin route.
 
 ### Clinic Detail (ClinicDetail.vue)
 
@@ -423,7 +445,11 @@ npm run build
 # Deploy as static files to any CDN/hosting
 ```
 
-The `dist/` folder is a fully static SPA. Configure your hosting to serve `index.html` for all routes (SPA fallback).
+Canonical production deployment is Vercel auto-deploy on push to `main`; no manual frontend deploy step is required. The legacy GitHub Actions SSH production deploy to `berrydashboard.com` is disabled and kept validation-only in favor of Vercel.
+
+The production validation workflow must run `npm run build` so CI proves the same root-base Vite contract that Vercel serves. Do not use the legacy `/vue/` `build-prod` script for `main` or Vercel validation.
+
+The `dist/` folder is a fully static SPA. Vercel uses `full-version/vercel.json` to serve `index.html` for all routes (SPA fallback).
 
 ## License
 

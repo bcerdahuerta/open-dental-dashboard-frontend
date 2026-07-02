@@ -11,6 +11,7 @@ export default defineConfig({
     }
   },
   test: {
+    allowOnly: false,
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/tests/setup.ts'],

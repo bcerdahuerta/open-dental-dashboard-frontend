@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { useClientStore, type ClientCreate } from '@/stores/clients';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
+import ClientAutomationsPanel from '@/components/admin/ClientAutomationsPanel.vue';
 import { PlusIcon, PencilIcon, BuildingIcon } from 'vue-tabler-icons';
 
 const router = useRouter();
@@ -166,6 +167,9 @@ onMounted(() => {
           </template>
         </v-data-table>
       </UiParentCard>
+    </v-col>
+    <v-col cols="12">
+      <ClientAutomationsPanel />
     </v-col>
   </v-row>
 

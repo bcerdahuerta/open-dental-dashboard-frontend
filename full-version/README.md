@@ -37,7 +37,7 @@ Dashboard frontend for managing Open Dental insurance verification writebacks, p
 ```bash
 # Install dependencies
 cd full-version
-npm install
+npm ci
 
 # Configure environment
 cp .env.example .env.local
@@ -49,7 +49,7 @@ npm run dev
 # Type check
 npx vue-tsc --noEmit
 
-# Production build
+# Production build (same root-base contract validated before Vercel serves main)
 npm run build
 ```
 
@@ -218,7 +218,9 @@ git commit -m "feat(module): description"
 git push origin main
 ```
 
-No manual build step — Vercel handles build + CDN.
+No manual build step — Vercel handles build + CDN. The legacy GitHub Actions SSH production deploy to `berrydashboard.com` is disabled; the production workflow is validation-only so Vercel remains the single production deployment owner.
+
+Production validation uses `npm run build`, which keeps Vite at the root base expected by Vercel. Do not use the legacy `/vue/` `build-prod` script for `main` or Vercel validation.
 
 ---
 

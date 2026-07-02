@@ -2,19 +2,43 @@ name: Node - Stage deploy
 
 # Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
+  # Runs PR tests for stage branches and deploys only on pushes to stage branches.
   push:
     branches:
       - stage*
   pull_request:
     types:
-      - closed
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
     branches:
       - stage*
 
 jobs:
+  pr_tests:
+    if: github.event_name == 'pull_request'
+    name: ✅ PR tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚚 Get latest code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 🔬 Run tests and stage build
+        working-directory: full-version
+        run: |
+          npm ci
+          npm test
+          npm run build-stage
+
   if_merged:
-    if: github.event.pull_request.merged == true
+    if: github.event_name == 'push'
     name: 🎉 Deploy
     runs-on: ubuntu-latest
 
@@ -28,9 +52,10 @@ jobs:
           node-version: "22"
 
       - name: 🔨 Build Project
+        working-directory: full-version
         run: |
-          cd full-version
-          npm i
+          npm ci
+          npm test
           npm run build-stage
 
       - name: 📂 Deploy to Server
