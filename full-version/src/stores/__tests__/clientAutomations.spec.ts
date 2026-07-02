@@ -21,11 +21,30 @@ const rulePayload = {
   schedule_time: '20:30',
   max_attempts: 3,
   internal_owner: 'Operations',
+  schedule_status: 'ready',
+  next_scheduled_execution_at: '2026-07-03T02:30:00+00:00',
+  next_target_service_date: '2026-07-06',
+  last_run_status: 'COMPLETED',
+  last_run_target_service_date: '2026-07-02',
   config: {
     source_provider_abbr: 'BEVE',
     target_provider_abbr: 'APPT',
     target_window: 'next_business_day'
   }
+};
+
+const healthPayload = {
+  use_cloud_tasks: true,
+  queue_name: 'writeback-jobs',
+  service_url_configured: true,
+  service_account_configured: true,
+  enabled_rules_count: 61,
+  clinic_scoped_rules_count: 61,
+  client_wide_rules_count: 0,
+  max_dispatch_per_sweep: 20,
+  scheduler_job_configured: false,
+  scheduler_job_name: null,
+  scheduler_verification: 'external_not_verified'
 };
 
 const unsafeRunPayload = {
@@ -173,6 +192,35 @@ describe('clientAutomations store', () => {
     expect(fetchWrapper.patch).toHaveBeenCalledWith(expect.stringContaining('/client-automations/rules/rule-1'), { enabled: false });
     expect(updated.enabled).toBe(false);
     expect(store.rules[0].enabled).toBe(false);
+  });
+
+  it('fetches health summary fields for scheduler readiness display', async () => {
+    const store = useClientAutomationsStore();
+    vi.mocked(fetchWrapper.get).mockResolvedValue(healthPayload);
+
+    await store.fetchHealth();
+
+    expect(fetchWrapper.get).toHaveBeenCalledWith(expect.stringContaining('/client-automations/health'));
+    expect(store.health).toEqual(healthPayload);
+  });
+
+  it('stores manual run dispatch result without exposing patient-level details', async () => {
+    const store = useClientAutomationsStore();
+    vi.mocked(fetchWrapper.post).mockResolvedValue({
+      ...controlledDiagnosticRunPayload,
+      dispatch_status: { status: 'queued', dispatched: true },
+      actions: [{ apt_num: 456, pat_num: 123, patient_name: 'Jane Doe' }]
+    });
+
+    const result = await store.createManualRun('rule-1', { target_service_date: '2026-07-07' });
+
+    expect(fetchWrapper.post).toHaveBeenCalledWith(expect.stringContaining('/client-automations/rules/rule-1/manual-run'), {
+      target_service_date: '2026-07-07'
+    });
+    expect(result.dispatch_status).toEqual({ status: 'queued', dispatched: true });
+    expect(store.runs[0].id).toBe('run-2');
+    expect(JSON.stringify(store.runs[0])).not.toContain('Jane Doe');
+    expect(JSON.stringify(store.runs[0])).not.toContain('apt_num');
   });
 
   it('keeps loading active until concurrent summary requests have both settled', async () => {

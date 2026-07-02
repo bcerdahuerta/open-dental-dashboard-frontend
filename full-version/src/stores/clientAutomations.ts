@@ -2,7 +2,10 @@ import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
 import type {
+  ClientAutomationDispatchStatus,
+  ClientAutomationHealthSummary,
   ClientAutomationManualRunRequest,
+  ClientAutomationManualRunResult,
   ClientAutomationRuleConfig,
   ClientAutomationRuleSummary,
   ClientAutomationRunQuery,
@@ -11,6 +14,7 @@ import type {
 
 const baseUrl = `${import.meta.env.VITE_API_URL}/client-automations`;
 const SUMMARY_LOAD_ERROR = 'Unable to load automation summaries.';
+const HEALTH_LOAD_ERROR = 'Unable to load automation health.';
 const RULE_UPDATE_ERROR = 'Unable to update automation rule.';
 const MANUAL_RUN_ERROR = 'Unable to create manual automation run.';
 const DIAGNOSTIC_TOKEN_PATTERN = /^[A-Za-z0-9_.:-]+$/;
@@ -67,7 +71,48 @@ function normalizeRule(value: unknown): ClientAutomationRuleSummary {
     schedule_time: readString(rule.schedule_time, '20:30'),
     max_attempts: readNumber(rule.max_attempts),
     internal_owner: readNullableString(rule.internal_owner),
+    schedule_status: readString(rule.schedule_status, 'misconfigured'),
+    next_scheduled_execution_at: readNullableString(rule.next_scheduled_execution_at),
+    next_target_service_date: readNullableString(rule.next_target_service_date),
+    last_run_status: readNullableString(rule.last_run_status),
+    last_run_target_service_date: readNullableString(rule.last_run_target_service_date),
     config: normalizeConfig(rule.config)
+  };
+}
+
+function normalizeDispatchStatus(value: unknown): ClientAutomationDispatchStatus {
+  const status = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  const normalized: ClientAutomationDispatchStatus = {
+    status: readString(status.status, 'unknown'),
+    dispatched: Boolean(status.dispatched)
+  };
+  const scheduleStatus = readNullableString(status.schedule_status);
+  if (scheduleStatus) normalized.schedule_status = scheduleStatus;
+  return normalized;
+}
+
+function normalizeManualRunResult(value: unknown): ClientAutomationManualRunResult {
+  const payload = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  return {
+    ...normalizeRun(payload),
+    dispatch_status: normalizeDispatchStatus(payload.dispatch_status)
+  };
+}
+
+function normalizeHealth(value: unknown): ClientAutomationHealthSummary {
+  const health = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  return {
+    use_cloud_tasks: Boolean(health.use_cloud_tasks),
+    queue_name: readString(health.queue_name),
+    service_url_configured: Boolean(health.service_url_configured),
+    service_account_configured: Boolean(health.service_account_configured),
+    enabled_rules_count: readNumber(health.enabled_rules_count),
+    clinic_scoped_rules_count: readNumber(health.clinic_scoped_rules_count),
+    client_wide_rules_count: readNumber(health.client_wide_rules_count),
+    max_dispatch_per_sweep: readNumber(health.max_dispatch_per_sweep),
+    scheduler_job_configured: Boolean(health.scheduler_job_configured),
+    scheduler_job_name: readNullableString(health.scheduler_job_name),
+    scheduler_verification: readString(health.scheduler_verification, 'external_not_verified')
   };
 }
 
@@ -101,6 +146,7 @@ function normalizeRun(value: unknown): ClientAutomationRunSummary {
 export const useClientAutomationsStore = defineStore('clientAutomations', () => {
   const rules = ref<ClientAutomationRuleSummary[]>([]);
   const runs = ref<ClientAutomationRunSummary[]>([]);
+  const health = ref<ClientAutomationHealthSummary | null>(null);
   const pendingRequests = ref(0);
   const loading = computed(() => pendingRequests.value > 0);
   const error = ref<string | null>(null);
@@ -123,6 +169,20 @@ export const useClientAutomationsStore = defineStore('clientAutomations', () => 
     } catch {
       error.value = SUMMARY_LOAD_ERROR;
       throw safeAutomationError(SUMMARY_LOAD_ERROR);
+    } finally {
+      finishRequest();
+    }
+  }
+
+  async function fetchHealth() {
+    beginRequest();
+    error.value = null;
+    try {
+      health.value = normalizeHealth(await fetchWrapper.get(`${baseUrl}/health`));
+      return health.value;
+    } catch {
+      error.value = HEALTH_LOAD_ERROR;
+      throw safeAutomationError(HEALTH_LOAD_ERROR);
     } finally {
       finishRequest();
     }
@@ -167,7 +227,7 @@ export const useClientAutomationsStore = defineStore('clientAutomations', () => 
     beginRequest();
     error.value = null;
     try {
-      const run = normalizeRun(await fetchWrapper.post(`${baseUrl}/rules/${ruleId}/manual-run`, data));
+      const run = normalizeManualRunResult(await fetchWrapper.post(`${baseUrl}/rules/${ruleId}/manual-run`, data));
       runs.value = [run, ...runs.value.filter((item) => item.id !== run.id)];
       return run;
     } catch {
@@ -181,8 +241,10 @@ export const useClientAutomationsStore = defineStore('clientAutomations', () => 
   return {
     rules,
     runs,
+    health,
     loading,
     error,
+    fetchHealth,
     fetchRules,
     fetchRuns,
     updateRuleEnabled,

@@ -22,11 +22,30 @@ const rulePayload = {
   schedule_time: '20:30',
   max_attempts: 3,
   internal_owner: 'Operations',
+  schedule_status: 'ready',
+  next_scheduled_execution_at: '2026-07-03T02:30:00+00:00',
+  next_target_service_date: '2026-07-06',
+  last_run_status: 'COMPLETED',
+  last_run_target_service_date: '2026-07-02',
   config: {
     source_provider_abbr: 'BEVE',
     target_provider_abbr: 'APPT',
     target_window: 'next_business_day'
   }
+};
+
+const healthPayload = {
+  use_cloud_tasks: true,
+  queue_name: 'writeback-jobs',
+  service_url_configured: true,
+  service_account_configured: true,
+  enabled_rules_count: 61,
+  clinic_scoped_rules_count: 61,
+  client_wide_rules_count: 0,
+  max_dispatch_per_sweep: 20,
+  scheduler_job_configured: false,
+  scheduler_job_name: null,
+  scheduler_verification: 'external_not_verified'
 };
 
 const unsafeRunPayload = {
@@ -84,6 +103,18 @@ function mountPanel() {
   });
 }
 
+function getRenderedButton(wrapper: ReturnType<typeof mountPanel>, label: string) {
+  const button = wrapper.findAll('button').find((candidate) => candidate.text().includes(label));
+  if (!button) throw new Error(`Expected rendered ${label} button`);
+  return button;
+}
+
+function getRenderedAutomationSwitch(wrapper: ReturnType<typeof mountPanel>) {
+  const automationSwitch = wrapper.get('.v-switch');
+  expect(automationSwitch.text()).toContain('Enabled');
+  return automationSwitch.get('input[type="checkbox"]');
+}
+
 describe('ClientAutomationsPanel', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
@@ -92,6 +123,7 @@ describe('ClientAutomationsPanel', () => {
 
   it('renders rule and run summaries without patient-level detail or raw error text', async () => {
     vi.mocked(fetchWrapper.get).mockImplementation(async (url: string) => {
+      if (url.includes('/health')) return healthPayload;
       if (url.includes('/rules')) return [rulePayload];
       if (url.includes('/runs')) return [unsafeRunPayload];
       return [];
@@ -105,6 +137,14 @@ describe('ClientAutomationsPanel', () => {
     expect(text).toContain('Appointment Provider Reassignment');
     expect(text).toContain('BEVE');
     expect(text).toContain('APPT');
+    expect(text).toContain('Configured');
+    expect(text).toContain('Enabled rules');
+    expect(text).toContain('61');
+    expect(text).toContain('Dispatch limit');
+    expect(text).toContain('20');
+    expect(text).toContain('Next target date: 2026-07-06');
+    expect(text).toContain('Last run: COMPLETED 2026-07-02');
+    expect(text).toContain('Run now');
     expect(text).toContain('2026-07-06');
     expect(text).toContain('Changed 1');
     expect(text).toContain('Skipped 1');
@@ -117,6 +157,7 @@ describe('ClientAutomationsPanel', () => {
 
   it('renders controlled diagnostics and still suppresses raw patient-level details', async () => {
     vi.mocked(fetchWrapper.get).mockImplementation(async (url: string) => {
+      if (url.includes('/health')) return healthPayload;
       if (url.includes('/rules')) return [rulePayload];
       if (url.includes('/runs')) return [controlledDiagnosticRunPayload];
       return [];
@@ -138,6 +179,7 @@ describe('ClientAutomationsPanel', () => {
 
   it('does not render PHI-like diagnostic tokens from otherwise controlled fields', async () => {
     vi.mocked(fetchWrapper.get).mockImplementation(async (url: string) => {
+      if (url.includes('/health')) return healthPayload;
       if (url.includes('/rules')) return [rulePayload];
       if (url.includes('/runs')) return [phiLikeDiagnosticRunPayload];
       return [];
@@ -174,5 +216,61 @@ describe('ClientAutomationsPanel', () => {
     expect(text).not.toContain('John Doe');
     expect(text).not.toContain('PatNum');
     expect(text).not.toContain('Open Dental timeout');
+  });
+
+  it('refreshes health after a successful enable or pause toggle', async () => {
+    vi.mocked(fetchWrapper.get).mockImplementation(async (url: string) => {
+      if (url.includes('/health')) return healthPayload;
+      if (url.includes('/rules')) return [rulePayload];
+      if (url.includes('/runs')) return [];
+      return [];
+    });
+    vi.mocked(fetchWrapper.patch).mockResolvedValue({ ...rulePayload, enabled: false });
+    const wrapper = mountPanel();
+    await flushPromises();
+    vi.clearAllMocks();
+    vi.mocked(fetchWrapper.get).mockImplementation(async (url: string) => {
+      if (url.includes('/health')) return { ...healthPayload, enabled_rules_count: 60 };
+      if (url.includes('/rules')) return [{ ...rulePayload, enabled: false }];
+      if (url.includes('/runs')) return [];
+      return [];
+    });
+
+    await getRenderedAutomationSwitch(wrapper).setValue(false);
+    await flushPromises();
+
+    expect(fetchWrapper.patch).toHaveBeenCalledWith(expect.stringContaining('/client-automations/rules/rule-1'), { enabled: false });
+    expect(fetchWrapper.get).toHaveBeenCalledWith(expect.stringContaining('/client-automations/health'));
+  });
+
+  it('refreshes health after manual run creation and reports already queued status clearly', async () => {
+    vi.mocked(fetchWrapper.get).mockImplementation(async (url: string) => {
+      if (url.includes('/health')) return healthPayload;
+      if (url.includes('/rules')) return [rulePayload];
+      if (url.includes('/runs')) return [];
+      return [];
+    });
+    vi.mocked(fetchWrapper.post).mockResolvedValue({
+      ...controlledDiagnosticRunPayload,
+      dispatch_status: { status: 'already_queued', dispatched: false }
+    });
+    const wrapper = mountPanel();
+    await flushPromises();
+    vi.clearAllMocks();
+    vi.mocked(fetchWrapper.get).mockImplementation(async (url: string) => {
+      if (url.includes('/health')) return { ...healthPayload, enabled_rules_count: 61 };
+      if (url.includes('/rules')) return [rulePayload];
+      if (url.includes('/runs')) return [controlledDiagnosticRunPayload];
+      return [];
+    });
+
+    await getRenderedButton(wrapper, 'Run now').trigger('click');
+    await flushPromises();
+
+    expect(fetchWrapper.post).toHaveBeenCalledWith(expect.stringContaining('/client-automations/rules/rule-1/manual-run'), {
+      target_service_date: '2026-07-06'
+    });
+    expect(fetchWrapper.get).toHaveBeenCalledWith(expect.stringContaining('/client-automations/health'));
+    expect(wrapper.text()).toContain('Manual run is already queued for Cloud Tasks execution.');
   });
 });

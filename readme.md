@@ -331,8 +331,10 @@ The Client Management page embeds an internal-only automation summary panel. It 
 **API path**: `/api/v1/client-automations/*` through `fetchWrapper`.
 
 **Displayed summary fields**:
-- Rule type, enabled state, schedule time/timezone, source/target provider abbreviations, and internal owner.
+- Health/configuration summary: backend dispatch readiness, enabled rule count, clinic-scoped count, queue name, dispatch cap, and external scheduler job configuration/verification labels.
+- Rule type, enabled state, schedule status, schedule time/timezone, source/target provider abbreviations, next scheduled execution, next target service date, last run status/date, and internal owner.
 - Recent run target service date, final status, matched/changed/skipped/failed counts, retry count, and controlled non-PHI failure diagnostics when exposed by the backend (`error_category`, `error_code`, generic sanitized `error_summary`).
+- Admin controls remain embedded in Client Management: enable/pause via existing rule update API and manual **Run now** creation using a business-day target date. Successful toggles and manual run requests refresh health so counts do not go stale. Manual runs are queued only when the backend reports the rule ready plus healthy Cloud Tasks dispatch configuration; backend RBAC remains authoritative.
 
 **Privacy guardrails**:
 - Do not render patient names, `PatNum`, `AptNum`, appointment notes, action rows, or raw Open Dental error text.
