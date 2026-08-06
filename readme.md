@@ -449,6 +449,8 @@ npm run build
 
 Canonical production deployment uses GitLab CI from the self-managed `gitlab.nixps.net` repository. Branch pushes create Vercel previews and pushes to `main` create production deployments through `.gitlab-ci.yml`; the pipeline builds locally with `vercel build` and uploads only the prebuilt output. GitLab must define masked `VERCEL_TOKEN` plus `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` CI/CD variables. The legacy GitHub Actions SSH production deploy to `berrydashboard.com` remains disabled.
 
+The required Vercel CI/CD variables were configured for the GitLab project on 2026-08-06. Keep the token masked and rotate it through the Vercel account token workflow if it is ever exposed or revoked.
+
 The production validation workflow must run `npm run build` so CI proves the same root-base Vite contract that Vercel serves. Do not use the legacy `/vue/` `build-prod` script for `main` or Vercel validation.
 
 The `dist/` folder is a fully static SPA. Vercel uses `full-version/vercel.json` to serve `index.html` for all routes (SPA fallback).
