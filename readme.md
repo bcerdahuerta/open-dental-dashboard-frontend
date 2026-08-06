@@ -8,7 +8,7 @@ Dashboard UI for managing insurance verification writebacks and patient credit i
 
 > This README is the frontend entrypoint for local setup, architecture notes, and contributor workflow.
 > For the cross-repo architecture overview, see [`architecture_documentation.md`](./architecture_documentation.md).
-> For the backend API setup, see the [backend README](https://gitlab.com/ralop-tech/rocketbot/dentalrobot-library/open-dental-dashboard-backend/-/blob/main/README.md?ref_type=heads).
+> For the backend API setup, see the [backend README](https://gitlab.nixps.net/open-dental/core/open-dental-dashboard-backend/-/blob/main/README.md).
 > For contribution rules, branch workflow, and Merge Request expectations, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Features
@@ -45,7 +45,7 @@ Dashboard UI for managing insurance verification writebacks and patient credit i
 ### Prerequisites
 
 - Node.js 20+ recommended (Node.js 18+ minimum)
-- Backend API running at `http://localhost:5000` (see the [backend README](https://gitlab.com/ralop-tech/rocketbot/dentalrobot-library/open-dental-dashboard-backend/-/blob/main/README.md?ref_type=heads))
+- Backend API running at `http://localhost:5000` (see the [backend README](https://gitlab.nixps.net/open-dental/core/open-dental-dashboard-backend/-/blob/main/README.md))
 
 ### Local development
 
@@ -447,7 +447,7 @@ npm run build
 # Deploy as static files to any CDN/hosting
 ```
 
-Canonical production deployment is Vercel auto-deploy on push to `main`; no manual frontend deploy step is required. The legacy GitHub Actions SSH production deploy to `berrydashboard.com` is disabled and kept validation-only in favor of Vercel.
+Canonical production deployment uses GitLab CI from the self-managed `gitlab.nixps.net` repository. Branch pushes create Vercel previews and pushes to `main` create production deployments through `.gitlab-ci.yml`; the pipeline builds locally with `vercel build` and uploads only the prebuilt output. GitLab must define masked `VERCEL_TOKEN` plus `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` CI/CD variables. The legacy GitHub Actions SSH production deploy to `berrydashboard.com` remains disabled.
 
 The production validation workflow must run `npm run build` so CI proves the same root-base Vite contract that Vercel serves. Do not use the legacy `/vue/` `build-prod` script for `main` or Vercel validation.
 
