@@ -11,6 +11,7 @@ variables:
   stage: deploy
   before_script:
     - npm install --global vercel@50.41.0
+    - rm -rf .vercel
 
 deploy_preview:
   extends: .vercel_deploy
