@@ -14,6 +14,7 @@ variables:
     - rm -rf .vercel
     - node -e "if (process.env.VERCEL_ORG_ID !== 'team_7DahKNcapCfmdr9crprFC4FN') throw new Error('VERCEL_ORG_ID must be a plain CI/CD variable with the configured team ID'); if (process.env.VERCEL_PROJECT_ID !== 'prj_FfVOdkGwx5YoPGN5deqkqdGKguMe') throw new Error('VERCEL_PROJECT_ID must be a plain CI/CD variable with the configured project ID');"
     - node -e "(async () => { const response = await fetch('https://api.vercel.com/v9/projects/' + process.env.VERCEL_PROJECT_ID + '?teamId=' + process.env.VERCEL_ORG_ID, { headers:{ Authorization:'Bearer ' + process.env.VERCEL_TOKEN } }); if (!response.ok) { let code = 'UNKNOWN'; try { code = (await response.json()).error?.code || code; } catch {} throw new Error('Vercel project access preflight failed (HTTP ' + response.status + ', code ' + code + ')'); } console.log('Vercel project access preflight passed'); })();"
+    - node -e "const fs = require('node:fs'); fs.mkdirSync('.vercel', { recursive:true }); fs.writeFileSync('.vercel/project.json', JSON.stringify({ orgId:process.env.VERCEL_ORG_ID, projectId:process.env.VERCEL_PROJECT_ID }));"
 
 deploy_preview:
   extends: .vercel_deploy
