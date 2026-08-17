@@ -33,6 +33,7 @@ const filterClinicId = ref<string | undefined>(undefined);
 // Auto-refresh
 const autoRefresh = ref(true);
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
+let autoRefreshInFlight: Promise<unknown> | null = null;
 
 // Drawer
 const drawerOpen = ref(false);
@@ -267,9 +268,22 @@ watch(autoRefresh, (enabled) => {
 
 function startAutoRefresh() {
   stopAutoRefresh();
-  refreshInterval = setInterval(() => {
-    loadJobs();
-  }, 10000);
+  refreshInterval = setInterval(refreshVisibleJobs, 10000);
+}
+
+function trackAutoRefresh(request: Promise<unknown>) {
+  const trackedRequest = request.finally(() => {
+    if (autoRefreshInFlight === trackedRequest) {
+      autoRefreshInFlight = null;
+    }
+  });
+  autoRefreshInFlight = trackedRequest;
+}
+
+function refreshVisibleJobs() {
+  if (!autoRefresh.value || document.visibilityState !== 'visible' || autoRefreshInFlight) return;
+
+  trackAutoRefresh(loadJobs());
 }
 
 function stopAutoRefresh() {
@@ -280,8 +294,9 @@ function stopAutoRefresh() {
 }
 
 onMounted(() => {
-  loadJobs();
+  trackAutoRefresh(loadJobs());
   clientStore.fetchClients();
+  document.addEventListener('visibilitychange', refreshVisibleJobs);
   if (autoRefresh.value) {
     startAutoRefresh();
   }
@@ -289,6 +304,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopAutoRefresh();
+  document.removeEventListener('visibilitychange', refreshVisibleJobs);
 });
 </script>
 

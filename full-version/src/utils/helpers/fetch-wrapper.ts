@@ -11,54 +11,98 @@ export const fetchWrapper = {
 
 // Prevent concurrent 403 redirects
 let isHandling403 = false;
+let refreshPromise: Promise<void> | null = null;
+const inFlightGetRequests = new Map<string, Promise<unknown>>();
 
 function request(method: string) {
   return async (url: string, body?: object) => {
     const authStore = useAuthStore();
+    const requestKey = method === 'GET'
+      ? `${method}:${url}:${authStore.access_token || ''}`
+      : null;
+    const existingRequest = requestKey ? inFlightGetRequests.get(requestKey) : undefined;
 
-    const requestOptions: RequestInit = {
-      method,
-      headers: authHeader(url, authStore.access_token)
-    };
-    if (body) {
-      (requestOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
-      requestOptions.body = JSON.stringify(body);
+    if (existingRequest) {
+      return existingRequest;
     }
 
-    let response = await fetch(url, requestOptions);
+    const pendingRequest = performRequest({ authStore, method, url, body });
+    if (!requestKey) {
+      return pendingRequest;
+    }
 
-    if (response.status === 401 && authStore.user) {
-      try {
-        await authStore.refresh();
-        requestOptions.headers = authHeader(url, authStore.access_token);
-        response = await fetch(url, requestOptions);
-      } catch {
-        return Promise.reject('Session expired');
+    const trackedRequest = pendingRequest.finally(() => {
+      if (inFlightGetRequests.get(requestKey) === trackedRequest) {
+        inFlightGetRequests.delete(requestKey);
       }
-    }
-
-    // Handle product access 403 — sync state and redirect
-    if (response.status === 403 && authStore.user && !isHandling403) {
-      const cloned = response.clone();
-      try {
-        const errorData = await cloned.json();
-        if (errorData?.message?.includes('No access to module')) {
-          isHandling403 = true;
-          try {
-            await authStore.refresh();
-          } catch {
-            // refresh failed — proceed to reject below
-          }
-          router.push('/dashboard/default');
-          isHandling403 = false;
-        }
-      } catch {
-        // Not JSON — proceed normally
-      }
-    }
-
-    return handleResponse(response);
+    });
+    inFlightGetRequests.set(requestKey, trackedRequest);
+    return trackedRequest;
   };
+}
+
+async function performRequest({
+  authStore,
+  method,
+  url,
+  body
+}: {
+  authStore: ReturnType<typeof useAuthStore>;
+  method: string;
+  url: string;
+  body?: object;
+}) {
+  const requestOptions: RequestInit = {
+    method,
+    headers: authHeader(url, authStore.access_token)
+  };
+  if (body) {
+    (requestOptions.headers as Record<string, string>)['Content-Type'] = 'application/json';
+    requestOptions.body = JSON.stringify(body);
+  }
+
+  let response = await fetch(url, requestOptions);
+
+  if (response.status === 401 && authStore.user) {
+    try {
+      await refreshAuth(authStore);
+      requestOptions.headers = authHeader(url, authStore.access_token);
+      response = await fetch(url, requestOptions);
+    } catch {
+      return Promise.reject('Session expired');
+    }
+  }
+
+  // Handle product access 403 — sync state and redirect
+  if (response.status === 403 && authStore.user && !isHandling403) {
+    const cloned = response.clone();
+    try {
+      const errorData = await cloned.json();
+      if (errorData?.message?.includes('No access to module')) {
+        isHandling403 = true;
+        try {
+          await refreshAuth(authStore);
+        } catch {
+          // refresh failed — proceed to reject below
+        }
+        router.push('/dashboard/default');
+        isHandling403 = false;
+      }
+    } catch {
+      // Not JSON — proceed normally
+    }
+  }
+
+  return handleResponse(response);
+}
+
+function refreshAuth(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
+  if (!refreshPromise) {
+    refreshPromise = authStore.refresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
 }
 
 function authHeader(url: string, token: string | null): Record<string, string> {

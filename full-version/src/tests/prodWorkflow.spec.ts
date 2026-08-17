@@ -12,7 +12,7 @@ describe('production workflow contract', () => {
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as { scripts: Record<string, string> };
     const prodWorkflow = readFileSync(prodWorkflowPath, 'utf8');
 
-    expect(packageJson.scripts.build).toBe('vue-tsc --noEmit && vite build');
+    expect(packageJson.scripts.build).toBe('vue-tsc --noEmit && vite build && npm run check:bundle');
     expect(packageJson.scripts.build).not.toContain('--base=/vue/');
     expect(prodWorkflow).toContain('npm run build');
     expect(prodWorkflow).not.toContain('npm run build-prod');

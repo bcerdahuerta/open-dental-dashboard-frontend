@@ -145,16 +145,30 @@ const clinicHealthRows = computed(() =>
 );
 
 // --- Fetch per-clinic stats in parallel ---
+let statsRefreshInFlight: Promise<void> | null = null;
+
 async function fetchAllClinicStats() {
   if (clinics.value.length === 0) return;
-  statsLoading.value = true;
-  try {
-    await Promise.all(
-      clinics.value.map((c) => writebackStore.fetchClinicStats(c.id))
-    );
-  } finally {
-    statsLoading.value = false;
-  }
+  if (statsRefreshInFlight) return statsRefreshInFlight;
+
+  const refreshRequest = (async () => {
+    statsLoading.value = true;
+    try {
+      await Promise.all(
+        clinics.value.map((c) => writebackStore.fetchClinicStats(c.id))
+      );
+    } finally {
+      statsLoading.value = false;
+    }
+  })();
+
+  const trackedRequest = refreshRequest.finally(() => {
+    if (statsRefreshInFlight === trackedRequest) {
+      statsRefreshInFlight = null;
+    }
+  });
+  statsRefreshInFlight = trackedRequest;
+  return trackedRequest;
 }
 
 // --- Refresh handler ---
@@ -197,16 +211,21 @@ watch(selectedClinicId, async (newVal) => {
 // --- Auto-refresh ---
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
+function refreshVisibleStats() {
+  if (document.visibilityState !== 'visible') return;
+
+  if (selectedClientId.value) {
+    void fetchAllClinicStats();
+  } else {
+    void writebackStore.fetchQueueStats();
+  }
+}
+
 onMounted(async () => {
   clientStore.fetchClients();
   await writebackStore.fetchQueueStats();
-  refreshInterval = setInterval(() => {
-    if (selectedClientId.value) {
-      fetchAllClinicStats();
-    } else {
-      writebackStore.fetchQueueStats();
-    }
-  }, 10000);
+  refreshInterval = setInterval(refreshVisibleStats, 10000);
+  document.addEventListener('visibilitychange', refreshVisibleStats);
 });
 
 onUnmounted(() => {
@@ -214,6 +233,7 @@ onUnmounted(() => {
     clearInterval(refreshInterval);
     refreshInterval = null;
   }
+  document.removeEventListener('visibilitychange', refreshVisibleStats);
 });
 </script>
 

@@ -105,6 +105,7 @@ npm run dev
 | --- | --- | --- |
 | `dev` | `npm run dev` | Vite dev server with HMR |
 | `build` | `npm run build` | Type-check + Vercel/root production build |
+| `check:bundle` | `npm run check:bundle` | Enforce the production JavaScript bundle budget |
 | `typecheck` | `npm run typecheck` | `vue-tsc --noEmit` only |
 | `lint` | `npm run lint` | ESLint with auto-fix |
 | `preview` | `npm run preview` | Preview production build (port 5050) |

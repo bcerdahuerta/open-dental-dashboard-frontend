@@ -29,7 +29,8 @@ export default defineConfig({
     }
   },
   build: {
-    chunkSizeWarningLimit: 1024 * 1024 // Set the limit to 1 MB
+    // Vite measures this value in KB. Keep oversized chunks visible in CI.
+    chunkSizeWarningLimit: 1400
   },
   optimizeDeps: {
     exclude: ['vuetify'],
