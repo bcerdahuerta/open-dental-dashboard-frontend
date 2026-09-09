@@ -1,18 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
 import { useAuthStore } from '@/stores/auth';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
-import {
-  UserCheckIcon,
-  UserXIcon,
-  UsersIcon,
-  ClockIcon,
-  RefreshIcon,
-  TrashIcon,
-  CircleOffIcon,
-  CircleCheckIcon
-} from 'vue-tabler-icons';
+import { UserCheckIcon, UserXIcon, UsersIcon, RefreshIcon, TrashIcon, CircleOffIcon, CircleCheckIcon } from 'vue-tabler-icons';
 
 const apiUrl = import.meta.env.VITE_API_URL;
 const authStore = useAuthStore();
@@ -84,35 +75,56 @@ const allHeaders = [
 // Status chip colors
 const statusColor = (status: string) => {
   switch (status) {
-    case 'ACTIVE': return 'success';
-    case 'PENDING': return 'warning';
-    case 'REJECTED': return 'error';
-    case 'SUSPENDED': return 'secondary';
-    default: return 'secondary';
+    case 'ACTIVE':
+      return 'success';
+    case 'PENDING':
+      return 'warning';
+    case 'REJECTED':
+      return 'error';
+    case 'SUSPENDED':
+      return 'secondary';
+    default:
+      return 'secondary';
   }
 };
 
 const statusBg = (status: string) => {
   switch (status) {
-    case 'ACTIVE': return 'bg-lightsuccess';
-    case 'PENDING': return 'bg-lightwarning';
-    case 'REJECTED': return 'bg-lighterror';
-    case 'SUSPENDED': return 'bg-lightsecondary';
-    default: return 'bg-lightsecondary';
+    case 'ACTIVE':
+      return 'bg-lightsuccess';
+    case 'PENDING':
+      return 'bg-lightwarning';
+    case 'REJECTED':
+      return 'bg-lighterror';
+    case 'SUSPENDED':
+      return 'bg-lightsecondary';
+    default:
+      return 'bg-lightsecondary';
   }
 };
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   });
 };
+
+function errorMessage(error: unknown, fallback: string): string {
+  return (typeof error === 'string' ? error : error instanceof Error ? error.message : '') || fallback;
+}
 
 // API calls
 async function fetchPending() {
   try {
     const res = await fetchWrapper.get(`${apiUrl}/users/pending`);
+    for (const user of res as UserItem[]) {
+      selectedProducts.value[user.id] ??= [];
+    }
     pendingUsers.value = res;
   } catch (e) {
     console.error('Failed to fetch pending users', e);
@@ -146,11 +158,11 @@ async function refreshAll() {
 async function approveUser(user: UserItem) {
   approveLoading.value = user.id;
   try {
-    const body: Record<string, any> = {};
+    const body: { role_id?: string; product_types?: string[] } = {};
     if (selectedRoles.value[user.id]) {
       body.role_id = selectedRoles.value[user.id];
     }
-    // Send selected products (defaults to both on backend if omitted)
+    // Omitted/empty selections retain the backend default of all products.
     if (selectedProducts.value[user.id]?.length) {
       body.product_types = selectedProducts.value[user.id];
     }
@@ -159,8 +171,8 @@ async function approveUser(user: UserItem) {
     snackbarColor.value = 'success';
     snackbar.value = true;
     await refreshAll();
-  } catch (e: any) {
-    snackbarMsg.value = e.message || 'Failed to approve user';
+  } catch (e: unknown) {
+    snackbarMsg.value = errorMessage(e, 'Failed to approve user');
     snackbarColor.value = 'error';
     snackbar.value = true;
   } finally {
@@ -183,8 +195,8 @@ async function executeReject() {
     snackbarColor.value = 'warning';
     snackbar.value = true;
     await refreshAll();
-  } catch (e: any) {
-    snackbarMsg.value = e.message || 'Failed to reject user';
+  } catch (e: unknown) {
+    snackbarMsg.value = errorMessage(e, 'Failed to reject user');
     snackbarColor.value = 'error';
     snackbar.value = true;
   } finally {
@@ -200,8 +212,8 @@ async function changeRole(userId: string, roleId: string) {
     snackbarColor.value = 'success';
     snackbar.value = true;
     await refreshAll();
-  } catch (e: any) {
-    snackbarMsg.value = e.message || 'Failed to update role';
+  } catch (e: unknown) {
+    snackbarMsg.value = errorMessage(e, 'Failed to update role');
     snackbarColor.value = 'error';
     snackbar.value = true;
   }
@@ -214,8 +226,8 @@ async function updateProducts(userId: string, products: string[]) {
     snackbarColor.value = 'success';
     snackbar.value = true;
     await refreshAll();
-  } catch (e: any) {
-    snackbarMsg.value = e.message || 'Failed to update product access';
+  } catch (e: unknown) {
+    snackbarMsg.value = errorMessage(e, 'Failed to update product access');
     snackbarColor.value = 'error';
     snackbar.value = true;
   }
@@ -232,8 +244,8 @@ async function toggleActive(user: UserItem) {
     snackbarColor.value = 'success';
     snackbar.value = true;
     await refreshAll();
-  } catch (e: any) {
-    snackbarMsg.value = e.message || 'Failed to update user';
+  } catch (e: unknown) {
+    snackbarMsg.value = errorMessage(e, 'Failed to update user');
     snackbarColor.value = 'error';
     snackbar.value = true;
   }
@@ -255,8 +267,8 @@ async function executeDelete() {
     snackbarColor.value = 'success';
     snackbar.value = true;
     await refreshAll();
-  } catch (e: any) {
-    snackbarMsg.value = e.message || 'Failed to delete user';
+  } catch (e: unknown) {
+    snackbarMsg.value = errorMessage(e, 'Failed to delete user');
     snackbarColor.value = 'error';
     snackbar.value = true;
   } finally {
@@ -273,13 +285,7 @@ onMounted(() => refreshAll());
     <v-col cols="12">
       <UiParentCard title="Pending Approvals">
         <template #action>
-          <v-btn
-            variant="tonal"
-            color="primary"
-            size="small"
-            :loading="loading"
-            @click="refreshAll"
-          >
+          <v-btn variant="tonal" color="primary" size="small" :loading="loading" @click="refreshAll">
             <RefreshIcon size="16" stroke-width="1.5" class="mr-1" />
             Refresh
           </v-btn>
@@ -294,11 +300,11 @@ onMounted(() => refreshAll());
           :items-per-page="10"
           no-data-text="No pending registrations"
         >
-          <template #item.created_at="{ item }">
+          <template #[`item.created_at`]="{ item }">
             <span class="text-medium-emphasis">{{ formatDate(item.created_at) }}</span>
           </template>
 
-          <template #item.role_select="{ item }">
+          <template #[`item.role_select`]="{ item }">
             <v-select
               v-model="selectedRoles[item.id]"
               :items="roles"
@@ -313,12 +319,13 @@ onMounted(() => refreshAll());
             />
           </template>
 
-          <template #item.product_select="{ item }">
+          <template #[`item.product_select`]="{ item }">
             <div class="d-flex ga-2">
               <v-checkbox
                 v-for="p in availableProducts"
                 :key="p.value"
                 v-model="selectedProducts[item.id]"
+                multiple
                 :value="p.value"
                 :label="p.label"
                 density="compact"
@@ -329,25 +336,13 @@ onMounted(() => refreshAll());
             </div>
           </template>
 
-          <template #item.actions="{ item }">
+          <template #[`item.actions`]="{ item }">
             <div class="d-flex justify-center ga-2">
-              <v-btn
-                color="success"
-                variant="tonal"
-                size="small"
-                :loading="approveLoading === item.id"
-                @click="approveUser(item)"
-              >
+              <v-btn color="success" variant="tonal" size="small" :loading="approveLoading === item.id" @click="approveUser(item)">
                 <UserCheckIcon size="16" stroke-width="1.5" class="mr-1" />
                 Approve
               </v-btn>
-              <v-btn
-                color="error"
-                variant="tonal"
-                size="small"
-                :loading="rejectLoading === item.id"
-                @click="confirmReject(item)"
-              >
+              <v-btn color="error" variant="tonal" size="small" :loading="rejectLoading === item.id" @click="confirmReject(item)">
                 <UserXIcon size="16" stroke-width="1.5" class="mr-1" />
                 Reject
               </v-btn>
@@ -375,17 +370,13 @@ onMounted(() => refreshAll());
           class="elevation-0"
           :items-per-page="15"
         >
-          <template #item.status="{ item }">
-            <v-chip
-              :color="statusColor(item.status)"
-              :class="statusBg(item.status)"
-              size="small"
-            >
+          <template #[`item.status`]="{ item }">
+            <v-chip :color="statusColor(item.status)" :class="statusBg(item.status)" size="small">
               {{ item.status }}
             </v-chip>
           </template>
 
-          <template #item.role_select="{ item }">
+          <template #[`item.role_select`]="{ item }">
             <v-select
               :model-value="item.role_id"
               :items="roles"
@@ -401,18 +392,12 @@ onMounted(() => refreshAll());
             />
           </template>
 
-          <template #item.products="{ item }">
+          <template #[`item.products`]="{ item }">
             <div v-if="isAdminUser(item)">
               <v-tooltip text="Administrators have implicit full access">
                 <template #activator="{ props }">
                   <div v-bind="props" class="d-flex ga-1">
-                    <v-chip
-                      v-for="p in availableProducts"
-                      :key="p.value"
-                      size="small"
-                      color="primary"
-                      variant="tonal"
-                    >
+                    <v-chip v-for="p in availableProducts" :key="p.value" size="small" color="primary" variant="tonal">
                       {{ p.label }}
                     </v-chip>
                   </div>
@@ -429,22 +414,22 @@ onMounted(() => refreshAll());
                 hide-details
                 color="primary"
                 class="mt-0"
-                @update:model-value="(checked) => {
-                  const current = [...(item.allowed_products || [])];
-                  const updated = checked
-                    ? [...current, p.value]
-                    : current.filter(x => x !== p.value);
-                  updateProducts(item.id, updated);
-                }"
+                @update:model-value="
+                  (checked) => {
+                    const current = [...(item.allowed_products || [])];
+                    const updated = checked ? [...current, p.value] : current.filter((x) => x !== p.value);
+                    updateProducts(item.id, updated);
+                  }
+                "
               />
             </div>
           </template>
 
-          <template #item.created_at="{ item }">
+          <template #[`item.created_at`]="{ item }">
             <span class="text-medium-emphasis">{{ formatDate(item.created_at) }}</span>
           </template>
 
-          <template #item.actions="{ item }">
+          <template #[`item.actions`]="{ item }">
             <div class="d-flex justify-center ga-2">
               <v-tooltip :text="item.is_active ? 'Deactivate User' : 'Activate User'">
                 <template #activator="{ props }">
@@ -491,8 +476,8 @@ onMounted(() => refreshAll());
       <v-card-title class="text-h6 pa-4">Confirm Rejection</v-card-title>
       <v-card-text>
         Are you sure you want to reject registration for
-        <strong>{{ rejectTarget?.email }}</strong>?
-        They will not be able to log in.
+        <strong>{{ rejectTarget?.email }}</strong
+        >? They will not be able to log in.
       </v-card-text>
       <v-card-actions class="pa-4 pt-0">
         <v-spacer />
@@ -508,8 +493,8 @@ onMounted(() => refreshAll());
       <v-card-title class="text-h6 pa-4">Confirm Deletion</v-card-title>
       <v-card-text>
         Are you sure you want to permanently delete
-        <strong>{{ deleteTarget?.email }}</strong>?
-        This action cannot be undone.
+        <strong>{{ deleteTarget?.email }}</strong
+        >? This action cannot be undone.
       </v-card-text>
       <v-card-actions class="pa-4 pt-0">
         <v-spacer />
