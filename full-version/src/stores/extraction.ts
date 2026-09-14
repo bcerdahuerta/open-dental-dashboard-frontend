@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { WorkflowBuilderHttpError, fetchWrapper } from '@/utils/helpers/fetch-wrapper';
+import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
+import { useAuthStore } from '@/stores/auth';
 import { useClinicStore } from '@/stores/clinics';
 import { useClientStore } from '@/stores/clients';
 import type {
@@ -711,6 +712,45 @@ export const useExtractionStore = defineStore('extraction', () => {
     return parts.length > 0 ? ` (${parts.join('; ')})` : '';
   }
 
+  async function postManualTrigger(payload: ExtractionManualTriggerRequest): Promise<ExtractionManualTriggerResponse> {
+    // Self-contained POST: the shared wrapper discards backend `errors` detail,
+    // so this reads the full error body to surface exact validation failures.
+    // Auth retry mirrors the wrapper (refresh once on 401/403, before any execution).
+    const authStore = useAuthStore();
+    const attempt = async (): Promise<Response> => fetch(baseUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authStore.access_token ? { Authorization: `Bearer ${authStore.access_token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+    let response = await attempt();
+    if (response.status === 401 || response.status === 403) {
+      try {
+        await authStore.refresh();
+        response = await attempt();
+      } catch {
+        // fall through to error handling below
+      }
+    }
+    let data: Record<string, unknown> | null = null;
+    try {
+      data = await response.json() as Record<string, unknown>;
+    } catch {
+      data = null;
+    }
+    if (!response.ok) {
+      const rawMessage = data !== null ? (data as Record<string, unknown>).message : undefined;
+      const message = typeof rawMessage === 'string' && rawMessage.length > 0
+        ? rawMessage
+        : 'Failed to trigger extraction';
+      throw new Error(`${message}${formatBackendErrors(data)}`);
+    }
+    const body = (data !== null ? (data as Record<string, unknown>).data : undefined) ?? data;
+    return body as ExtractionManualTriggerResponse;
+  }
+
   async function triggerExtraction(
     clinic_id: string,
     run_type: 'NEW_DATE' | 'REVIEW',
@@ -722,20 +762,10 @@ export const useExtractionStore = defineStore('extraction', () => {
     try {
       ensureDateRange(date_from, date_to);
       const payload: ExtractionManualTriggerRequest = { clinic_id, run_type, date_from, date_to };
-      const response = await fetchWrapper.post(baseUrl, payload, { responseMode: 'metadata' });
-      const result = (response as { data: ExtractionManualTriggerResponse }).data as ExtractionManualTriggerResponse;
+      const result = await postManualTrigger(payload);
       await fetchRuns({ page: 1, per_page: runFilters.value.per_page ?? 20 });
       return result;
     } catch (err: unknown) {
-      if (err instanceof WorkflowBuilderHttpError) {
-        const data = err.data as Record<string, unknown> | null;
-        const message = typeof data?.message === 'string' && data.message.length > 0
-          ? data.message
-          : 'Failed to trigger extraction';
-        const detailed = new Error(`${message}${formatBackendErrors(data)}`);
-        error.value = detailed.message;
-        throw detailed;
-      }
       error.value = getErrorMessage(err, 'Failed to trigger extraction');
       throw err;
     } finally {
