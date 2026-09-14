@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
+import { WorkflowBuilderHttpError, fetchWrapper } from '@/utils/helpers/fetch-wrapper';
 import { useClinicStore } from '@/stores/clinics';
 import { useClientStore } from '@/stores/clients';
 import type {
@@ -699,6 +699,18 @@ export const useExtractionStore = defineStore('extraction', () => {
     }
   }
 
+  function formatBackendErrors(data: unknown): string {
+    if (!data || typeof data !== 'object') return '';
+    const errors = (data as Record<string, unknown>).errors;
+    if (!errors || typeof errors !== 'object') return '';
+    const parts: string[] = [];
+    for (const [field, messages] of Object.entries(errors as Record<string, unknown>)) {
+      const list = Array.isArray(messages) ? messages.map(String).join(', ') : String(messages);
+      parts.push(`${field}: ${list}`);
+    }
+    return parts.length > 0 ? ` (${parts.join('; ')})` : '';
+  }
+
   async function triggerExtraction(
     clinic_id: string,
     run_type: 'NEW_DATE' | 'REVIEW',
@@ -710,10 +722,20 @@ export const useExtractionStore = defineStore('extraction', () => {
     try {
       ensureDateRange(date_from, date_to);
       const payload: ExtractionManualTriggerRequest = { clinic_id, run_type, date_from, date_to };
-      const result = await fetchWrapper.post(baseUrl, payload) as ExtractionManualTriggerResponse;
+      const response = await fetchWrapper.post(baseUrl, payload, { responseMode: 'metadata' });
+      const result = (response as { data: ExtractionManualTriggerResponse }).data as ExtractionManualTriggerResponse;
       await fetchRuns({ page: 1, per_page: runFilters.value.per_page ?? 20 });
       return result;
     } catch (err: unknown) {
+      if (err instanceof WorkflowBuilderHttpError) {
+        const data = err.data as Record<string, unknown> | null;
+        const message = typeof data?.message === 'string' && data.message.length > 0
+          ? data.message
+          : 'Failed to trigger extraction';
+        const detailed = new Error(`${message}${formatBackendErrors(data)}`);
+        error.value = detailed.message;
+        throw detailed;
+      }
       error.value = getErrorMessage(err, 'Failed to trigger extraction');
       throw err;
     } finally {
