@@ -59,7 +59,6 @@ const sidebarItem: menu[] = [
   { title: 'Clinics', icon: BuildingIcon, to: '/admin/clinics', requiredProduct: 'writeback' },
   { title: 'Pipelines', icon: ArrowsTransferDownIcon, to: '/admin/pipelines', requiredProduct: 'writeback' },
   { title: 'Profile Resolution', icon: Hierarchy3Icon, to: '/admin/profile-resolution', requiredProduct: 'writeback' },
-  { title: 'Workflow Builder', icon: ListIcon, to: '/admin/workflow-builder' },
 
   { header: 'Configuration', requiredRole: 'admin' },
   { title: 'Templates', icon: TemplateIcon, to: '/admin/templates', requiredProduct: 'writeback', requiredRole: 'admin' },

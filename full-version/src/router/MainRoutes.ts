@@ -37,11 +37,6 @@ const MainRoutes = {
       component: () => import('@/views/admin/ProfileResolution.vue')
     },
     {
-      name: 'WorkflowBuilder',
-      path: '/admin/workflow-builder',
-      component: () => import('@/views/admin/WorkflowBuilder.vue')
-    },
-    {
       name: 'Templates',
       path: '/admin/templates',
       meta: { requiredProduct: 'writeback' },
