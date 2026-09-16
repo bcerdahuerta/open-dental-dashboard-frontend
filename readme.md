@@ -20,6 +20,7 @@ Dashboard UI for managing insurance verification writebacks and patient credit i
 - **Admin Console** — Clients, clinics, users, pipelines, templates, system logs
 - **Client Automations Panel** — Internal client automation rule/run summaries embedded in Client Management without patient-level detail
 - **Profile Resolution** — Resolution hierarchy management with simulator, base profiles, client assignments, and clinic overrides
+- **Workflow Builder** — Closed server-catalog authoring and non-activating Blueprint draft preparation
 - **Clinic Configuration** — Full config editor with tabs for credentials, benefit/frequency/age-limit mappings, fee schedules
 - **RBAC** — Role-aware navigation and actions (Superuser, Admin, Operator, Viewer)
 - **JWT Auth** — Access/refresh token flow with automatic refresh on 401
@@ -221,6 +222,7 @@ All authenticated routes live under `MainRoutes.ts` with `meta: { requiresAuth: 
 | `/admin/pipelines` | PipelineList | Admin |
 | `/admin/templates` | TemplateList | Admin |
 | `/admin/profile-resolution` | ProfileResolution | Admin |
+| `/admin/workflow-builder` | WorkflowBuilder | Admin |
 | `/writeback/queue` | JobQueue | Writeback |
 | `/writeback/live` | LiveActivity | Writeback |
 | `/main/extraction/robots` | RobotMonitor | Extraction |
@@ -231,6 +233,10 @@ All authenticated routes live under `MainRoutes.ts` with `meta: { requiresAuth: 
 | `/profile` | UserProfile | Profile |
 
 **Navigation guard** (`router/index.ts`): Redirects unauthenticated users to `/login`. Redirects authenticated users from `/login` to `/dashboard/default`.
+
+### Workflow Builder boundary
+
+`/admin/workflow-builder` renders only the server-returned closed catalog, materialization preview, and bounded version history. It does not calculate policy, canonical bytes, or digests in the browser, and it does not activate releases, bindings, providers, or clinical work. Backend authorization remains authoritative; inaccessible client data is treated as unavailable. The Clinic Exceptions panel blocks a sparse delta when the same optional atom is selected for both add and remove: Create is disabled and a warning alert names the overlapping atoms while preserving the operator's selections, and the server still rejects overlapping sets.
 
 **Robot Monitor deregistration semantics** (`/main/extraction/robots`):
 
