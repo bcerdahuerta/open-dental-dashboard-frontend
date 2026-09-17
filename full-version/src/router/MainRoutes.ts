@@ -136,6 +136,19 @@ const MainRoutes = {
     },
 
     {
+      name: 'OnboardingComposer',
+      path: '/admin/onboarding',
+      meta: { requiresAuth: true, requiredProduct: 'writeback' },
+      component: () => import('@/views/onboarding/OnboardingComposer.vue')
+    },
+    {
+      name: 'OnboardingSopVersion',
+      path: '/admin/onboarding/versions/:clientId/:versionId',
+      meta: { requiresAuth: true, requiredProduct: 'writeback' },
+      component: () => import('@/views/onboarding/SopVersionView.vue')
+    },
+
+    {
       name: 'UserProfile',
       path: '/profile',
       component: () => import('@/views/profile/UserProfile.vue')

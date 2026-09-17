@@ -20,9 +20,12 @@ export const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
   const publicPages = ['/', '/login', '/register', '/error'];
+  // Prefix allowlist: the short invite rescue path is dynamic (`/o/:id`), so exact
+  // matching cannot cover it. Only this prefix is added; nothing else stays public.
+  const publicPrefixes = ['/o/'];
   const auth = useAuthStore();
 
-  const isPublicPage = publicPages.includes(to.path);
+  const isPublicPage = publicPages.includes(to.path) || publicPrefixes.some((prefix) => to.path.startsWith(prefix));
   const authRequired = !isPublicPage && to.matched.some((record) => record.meta.requiresAuth);
 
   // Determine the user's landing page based on their products
