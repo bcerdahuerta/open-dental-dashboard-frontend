@@ -14,7 +14,8 @@ import {
   ClipboardListIcon,
   CreditCardIcon,
   ReportIcon,
-  ClockIcon
+  ClockIcon,
+  UserCheckIcon
 } from 'vue-tabler-icons';
 
 export interface menu {
@@ -59,6 +60,7 @@ const sidebarItem: menu[] = [
   { title: 'Clinics', icon: BuildingIcon, to: '/admin/clinics', requiredProduct: 'writeback' },
   { title: 'Pipelines', icon: ArrowsTransferDownIcon, to: '/admin/pipelines', requiredProduct: 'writeback' },
   { title: 'Profile Resolution', icon: Hierarchy3Icon, to: '/admin/profile-resolution', requiredProduct: 'writeback' },
+  { title: 'Onboarding', icon: UserCheckIcon, to: '/admin/onboarding', requiredProduct: 'writeback', requiredRole: 'admin' },
 
   { header: 'Configuration', requiredRole: 'admin' },
   { title: 'Templates', icon: TemplateIcon, to: '/admin/templates', requiredProduct: 'writeback', requiredRole: 'admin' },

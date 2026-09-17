@@ -23,6 +23,14 @@ const PublicRoutes = {
       name: 'Error404',
       path: '/error',
       component: () => import('@/views/pages/Error404Page.vue')
+    },
+    {
+      // Short rescue route: `:id` is a non-secret invite locator; the token travels
+      // only after the fragment and is read client-side.
+      name: 'OnboardingInviteRescue',
+      path: '/o/:id',
+      meta: { requiresAuth: false },
+      component: () => import('@/views/onboarding/InviteRescue.vue')
     }
   ]
 };
