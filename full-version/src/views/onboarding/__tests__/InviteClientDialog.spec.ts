@@ -20,7 +20,7 @@ const clientStore = vi.hoisted(() => ({ createClient: vi.fn() }));
 vi.mock('@/stores/clients', () => ({ useClientStore: () => clientStore }));
 
 const TOKEN = 'invite-token-1';
-const SHELL_PAYLOAD = { client_name: 'Clinic One', product_type: 'Lunna' };
+const SHELL_PAYLOAD = { client_name: 'Clinic One', product_type: 'Custom' };
 
 function stubs() {
   return {

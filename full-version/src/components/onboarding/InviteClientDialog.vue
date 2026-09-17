@@ -8,7 +8,7 @@ const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>();
 
 /** Existing client-create default, preserved verbatim: the setup/edit screen carries the real value later. */
-const SHELL_PRODUCT_TYPE = 'Lunna';
+const SHELL_PRODUCT_TYPE = 'Custom';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 // The operator link must survive the app base path, and the token stays after the fragment only.
 const INVITE_BASE_PATH = `${import.meta.env.BASE_URL ?? '/'}`.replace(/\/?$/, '/');
