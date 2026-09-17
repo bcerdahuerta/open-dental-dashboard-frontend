@@ -36,7 +36,7 @@ onBeforeUnmount(() => store.cancel());
     <v-col cols="12">
       <UiParentCard title="Client Onboarding">
         <template v-slot:action>
-          <v-btn data-test="composer-invite-client" color="primary" variant="flat" @click="inviteDialog = true">Invitar cliente</v-btn>
+          <v-btn data-test="composer-invite-client" color="primary" variant="flat" @click="inviteDialog = true">Invite client</v-btn>
         </template>
         <v-row align="center">
           <v-col cols="12" md="8">
