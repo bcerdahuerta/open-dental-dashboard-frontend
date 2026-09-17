@@ -5,6 +5,7 @@ import { onBeforeRouteLeave } from 'vue-router';
 import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import ClientComposerPanel from '@/components/onboarding/ClientComposerPanel.vue';
+import InviteClientDialog from '@/components/onboarding/InviteClientDialog.vue';
 import { clientLabel } from '@/components/onboarding/clientLabels';
 import { useOnboardingComposerStore } from '@/stores/onboardingComposer';
 import { useClientStore } from '@/stores/clients';
@@ -14,6 +15,7 @@ const clientStore = useClientStore();
 const { clients } = storeToRefs(clientStore);
 const { draft, diagnostics, invite, receipts, loading, error } = storeToRefs(store);
 const selectedClientId = ref('');
+const inviteDialog = ref(false);
 const page = { title: 'Onboarding Composer' };
 const breadcrumbs = [
   { title: 'Dashboard', disabled: false, href: '/dashboard/default' },
@@ -33,6 +35,9 @@ onBeforeUnmount(() => store.cancel());
   <v-row>
     <v-col cols="12">
       <UiParentCard title="Client Onboarding">
+        <template v-slot:action>
+          <v-btn data-test="composer-invite-client" color="primary" variant="flat" @click="inviteDialog = true">Invitar cliente</v-btn>
+        </template>
         <v-row align="center">
           <v-col cols="12" md="8">
             <v-select
@@ -88,4 +93,5 @@ onBeforeUnmount(() => store.cancel());
       </v-col>
     </template>
   </v-row>
+  <InviteClientDialog v-model="inviteDialog" />
 </template>
