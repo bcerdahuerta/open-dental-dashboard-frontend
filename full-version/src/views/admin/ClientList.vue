@@ -63,11 +63,6 @@ function resetForm() {
   editClientId.value = null;
 }
 
-function openAdd() {
-  resetForm();
-  dialog.value = true;
-}
-
 function openEdit(item: any) {
   editMode.value = true;
   editClientId.value = item.id;
@@ -125,9 +120,9 @@ onMounted(() => {
     <v-col cols="12">
       <UiParentCard title="Clients">
         <template v-slot:action>
-          <v-btn color="primary" variant="flat" @click="openAdd">
+          <v-btn color="primary" variant="flat" @click="router.push('/admin/onboarding')">
             <PlusIcon size="18" stroke-width="1.5" class="mr-1" />
-            Add Client
+            Invite client
           </v-btn>
         </template>
         
@@ -177,7 +172,7 @@ onMounted(() => {
   <v-dialog v-model="dialog" max-width="600" persistent>
     <v-card>
       <v-card-title class="text-h5 bg-lightprimary pa-4">
-        {{ editMode ? 'Edit Client' : 'Add New Client' }}
+        {{ 'Edit Client' }}
       </v-card-title>
       <v-card-text class="pa-4">
         <v-form v-model="valid" @submit.prevent="saveClient">
