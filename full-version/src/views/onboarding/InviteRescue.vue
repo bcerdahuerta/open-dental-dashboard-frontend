@@ -2,14 +2,21 @@
 import { computed, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
+import DetectedQuestion from '@/components/onboarding/DetectedQuestion.vue';
+import NoteReadingChoice from '@/components/onboarding/NoteReadingChoice.vue';
 import RescueForm from '@/components/onboarding/RescueForm.vue';
+import WindowQuestions from '@/components/onboarding/WindowQuestions.vue';
+import { useOnboardingAnswersStore } from '@/stores/onboardingAnswers';
 import { useOnboardingRescueStore } from '@/stores/onboardingRescue';
 import { clientLabel } from '@/components/onboarding/clientLabels';
-import type { OnboardingDraftRequest } from '@/types/onboarding';
+import { OnboardingPublicHttpError } from '@/types/onboarding';
+import type { OnboardingDraftRequest, OnboardingWindowField } from '@/types/onboarding';
 
 const route = useRoute();
 const store = useOnboardingRescueStore();
+const answersStore = useOnboardingAnswersStore();
 const { redemption, submission, state, error } = storeToRefs(store);
+const { questions, draftQuestionAnswers, windowAnswers, noteReading, loading, ready, detectionUnavailable } = storeToRefs(answersStore);
 const inviteDays = computed(() => Math.max(1, Math.ceil((redemption.value?.ttl_seconds ?? 0) / 86400)));
 
 /** The token travels only after '#': read it client-side, never from the path or query. */
@@ -19,12 +26,43 @@ function fragmentToken(): string {
 
 onMounted(async () => {
   if (state.value !== 'IDLE') return;
-  store.start(fragmentToken(), String(route.params.id ?? ''));
+  const token = fragmentToken();
+  store.start(token, String(route.params.id ?? ''));
   await store.redeem();
+  if (store.state !== 'READY') return;
+  try {
+    await answersStore.load(token);
+  } catch (errorValue) {
+    state.value = 'REJECTED';
+    error.value =
+      errorValue instanceof OnboardingPublicHttpError
+        ? errorValue.message
+        : 'This onboarding link cannot be used. Ask your administrator for a new link.';
+  }
 });
 
-async function submit(request: OnboardingDraftRequest): Promise<void> {
-  await store.submit(request);
+function setWindowAnswer(field: OnboardingWindowField, value: unknown): void {
+  answersStore.setWindow(field, value);
+}
+
+async function submit(request?: OnboardingDraftRequest): Promise<void> {
+  if (!ready.value && request) {
+    await store.submit(request);
+    return;
+  }
+  if (!ready.value) return;
+  state.value = 'SUBMITTING';
+  error.value = null;
+  try {
+    submission.value = await answersStore.submit();
+    state.value = 'SUBMITTED';
+  } catch (errorValue) {
+    state.value = 'READY';
+    error.value =
+      errorValue instanceof OnboardingPublicHttpError
+        ? errorValue.message
+        : 'We could not save these answers. Please review them and try again.';
+  }
 }
 </script>
 
@@ -55,7 +93,29 @@ async function submit(request: OnboardingDraftRequest): Promise<void> {
           <v-alert type="info" variant="tonal" class="mb-4">
             This link is only for the client it was created for and stays usable for about {{ inviteDays }} more day(s).
           </v-alert>
-          <RescueForm v-if="state === 'READY' || state === 'SUBMITTING'" :submitting="state === 'SUBMITTING'" @submit="submit" />
+          <v-alert v-if="loading" data-test="questions-loading" type="info" variant="tonal" class="mb-4">Preparing your questions…</v-alert>
+          <template v-if="(state === 'READY' || state === 'SUBMITTING') && ready && questions">
+            <v-alert v-if="detectionUnavailable" data-test="detection-unavailable" type="warning" variant="tonal" class="mb-4">
+              We could not read your practice yet — answer these and we will confirm.
+            </v-alert>
+            <DetectedQuestion
+              v-for="question in questions.questions"
+              :key="question.question_key"
+              :question="question"
+              :model-value="draftQuestionAnswers[question.question_key]"
+              @update:model-value="answersStore.setDraftQuestion(question.question_key, $event)"
+            />
+            <WindowQuestions :questions="questions.window_questions" :model-value="windowAnswers" @update:field="setWindowAnswer" />
+            <NoteReadingChoice
+              :note-reading="questions.note_reading"
+              :model-value="noteReading.mode"
+              @update:model-value="answersStore.setNoteReading($event)"
+            />
+            <v-btn data-test="rescue-submit" color="primary" variant="flat" block :loading="state === 'SUBMITTING'" @click="submit()">
+              Submit my onboarding choices
+            </v-btn>
+          </template>
+          <RescueForm v-else-if="state === 'READY' || state === 'SUBMITTING'" :submitting="state === 'SUBMITTING'" @submit="submit" />
         </template>
       </v-card-text>
     </v-card>
