@@ -5,8 +5,10 @@ import type {
   OnboardingDraftRequest,
   OnboardingDraftResult,
   OnboardingInviteLink,
+  OnboardingQuestionsResponse,
   OnboardingRedemption,
   OnboardingResponse,
+  OnboardingSealedAnswers,
   OnboardingSopProjection,
   OnboardingSubmitResult
 } from '@/types/onboarding';
@@ -71,8 +73,13 @@ export const onboardingApi = {
     return publicPost<OnboardingRedemption>('/workflow-builder/onboarding-invites/redeem', { token });
   },
 
+  /** Public: fetch detected onboarding questions; token stays in the JSON body. */
+  fetchQuestions(token: string) {
+    return publicPost<OnboardingQuestionsResponse>('/workflow-builder/onboarding-invites/questions', { token });
+  },
+
   /** Public: submit the client's closed choices for the token's own client only. */
-  submit(payload: { client_id: string; token: string; draft: OnboardingDraftRequest }) {
+  submit(payload: { client_id?: string; token: string; draft?: OnboardingDraftRequest; answers?: OnboardingSealedAnswers }) {
     return publicPost<OnboardingSubmitResult>('/workflow-builder/onboarding-invites/submit', payload);
   }
 };
