@@ -243,6 +243,48 @@ describe('Invite client dialog', () => {
     expect(wrapper.get('[data-test="invite-link"]').text()).toContain(`#${TOKEN}`);
   });
 
+  it('T11 shows the server-carried reason when a 409 blocks the invite', async () => {
+    clientStore.createClient.mockResolvedValue({ id: 'client-new', client_name: 'Clinic One' });
+    api.mintInvite.mockRejectedValue(
+      new WorkflowBuilderHttpError(
+        409,
+        {
+          status: 'error',
+          message: null,
+          data: {
+            draft: null,
+            canonical_bytes: null,
+            digest: null,
+            diagnostics: [
+              {
+                code: 'CUSTOMER_KEY_VERIFIED',
+                subject_kind: 'client',
+                message: 'The customer key is not answering yet. Confirm it before inviting the client.',
+                client_choices: null
+              }
+            ]
+          }
+        },
+        null,
+        new Headers(),
+        'Conflict'
+      )
+    );
+    const wrapper = mountDialog();
+    await fillInvite(wrapper);
+    await submitInvite(wrapper);
+
+    expect(clientStore.createClient).toHaveBeenCalledTimes(1);
+    const message = wrapper.get('[data-test="invite-error"]').text();
+    expect(message).toContain('Client created.');
+    expect(message).toContain('The customer key is not answering yet. Confirm it before inviting the client.');
+    expect(message).toContain('Next: generate the invite from Onboarding.');
+    expect(message).not.toContain('add this client');
+    expect(message).not.toContain('CUSTOMER_KEY_VERIFIED');
+    expect(message).not.toContain('409');
+    expect(wrapper.find('[data-test="invite-link"]').exists()).toBe(false);
+  });
+
   it('T10 keeps every state of the dialog copy free of internal authoring names', async () => {
     const banned = ['bookmark', 'digest', 'etag', 'atom_key', 'carrier', 'enrichment', 'product type', 'tier', 'webhook'];
     const wrapper = mountDialog();

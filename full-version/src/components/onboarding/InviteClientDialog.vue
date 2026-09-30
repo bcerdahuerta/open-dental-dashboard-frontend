@@ -13,7 +13,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 // The operator link must survive the app base path, and the token stays after the fragment only.
 const INVITE_BASE_PATH = `${import.meta.env.BASE_URL ?? '/'}`.replace(/\/?$/, '/');
 
-/** Closed operator copy: the server's own message is never rendered on this screen. */
+/** Closed operator copy for transport failures; a blocked invite adds the server's own readiness reasons. */
 const CLOSED_MINT_FAILURES: Record<number, string> = {
   401: 'Your session expired. Sign in again before creating the link.',
   403: 'Your account cannot create an invite for this client.',
@@ -66,9 +66,26 @@ watch(
   }
 );
 
+function blockedInviteReasons(errorValue: unknown): string[] {
+  if (!(errorValue instanceof WorkflowBuilderHttpError)) return [];
+  const body = errorValue.data;
+  if (!body || typeof body !== 'object') return [];
+  const envelope = (body as { data?: unknown }).data ?? body;
+  const diagnostics = envelope && typeof envelope === 'object' ? (envelope as { diagnostics?: unknown }).diagnostics : undefined;
+  if (!Array.isArray(diagnostics)) return [];
+  return diagnostics
+    .map((entry) => (entry && typeof entry === 'object' ? (entry as { message?: unknown }).message : null))
+    .filter((message): message is string => typeof message === 'string' && message.trim().length > 0)
+    .map((message) => message.trim());
+}
+
 function closedMintFailure(errorValue: unknown): string {
-  if (errorValue instanceof WorkflowBuilderHttpError) return CLOSED_MINT_FAILURES[errorValue.status] ?? CLOSED_MINT_FALLBACK;
-  return CLOSED_MINT_FALLBACK;
+  if (!(errorValue instanceof WorkflowBuilderHttpError)) return CLOSED_MINT_FALLBACK;
+  if (errorValue.status === 409) {
+    const reasons = blockedInviteReasons(errorValue);
+    if (reasons.length > 0) return `Client created. ${reasons.join(' ')} Next: generate the invite from Onboarding.`;
+  }
+  return CLOSED_MINT_FAILURES[errorValue.status] ?? CLOSED_MINT_FALLBACK;
 }
 
 /** Create the client shell once, then mint the directed invite for that exact client. */
