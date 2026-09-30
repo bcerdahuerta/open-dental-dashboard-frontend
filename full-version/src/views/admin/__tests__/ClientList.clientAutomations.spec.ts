@@ -38,6 +38,8 @@ describe('ClientList client automations placement', () => {
     await flushPromises();
 
     expect(wrapper.findComponent({ name: 'ClientAutomationsPanel' }).exists()).toBe(true);
+    expect(wrapper.get('[data-test="clients-new-client"]').text()).toContain('New client');
+    expect(wrapper.get('[data-test="clients-new-client"]').text()).not.toContain('Invite client');
     expect(wrapper.text()).toContain('Client Automations');
     expect(wrapper.text()).toContain('Rules');
     expect(wrapper.text()).toContain('Recent Runs');

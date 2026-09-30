@@ -108,6 +108,14 @@ describe('Invite client dialog', () => {
     }
   });
 
+  it('T08 titles the dialog for creating a client and never calls it an invitation', () => {
+    const wrapper = mountDialog();
+
+    expect(wrapper.get('.v-card-title').text()).toBe('New client');
+    expect(wrapper.text()).not.toContain('Invite a new client');
+    expect(wrapper.text()).not.toContain('Invite client');
+  });
+
   it('T02 blocks an invalid email with a visible message and enables the link once the email is valid', async () => {
     const wrapper = mountDialog();
     await wrapper.get('[data-test="invite-name"]').setValue('Clinic One');
@@ -200,7 +208,42 @@ describe('Invite client dialog', () => {
     expect(wrapper.find('[data-test="invite-link"]').exists()).toBe(false);
   });
 
-  it('T07 keeps every state of the dialog copy free of internal authoring names', async () => {
+  it('T09 reports the created client and the next step when the invite link is blocked', async () => {
+    clientStore.createClient.mockResolvedValue({ id: 'client-new', client_name: 'Clinic One' });
+    api.mintInvite.mockRejectedValue(
+      new WorkflowBuilderHttpError(
+        409,
+        { status: 'error', message: 'provider key missing', diagnostics: { code: 'od_customer_key_missing' } },
+        null,
+        new Headers(),
+        'provider key missing'
+      )
+    );
+    const wrapper = mountDialog();
+    await fillInvite(wrapper);
+    await submitInvite(wrapper);
+
+    expect(clientStore.createClient).toHaveBeenCalledTimes(1);
+    const message = wrapper.get('[data-test="invite-error"]').text();
+    expect(message).toBe(
+      "Client created. Next: add this client's clinic and its Open Dental customer key, then generate the invite from Onboarding."
+    );
+    expect(message).not.toContain('provider key missing');
+    expect(message).not.toContain('od_customer_key_missing');
+    expect(message).not.toContain('409');
+    expect(wrapper.find('[data-test="invite-link"]').exists()).toBe(false);
+    expect(textValue(wrapper, '[data-test="invite-name"]')).toBe('Clinic One');
+    expect(textValue(wrapper, '[data-test="invite-email"]')).toBe('contact@practice.test');
+
+    api.mintInvite.mockResolvedValue(inviteResponse(TOKEN));
+    await submitInvite(wrapper);
+    expect(clientStore.createClient).toHaveBeenCalledTimes(1);
+    expect(api.mintInvite).toHaveBeenCalledTimes(2);
+    expect(api.mintInvite.mock.calls[1][0]).toBe('client-new');
+    expect(wrapper.get('[data-test="invite-link"]').text()).toContain(`#${TOKEN}`);
+  });
+
+  it('T10 keeps every state of the dialog copy free of internal authoring names', async () => {
     const banned = ['bookmark', 'digest', 'etag', 'atom_key', 'carrier', 'enrichment', 'product type', 'tier', 'webhook'];
     const wrapper = mountDialog();
     for (const name of banned) expect(wrapper.text().toLowerCase()).not.toContain(name);
