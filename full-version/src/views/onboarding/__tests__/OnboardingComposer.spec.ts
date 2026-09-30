@@ -138,6 +138,7 @@ describe('Onboarding composer', () => {
 
     const text = wrapper.text();
     const lowered = text.toLowerCase();
+    expect(wrapper.get('[data-test="composer-invite-client"]').text()).toBe('New client');
     expect(lowered).toContain('basic verification');
     expect(lowered).toContain('verification with benefits sync');
     expect(lowered).toContain('plan note');

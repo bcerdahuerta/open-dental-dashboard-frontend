@@ -18,7 +18,7 @@ const CLOSED_MINT_FAILURES: Record<number, string> = {
   401: 'Your session expired. Sign in again before creating the link.',
   403: 'Your account cannot create an invite for this client.',
   404: 'This client is not open for onboarding yet.',
-  409: 'Onboarding already started for this client. Open the client to continue.',
+  409: "Client created. Next: add this client's clinic and its Open Dental customer key, then generate the invite from Onboarding.",
   429: 'Too many link requests. Wait a moment and try again.'
 };
 const CLOSED_CREATE_FAILURE = 'The client could not be created. Check the name and try again.';
@@ -119,7 +119,7 @@ async function copyLink(): Promise<void> {
 <template>
   <v-dialog :model-value="props.modelValue" max-width="640" @update:model-value="emit('update:modelValue', $event)">
     <v-card data-test="invite-dialog">
-      <v-card-title class="text-h6">Invite a new client</v-card-title>
+      <v-card-title class="text-h6">New client</v-card-title>
       <v-card-text>
         <template v-if="inviteLink">
           <v-alert data-test="invite-ready" type="success" variant="tonal">

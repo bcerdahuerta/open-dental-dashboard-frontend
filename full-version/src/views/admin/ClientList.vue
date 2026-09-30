@@ -120,9 +120,9 @@ onMounted(() => {
     <v-col cols="12">
       <UiParentCard title="Clients">
         <template v-slot:action>
-          <v-btn color="primary" variant="flat" @click="router.push('/admin/onboarding')">
+          <v-btn data-test="clients-new-client" color="primary" variant="flat" @click="router.push('/admin/onboarding')">
             <PlusIcon size="18" stroke-width="1.5" class="mr-1" />
-            Invite client
+            New client
           </v-btn>
         </template>
         
