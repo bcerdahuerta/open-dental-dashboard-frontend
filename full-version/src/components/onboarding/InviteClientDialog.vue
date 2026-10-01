@@ -5,7 +5,7 @@ import { useClientStore } from '@/stores/clients';
 import { WorkflowBuilderHttpError } from '@/utils/helpers/fetch-wrapper';
 
 const props = defineProps<{ modelValue: boolean }>();
-const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>();
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; 'client-created': [clientId: string] }>();
 
 /** Existing client-create default, preserved verbatim: the setup/edit screen carries the real value later. */
 const SHELL_PRODUCT_TYPE = 'Custom';
@@ -106,6 +106,7 @@ async function submit(): Promise<void> {
         return;
       }
       createdClientId.value = clientId;
+      emit('client-created', clientId);
     }
     const response = await onboardingApi.mintInvite(clientId);
     if (requestEpoch !== epoch) return;
