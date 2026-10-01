@@ -6,6 +6,7 @@ import { useClientStore, type ClientCreate } from '@/stores/clients';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import BaseBreadcrumb from '@/components/shared/BaseBreadcrumb.vue';
 import ClientAutomationsPanel from '@/components/admin/ClientAutomationsPanel.vue';
+import InviteClientDialog from '@/components/onboarding/InviteClientDialog.vue';
 import { PlusIcon, PencilIcon, BuildingIcon } from 'vue-tabler-icons';
 
 const router = useRouter();
@@ -19,6 +20,7 @@ const breadcrumbs = ref([
 ]);
 
 const dialog = ref(false);
+const inviteDialog = ref(false);
 const editMode = ref(false);
 const editClientId = ref<string | null>(null);
 const valid = ref(false);
@@ -102,6 +104,10 @@ function viewClinics(item: any) {
   router.push({ path: '/admin/clinics', query: { client_id: item.id } });
 }
 
+async function onClientCreated() {
+  await clientStore.fetchClients();
+}
+
 function formatDate(dateStr: string) {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -120,7 +126,7 @@ onMounted(() => {
     <v-col cols="12">
       <UiParentCard title="Clients">
         <template v-slot:action>
-          <v-btn data-test="clients-new-client" color="primary" variant="flat" @click="router.push('/admin/onboarding')">
+          <v-btn data-test="clients-new-client" color="primary" variant="flat" @click="inviteDialog = true">
             <PlusIcon size="18" stroke-width="1.5" class="mr-1" />
             New client
           </v-btn>
@@ -167,6 +173,9 @@ onMounted(() => {
       <ClientAutomationsPanel />
     </v-col>
   </v-row>
+
+  <!-- Client creation dialog (shared with the onboarding composer) -->
+  <InviteClientDialog v-model="inviteDialog" @client-created="onClientCreated" />
 
   <!-- Add/Edit Dialog -->
   <v-dialog v-model="dialog" max-width="600" persistent>
