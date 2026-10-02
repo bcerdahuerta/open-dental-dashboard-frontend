@@ -169,9 +169,6 @@ async function copyLink(): Promise<void> {
           />
           <div v-if="showsNameMessage" data-test="invite-name-message" class="text-error text-body-2 mt-1">{{ nameMessage }}</div>
           <v-alert v-if="failure" data-test="invite-error" type="warning" variant="tonal" class="mt-4">{{ failure }}</v-alert>
-          <p class="text-body-2 text-medium-emphasis mt-4 mb-0">
-            Only the client name is needed now.
-          </p>
         </template>
       </v-card-text>
       <v-card-actions>

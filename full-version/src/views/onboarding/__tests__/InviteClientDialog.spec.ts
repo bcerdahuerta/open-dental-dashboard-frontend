@@ -98,8 +98,6 @@ describe('Invite client dialog', () => {
 
     expect(inputs.map((input) => input.attributes('data-test'))).toEqual(['invite-name']);
     expect(wrapper.get('[data-test="invite-submit"]').text()).toContain('Create client');
-    expect(wrapper.text()).toContain('Only the client name is needed now.');
-    expect(wrapper.text()).not.toContain('configured later from the client settings');
     expect(wrapper.find('[data-test="invite-cancel"]').exists()).toBe(true);
     expect(wrapper.find('select').exists()).toBe(false);
 
