@@ -9,7 +9,6 @@ const emit = defineEmits<{ 'update:modelValue': [value: boolean]; 'client-create
 
 /** Existing client-create default, preserved verbatim: the setup/edit screen carries the real value later. */
 const SHELL_PRODUCT_TYPE = 'Custom';
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 // The operator link must survive the app base path, and the token stays after the fragment only.
 const INVITE_BASE_PATH = `${import.meta.env.BASE_URL ?? '/'}`.replace(/\/?$/, '/');
 
@@ -26,7 +25,6 @@ const CLOSED_MINT_FALLBACK = 'The invite link could not be created. Your entries
 
 const clientStore = useClientStore();
 const clientName = ref('');
-const contactEmail = ref('');
 const attempted = ref(false);
 const submitting = ref(false);
 const failure = ref<string | null>(null);
@@ -37,19 +35,12 @@ const createdClientId = ref<string | null>(null);
 let epoch = 0;
 
 const nameMessage = computed(() => (clientName.value.trim() ? '' : 'Enter the client name.'));
-const emailMessage = computed(() => {
-  const value = contactEmail.value.trim();
-  if (!value) return 'Enter the contact email address.';
-  return EMAIL_PATTERN.test(value) ? '' : 'Enter a valid email address, like name@practice.com.';
-});
-const canSubmit = computed(() => !nameMessage.value && !emailMessage.value);
+const canSubmit = computed(() => !nameMessage.value);
 const showsNameMessage = computed(() => Boolean(nameMessage.value) && (attempted.value || clientName.value.length > 0));
-const showsEmailMessage = computed(() => Boolean(emailMessage.value) && (attempted.value || contactEmail.value.length > 0));
 
 function reset(): void {
   epoch += 1;
   clientName.value = '';
-  contactEmail.value = '';
   attempted.value = false;
   submitting.value = false;
   failure.value = null;
@@ -141,7 +132,7 @@ async function copyLink(): Promise<void> {
       <v-card-text>
         <template v-if="inviteLink">
           <v-alert data-test="invite-ready" type="success" variant="tonal">
-            The invite link is ready. Send it to {{ contactEmail }} so the contact can define the workflow.
+            The invite link is ready. Send it to the contact so they can define the workflow.
           </v-alert>
           <div class="d-flex flex-wrap align-center ga-2 mt-4">
             <code class="text-body-2" data-test="invite-link">{{ inviteLink }}</code>
@@ -174,21 +165,9 @@ async function copyLink(): Promise<void> {
             :error="showsNameMessage"
           />
           <div v-if="showsNameMessage" data-test="invite-name-message" class="text-error text-body-2 mt-1">{{ nameMessage }}</div>
-          <v-text-field
-            v-model="contactEmail"
-            data-test="invite-email"
-            label="Contact email"
-            type="email"
-            variant="outlined"
-            color="primary"
-            hide-details="auto"
-            class="mt-4"
-            :error="showsEmailMessage"
-          />
-          <div v-if="showsEmailMessage" data-test="invite-email-message" class="text-error text-body-2 mt-1">{{ emailMessage }}</div>
           <v-alert v-if="failure" data-test="invite-error" type="warning" variant="tonal" class="mt-4">{{ failure }}</v-alert>
           <p class="text-body-2 text-medium-emphasis mt-4 mb-0">
-            Only the client name and the contact email are needed now. The rest of the setup is configured later from the client settings.
+            Only the client name is needed now. The rest of the setup is configured later from the client settings.
           </p>
         </template>
       </v-card-text>
