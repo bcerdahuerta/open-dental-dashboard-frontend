@@ -61,9 +61,8 @@ function inviteResponse(token: string, expiresDays = 7) {
   };
 }
 
-async function fillInvite(wrapper: Dialog, values: { name?: string; email?: string } = {}): Promise<void> {
+async function fillInvite(wrapper: Dialog, values: { name?: string } = {}): Promise<void> {
   await wrapper.get('[data-test="invite-name"]').setValue(values.name ?? 'Clinic One');
-  await wrapper.get('[data-test="invite-email"]').setValue(values.email ?? 'contact@practice.test');
 }
 
 async function submitInvite(wrapper: Dialog): Promise<void> {
@@ -93,11 +92,11 @@ describe('Invite client dialog', () => {
     vi.restoreAllMocks();
   });
 
-  it('T01 asks only for the client name and the contact email', () => {
+  it('T01 asks only for the client name', () => {
     const wrapper = mountDialog();
     const inputs = wrapper.findAll('input');
 
-    expect(inputs.map((input) => input.attributes('data-test'))).toEqual(['invite-name', 'invite-email']);
+    expect(inputs.map((input) => input.attributes('data-test'))).toEqual(['invite-name']);
     expect(wrapper.get('[data-test="invite-submit"]').text()).toContain('Create the link');
     expect(wrapper.find('[data-test="invite-cancel"]').exists()).toBe(true);
     expect(wrapper.find('select').exists()).toBe(false);
@@ -116,19 +115,19 @@ describe('Invite client dialog', () => {
     expect(wrapper.text()).not.toContain('Invite client');
   });
 
-  it('T02 blocks an invalid email with a visible message and enables the link once the email is valid', async () => {
+  it('T02 blocks an empty name with a visible message and enables the link once the name is valid', async () => {
     const wrapper = mountDialog();
-    await wrapper.get('[data-test="invite-name"]').setValue('Clinic One');
-    await wrapper.get('[data-test="invite-email"]').setValue('clinic@');
-
-    expect(wrapper.get('[data-test="invite-email-message"]').text()).toContain('valid email');
     expect(wrapper.get('[data-test="invite-submit"]').attributes('disabled')).toBeDefined();
     await submitInvite(wrapper);
     expect(clientStore.createClient).not.toHaveBeenCalled();
     expect(api.mintInvite).not.toHaveBeenCalled();
 
-    await wrapper.get('[data-test="invite-email"]').setValue('contact@practice.test');
-    expect(wrapper.find('[data-test="invite-email-message"]').exists()).toBe(false);
+    await wrapper.get('[data-test="invite-name"]').setValue('   ');
+    expect(wrapper.get('[data-test="invite-name-message"]').text()).toContain('Enter the client name');
+    expect(wrapper.get('[data-test="invite-submit"]').attributes('disabled')).toBeDefined();
+
+    await wrapper.get('[data-test="invite-name"]').setValue('Clinic One');
+    expect(wrapper.find('[data-test="invite-name-message"]').exists()).toBe(false);
     expect(wrapper.get('[data-test="invite-submit"]').attributes('disabled')).toBeUndefined();
   });
 
@@ -157,7 +156,7 @@ describe('Invite client dialog', () => {
     expect(link.split('#')[1]).toBe(TOKEN);
     expect(wrapper.get('[data-test="invite-expiry"]').text()).toContain('7 days');
     expect(wrapper.findAll('[data-test="invite-preview"] li')).toHaveLength(3);
-    expect(wrapper.get('[data-test="invite-ready"]').text()).toContain('contact@practice.test');
+    expect(wrapper.get('[data-test="invite-ready"]').text()).toContain('Send it to the contact so they can define the workflow');
 
     await wrapper.get('[data-test="invite-copy"]').trigger('click');
     await flushPromises();
@@ -185,7 +184,6 @@ describe('Invite client dialog', () => {
     expect(wrapper.text()).not.toContain('Resource not found');
     expect(wrapper.find('[data-test="invite-link"]').exists()).toBe(false);
     expect(textValue(wrapper, '[data-test="invite-name"]')).toBe('Clinic One');
-    expect(textValue(wrapper, '[data-test="invite-email"]')).toBe('contact@practice.test');
     expect(clientStore.createClient).toHaveBeenCalledTimes(1);
 
     api.mintInvite.mockResolvedValue(inviteResponse(TOKEN));
@@ -233,7 +231,6 @@ describe('Invite client dialog', () => {
     expect(message).not.toContain('409');
     expect(wrapper.find('[data-test="invite-link"]').exists()).toBe(false);
     expect(textValue(wrapper, '[data-test="invite-name"]')).toBe('Clinic One');
-    expect(textValue(wrapper, '[data-test="invite-email"]')).toBe('contact@practice.test');
 
     api.mintInvite.mockResolvedValue(inviteResponse(TOKEN));
     await submitInvite(wrapper);
