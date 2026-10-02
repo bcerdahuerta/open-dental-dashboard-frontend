@@ -17,7 +17,7 @@ const CLOSED_MINT_FAILURES: Record<number, string> = {
   401: 'Your session expired. Sign in again before creating the link.',
   403: 'Your account cannot create an invite for this client.',
   404: 'This client is not open for onboarding yet.',
-  409: "Client created. Next: add this client's clinic and its Open Dental customer key, then generate the invite from Onboarding.",
+  409: 'Client created. Next step: add the clinic and its customer key, then create the invite.',
   429: 'Too many link requests. Wait a moment and try again.'
 };
 const CLOSED_CREATE_FAILURE = 'The client could not be created. Check the name and try again.';
@@ -73,8 +73,11 @@ function blockedInviteReasons(errorValue: unknown): string[] {
 function closedMintFailure(errorValue: unknown): string {
   if (!(errorValue instanceof WorkflowBuilderHttpError)) return CLOSED_MINT_FALLBACK;
   if (errorValue.status === 409) {
-    const reasons = blockedInviteReasons(errorValue);
-    if (reasons.length > 0) return `Client created. ${reasons.join(' ')} Next: generate the invite from Onboarding.`;
+    const [reason] = blockedInviteReasons(errorValue);
+    if (reason) {
+      const firstReason = reason.replace(/\.$/, '');
+      return `Client created, but the invite is not ready yet. ${firstReason}. Next step: add the clinic, then create the invite.`;
+    }
   }
   return CLOSED_MINT_FAILURES[errorValue.status] ?? CLOSED_MINT_FALLBACK;
 }
@@ -167,7 +170,7 @@ async function copyLink(): Promise<void> {
           <div v-if="showsNameMessage" data-test="invite-name-message" class="text-error text-body-2 mt-1">{{ nameMessage }}</div>
           <v-alert v-if="failure" data-test="invite-error" type="warning" variant="tonal" class="mt-4">{{ failure }}</v-alert>
           <p class="text-body-2 text-medium-emphasis mt-4 mb-0">
-            Only the client name is needed now. The rest of the setup is configured later from the client settings.
+            Only the client name is needed now.
           </p>
         </template>
       </v-card-text>
@@ -186,7 +189,7 @@ async function copyLink(): Promise<void> {
             :disabled="submitting || !canSubmit"
             @click="submit"
           >
-            Create the link
+            Create client
           </v-btn>
         </template>
       </v-card-actions>
