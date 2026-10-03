@@ -316,7 +316,7 @@ watch(selectedClientId, (newVal) => {
             :type="showCustomerKey ? 'text' : 'password'"
             :append-inner-icon="showCustomerKey ? 'mdi-eye-off' : 'mdi-eye'"
             @click:append-inner="showCustomerKey = !showCustomerKey"
-            :rules="[(v: string) => !!v || 'Customer Key is required for OD API']"
+            :rules="[(v: string) => !!v || 'Customer Key is required.']"
             required
             variant="outlined"
             color="primary"

@@ -97,7 +97,7 @@ describe('Invite client dialog', () => {
     const inputs = wrapper.findAll('input');
 
     expect(inputs.map((input) => input.attributes('data-test'))).toEqual(['invite-name']);
-    expect(wrapper.get('[data-test="invite-submit"]').text()).toContain('Create the link');
+    expect(wrapper.get('[data-test="invite-submit"]').text()).toContain('Create client');
     expect(wrapper.find('[data-test="invite-cancel"]').exists()).toBe(true);
     expect(wrapper.find('select').exists()).toBe(false);
 
@@ -223,9 +223,7 @@ describe('Invite client dialog', () => {
 
     expect(clientStore.createClient).toHaveBeenCalledTimes(1);
     const message = wrapper.get('[data-test="invite-error"]').text();
-    expect(message).toBe(
-      "Client created. Next: add this client's clinic and its Open Dental customer key, then generate the invite from Onboarding."
-    );
+    expect(message).toBe('Client created. Next step: add the clinic and its customer key, then create the invite.');
     expect(message).not.toContain('provider key missing');
     expect(message).not.toContain('od_customer_key_missing');
     expect(message).not.toContain('409');
@@ -258,6 +256,12 @@ describe('Invite client dialog', () => {
                 subject_kind: 'client',
                 message: 'The customer key is not answering yet. Confirm it before inviting the client.',
                 client_choices: null
+              },
+              {
+                code: 'WORKSPACE_SETUP_INCOMPLETE',
+                subject_kind: 'client',
+                message: 'Add the clinic before asking the client to define the workflow.',
+                client_choices: null
               }
             ]
           }
@@ -273,9 +277,11 @@ describe('Invite client dialog', () => {
 
     expect(clientStore.createClient).toHaveBeenCalledTimes(1);
     const message = wrapper.get('[data-test="invite-error"]').text();
-    expect(message).toContain('Client created.');
+    expect(message).toContain('Client created, but the invite is not ready yet.');
     expect(message).toContain('The customer key is not answering yet. Confirm it before inviting the client.');
-    expect(message).toContain('Next: generate the invite from Onboarding.');
+    expect(message).toContain('Next step: add the clinic, then create the invite.');
+    expect(message).not.toContain('configured later');
+    expect(message).not.toContain('Add the clinic before asking the client to define the workflow.');
     expect(message).not.toContain('add this client');
     expect(message).not.toContain('CUSTOMER_KEY_VERIFIED');
     expect(message).not.toContain('409');
