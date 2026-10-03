@@ -36,6 +36,9 @@ function questions(flags: string[] = []): OnboardingQuestionsResponse {
     questions: [
       {
         question_key: 'last_check_source',
+        title: 'Which checks count',
+        help: 'Pick the source your team already trusts.',
+        evidence: 'We saw 412 plan verifications in your recent history.',
         recommended: 'BY_PLAN',
         options: [
           { value: 'BY_PLAN', label: 'Sentinel plan checks' },
@@ -47,7 +50,7 @@ function questions(flags: string[] = []): OnboardingQuestionsResponse {
       {
         question_key: 'plan_period',
         recommended: null,
-        options: [{ value: 'calendar', label: 'Sentinel calendar year' }],
+        options: ['calendar'],
         basis: 'NOT_DETECTED',
         needs_client_confirmation: true
       },
@@ -67,9 +70,12 @@ function questions(flags: string[] = []): OnboardingQuestionsResponse {
       },
       {
         question_key: 'extraction_window',
-        recommended: 'standard',
-        options: [{ value: 'standard', label: 'Sentinel standard window' }],
-        basis: 'SCHEDULE_1',
+        title: 'How far ahead should we look for visits?',
+        help: 'We use this to suggest how far ahead to look.',
+        evidence: 'We saw 12 appointments in the last 90 days.',
+        recommended: null,
+        options: [],
+        basis: 'APPOINTMENTS_OBSERVED:12',
         needs_client_confirmation: true
       }
     ],
@@ -88,15 +94,27 @@ function questions(flags: string[] = []): OnboardingQuestionsResponse {
         title: 'Sentinel day counting',
         help: 'Sentinel counting help',
         kind: 'choice',
-        recommended: 'working_days',
-        options: [{ value: 'working_days', label: 'Sentinel working days' }]
+        recommended: 'BUSINESS_DAYS',
+        options: [
+          { value: 'BUSINESS_DAYS', label: 'Sentinel business days' },
+          { value: 'CALENDAR_DAYS', label: 'Sentinel calendar days' }
+        ]
       },
       {
         field: 'working_days',
         title: 'Sentinel working days title',
         help: 'Sentinel weekdays help',
         kind: 'weekdays',
-        recommended: [1, 2, 3, 4, 5]
+        recommended: [0, 1, 2, 3, 4],
+        options: [
+          { value: 0, label: 'Monday' },
+          { value: 1, label: 'Tuesday' },
+          { value: 2, label: 'Wednesday' },
+          { value: 3, label: 'Thursday' },
+          { value: 4, label: 'Friday' },
+          { value: 5, label: 'Saturday' },
+          { value: 6, label: 'Sunday' }
+        ]
       },
       { field: 'extraction_time', title: 'Sentinel extraction time', help: 'Sentinel extraction help', kind: 'time', recommended: '06:30' },
       {
@@ -212,6 +230,8 @@ describe('Onboarding answers', () => {
     expect(wrapper.text()).toContain('Sentinel plan checks');
     expect(wrapper.text()).toContain('Sentinel horizon');
     expect(wrapper.text()).toContain('Sentinel appointment notes');
+    expect(wrapper.text()).toContain('Which checks count');
+    expect(wrapper.text()).toContain('Pick the source your team already trusts.');
   });
 
   it('T02 lets a suggestion be edited while keeping the rest', async () => {
@@ -226,14 +246,14 @@ describe('Onboarding answers', () => {
 
   it('T03 renders recommended null without evidence', async () => {
     const { wrapper } = await mountRescue();
-    expect(wrapper.get('[data-test="detected-question-plan_period"]').text()).toContain('Sentinel calendar year');
+    expect(wrapper.get('[data-test="detected-question-plan_period"]').text()).toContain('calendar');
     expect(wrapper.find('[data-test="detected-evidence-plan_period"]').exists()).toBe(false);
   });
 
-  it('T04 humanises basis without showing the raw code', async () => {
+  it('T04 renders the server evidence verbatim without the raw basis code', async () => {
     const { wrapper } = await mountRescue();
     const evidence = wrapper.get('[data-test="detected-evidence-last_check_source"]').text();
-    expect(evidence).toContain('412');
+    expect(evidence).toBe('We saw 412 plan verifications in your recent history.');
     expect(evidence).not.toContain('PLAN_VERIFICATIONS_412');
   });
 
@@ -245,12 +265,12 @@ describe('Onboarding answers', () => {
     expect(input.attributes('max')).toBe('30');
   });
 
-  it('T06 shows seven English weekdays with recommendation preselected', async () => {
+  it('T06 shows seven English weekdays from the API options with the Monday-first recommendation preselected', async () => {
     const { wrapper } = await mountRescue();
     for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']) expect(wrapper.text()).toContain(day);
     await wrapper.get('[data-test="rescue-submit"]').trigger('click');
     await flushPromises();
-    expect(api.submit.mock.calls[0][0].answers.window.working_days).toEqual([1, 2, 3, 4, 5]);
+    expect(api.submit.mock.calls[0][0].answers.window.working_days).toEqual([0, 1, 2, 3, 4]);
   });
 
   it('T07 renders note reading copy, example and both modes with review first selected', async () => {
@@ -261,6 +281,7 @@ describe('Onboarding answers', () => {
     await wrapper.get('[data-test="rescue-submit"]').trigger('click');
     await flushPromises();
     expect(api.submit.mock.calls[0][0].answers.note_reading.mode).toBe('REVIEW_FIRST');
+    expect(api.submit.mock.calls[0][0].answers.note_reading.enabled).toBe(true);
   });
 
   it('T08 submits one sealed three-leg request', async () => {
@@ -302,7 +323,69 @@ describe('Onboarding answers', () => {
   it('T12 detection unavailable shows the plain notice and answerable questions', async () => {
     const { wrapper } = await mountRescue(questions(['DETECTION_UNAVAILABLE']));
     expect(wrapper.get('[data-test="detection-unavailable"]').text()).toContain('We could not read your practice yet');
-    expect(wrapper.findAll('[data-test^="detected-question-"]')).toHaveLength(5);
+    expect(wrapper.findAll('[data-test^="detected-question-"]')).toHaveLength(4);
     expect(wrapper.find('[data-test="rescue-submit"]').exists()).toBe(true);
+  });
+
+  it('T13 shows the server title and help, and humanises a missing title', async () => {
+    const { wrapper } = await mountRescue();
+    expect(wrapper.get('[data-test="detected-question-last_check_source"]').text()).toContain('Which checks count');
+    expect(wrapper.get('[data-test="detected-help-last_check_source"]').text()).toContain('Pick the source your team already trusts.');
+    expect(wrapper.get('[data-test="detected-question-plan_period"]').text()).toContain('Plan period');
+  });
+
+  it('T14 omits a zero-option question entirely, including its evidence', async () => {
+    const { wrapper } = await mountRescue();
+    expect(wrapper.find('[data-test="detected-question-extraction_window"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="detected-evidence-extraction_window"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('We saw 12 appointments');
+    expect(wrapper.find('[data-test="detected-question-last_check_source"]').exists()).toBe(true);
+  });
+
+  it('T15 groups the questionnaire in contact-voice sections', async () => {
+    const { wrapper } = await mountRescue();
+    const text = wrapper.text();
+    expect(text).toContain('Set up how your verifications work');
+    expect(text).toContain('Answer a few questions about your practice. Your administrator reviews them before anything starts.');
+    expect(text).toContain('This link is only for you and stays usable for about 7 more days.');
+    for (const heading of ['Your checks', 'Your schedule', 'Your notes']) expect(text).toContain(heading);
+    const order = ['Your checks', 'Your schedule', 'Your notes'].map((heading) => text.indexOf(heading));
+    expect(order).toEqual([...order].sort((left, right) => left - right));
+  });
+
+  it('T16 gates submit on the required window answers and hints the empty field', async () => {
+    const payload = questions();
+    payload.window_questions = payload.window_questions.map((question) =>
+      question.field === 'review_times' ? { ...question, recommended: [] } : question
+    );
+    const { wrapper } = await mountRescue(payload);
+    expect(wrapper.get('[data-test="rescue-submit"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('[data-test="window-field-review_times"]').text()).toContain('Answer this to continue');
+    expect(wrapper.get('[data-test="window-field-working_days"]').text()).not.toContain('Answer this to continue');
+
+    await wrapper.get('[data-test="window-field-review_times"] input').setValue('12:00');
+    await flushPromises();
+    expect(wrapper.get('[data-test="window-field-review_times"]').text()).not.toContain('Answer this to continue');
+    expect(wrapper.get('[data-test="rescue-submit"]').attributes('disabled')).toBeUndefined();
+
+    await wrapper.get('[data-test="window-field-review_times"] input').setValue('');
+    await flushPromises();
+    expect(wrapper.get('[data-test="window-field-review_times"]').text()).toContain('Answer this to continue');
+    expect(wrapper.get('[data-test="rescue-submit"]').attributes('disabled')).toBeDefined();
+  });
+
+  it('T17 requires working days only while the practice counts business days', async () => {
+    const payload = questions();
+    payload.window_questions = payload.window_questions.map((question) =>
+      question.field === 'working_days' ? { ...question, recommended: [] } : question
+    );
+    const { wrapper } = await mountRescue(payload);
+    expect(wrapper.get('[data-test="rescue-submit"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('[data-test="window-field-working_days"]').text()).toContain('Answer this to continue');
+
+    await wrapper.get('[data-test="window-field-day_counting"] select').setValue('CALENDAR_DAYS');
+    await flushPromises();
+    expect(wrapper.get('[data-test="window-field-working_days"]').text()).not.toContain('Answer this to continue');
+    expect(wrapper.get('[data-test="rescue-submit"]').attributes('disabled')).toBeUndefined();
   });
 });

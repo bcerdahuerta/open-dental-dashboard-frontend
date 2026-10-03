@@ -136,7 +136,10 @@ describe('Onboarding invite rescue', () => {
         draft: expect.objectContaining({ archetype_key: 'basic-verification@1' })
       })
     );
-    expect(wrapper.get('[data-test="rescue-receipt"]').text()).toContain('version-a');
+    expect(wrapper.get('[data-test="rescue-receipt"]').text()).toContain(
+      'Your choices were sent. Your administrator reviews them before anything starts.'
+    );
+    expect(wrapper.get('[data-test="rescue-receipt"]').text()).not.toContain('version-a');
     expect(wrapper.find('[data-test="rescue-form"]').exists()).toBe(false);
   });
 

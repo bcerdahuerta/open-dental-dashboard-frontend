@@ -25,8 +25,8 @@ const DEFAULT_DRAFT: OnboardingDraftRequest = {
 const DEFAULT_WINDOW: OnboardingWindowAnswers = {
   enabled: true,
   look_ahead_days: 7,
-  day_counting: 'calendar_days',
-  working_days: [1, 2, 3, 4, 5],
+  day_counting: 'CALENDAR_DAYS',
+  working_days: [0, 1, 2, 3, 4],
   extraction_time: '06:00',
   review_times: ['12:00'],
   review_look_ahead_days: 0,
@@ -59,7 +59,7 @@ export const useOnboardingAnswersStore = defineStore('onboardingAnswers', () => 
     working_days: [...DEFAULT_WINDOW.working_days],
     review_times: [...DEFAULT_WINDOW.review_times]
   });
-  const noteReading = ref<OnboardingNoteReadingAnswers>({ mode: 'REVIEW_FIRST' });
+  const noteReading = ref<OnboardingNoteReadingAnswers>({ enabled: true, mode: 'REVIEW_FIRST' });
   const loading = ref(false);
   const ready = computed(() => questions.value !== null);
   const detectionUnavailable = computed(() => questions.value?.flags.includes('DETECTION_UNAVAILABLE') ?? false);
@@ -74,7 +74,7 @@ export const useOnboardingAnswersStore = defineStore('onboardingAnswers', () => 
       working_days: [...DEFAULT_WINDOW.working_days],
       review_times: [...DEFAULT_WINDOW.review_times]
     };
-    noteReading.value = { mode: 'REVIEW_FIRST' };
+    noteReading.value = { enabled: true, mode: 'REVIEW_FIRST' };
     loading.value = false;
   }
 
@@ -101,12 +101,13 @@ export const useOnboardingAnswersStore = defineStore('onboardingAnswers', () => 
       if (field === 'timezone') windowDraft.timezone = asString(question.recommended, windowDraft.timezone);
     }
     windowAnswers.value = windowDraft;
-    noteReading.value = { mode: payload.note_reading.recommended_mode };
+    noteReading.value = { enabled: true, mode: payload.note_reading.recommended_mode };
   }
 
   async function load(inviteToken: string): Promise<void> {
     reset();
     token.value = inviteToken;
+    // SAFETY: the unit-test API mock may omit fetchQuestions; the real onboarding client always provides it.
     const fetchQuestions = (onboardingApi as unknown as { fetchQuestions?: (token: string) => Promise<OnboardingQuestionsResponse> })
       .fetchQuestions;
     if (!fetchQuestions) return;
@@ -128,7 +129,7 @@ export const useOnboardingAnswersStore = defineStore('onboardingAnswers', () => 
   }
 
   function setNoteReading(mode: OnboardingNoteReadingAnswers['mode']): void {
-    noteReading.value = { mode };
+    noteReading.value = { ...noteReading.value, mode };
   }
 
   function sealedAnswers(): OnboardingSealedAnswers {

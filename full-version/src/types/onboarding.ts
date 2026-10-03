@@ -23,11 +23,20 @@ export interface OnboardingQuestionOption {
   summary?: string;
 }
 
+/** The API has shipped both a labelled option object and a bare string. */
+export type OnboardingQuestionOptionInput = OnboardingQuestionOption | string | number | boolean | null;
+
 export interface OnboardingDetectedQuestion {
   question_key: OnboardingDetectedQuestionKey;
+  /** Client-facing title; falls back to the humanised key when absent. */
+  title?: string;
+  help?: string;
+  /** Server-authored evidence, rendered verbatim. */
+  evidence?: string;
   recommended: string | number | boolean | string[] | number[] | null;
-  options: OnboardingQuestionOption[];
-  basis: string;
+  options: OnboardingQuestionOptionInput[];
+  /** Superseded by evidence; kept so older payloads stay type-safe. */
+  basis?: string;
   needs_client_confirmation: true;
 }
 
@@ -39,7 +48,7 @@ export interface OnboardingWindowQuestion {
   recommended: string | number | number[] | string[] | null;
   minimum?: number;
   maximum?: number;
-  options?: OnboardingQuestionOption[];
+  options?: OnboardingQuestionOptionInput[];
 }
 
 export interface OnboardingNoteReadingChoice {
@@ -80,6 +89,8 @@ export interface OnboardingWindowAnswers {
 }
 
 export interface OnboardingNoteReadingAnswers {
+  /** The note-reading leg is always on; the server rejects a payload without it. */
+  enabled: boolean;
   mode: OnboardingNoteReadingMode;
 }
 

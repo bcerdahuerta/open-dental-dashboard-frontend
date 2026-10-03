@@ -10,7 +10,7 @@ const emit = defineEmits<{ 'update:modelValue': [mode: OnboardingNoteReadingMode
     <h3 class="text-h6 mb-2">{{ props.noteReading.title }}</h3>
     <p class="text-body-2 text-medium-emphasis mb-3">{{ props.noteReading.summary }}</p>
     <p class="text-body-2 mb-2">{{ props.noteReading.format_intro }}</p>
-    <pre data-test="note-reading-example" class="pa-3 bg-lightsecondary rounded text-body-2 mb-2">{{ props.noteReading.example }}</pre>
+    <pre data-test="note-reading-example" class="pa-3 bg-lightsecondary rounded text-body-2 mb-2 text-pre-wrap text-break">{{ props.noteReading.example }}</pre>
     <p class="text-body-2 mb-2">{{ props.noteReading.format_outro }}</p>
     <p class="text-caption text-medium-emphasis mb-3">{{ props.noteReading.limits }}</p>
     <v-radio-group
