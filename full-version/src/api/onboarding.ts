@@ -1,6 +1,11 @@
 import { fetchWrapper } from '@/utils/helpers/fetch-wrapper';
 import { OnboardingPublicHttpError } from '@/types/onboarding';
 import type {
+  ExtractionSetupInvite,
+  ExtractionSetupList,
+  ExtractionSetupProgress,
+  ExtractionSetupQuestions,
+  ExtractionSetupSaveRequest,
   OnboardingDiagnostic,
   OnboardingDraftRequest,
   OnboardingDraftResult,
@@ -20,7 +25,7 @@ const baseUrl = import.meta.env.VITE_API_URL;
  * The invite token travels in the JSON body only; a fragment-fragment link never
  * puts it in a path, query, or cookie.
  */
-async function publicPost<T>(path: string, body: object): Promise<T> {
+async function publicPost<T>(path: string, body: { token: string }): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, {
     method: 'POST',
     credentials: 'omit',
@@ -43,6 +48,35 @@ async function publicPost<T>(path: string, body: object): Promise<T> {
 }
 
 export const onboardingApi = {
+  /** Authenticated client write; server fixes the page size at 25. */
+  listSetups(clientId: string, afterSetupId?: string) {
+    return fetchWrapper.post(
+      `${baseUrl}/workflow-builder/onboarding-invites/setup/list`,
+      { client_id: clientId, ...(afterSetupId ? { after_setup_id: afterSetupId } : {}) },
+      { responseMode: 'metadata' }
+    ) as Promise<OnboardingResponse<ExtractionSetupList>>;
+  },
+
+  mintSetup(clientId: string, renewSetupId?: string) {
+    return fetchWrapper.post(
+      `${baseUrl}/workflow-builder/onboarding-invites/setup/mint`,
+      { client_id: clientId, ...(renewSetupId ? { renew_setup_id: renewSetupId } : {}) },
+      { responseMode: 'metadata' }
+    ) as Promise<OnboardingResponse<ExtractionSetupInvite>>;
+  },
+
+  readSetup(token: string) {
+    return publicPost<ExtractionSetupProgress>('/workflow-builder/onboarding-invites/setup/read', { token });
+  },
+
+  fetchSetupQuestions(token: string) {
+    return publicPost<ExtractionSetupQuestions>('/workflow-builder/onboarding-invites/setup/questions', { token });
+  },
+
+  saveSetup(request: ExtractionSetupSaveRequest) {
+    return publicPost<ExtractionSetupProgress>('/workflow-builder/onboarding-invites/setup/save', request);
+  },
+
   /** Authenticated (JWT + client write): admit one DRAFT-only onboarding artifact. */
   mintDraft(clientId: string, request: OnboardingDraftRequest, signal?: AbortSignal) {
     return fetchWrapper.post(`${baseUrl}/workflow-builder/clients/${clientId}/onboarding-draft/draft`, request, {

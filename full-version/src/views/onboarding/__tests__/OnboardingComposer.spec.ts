@@ -12,6 +12,8 @@ import type { OnboardingDraftProjection } from '@/types/onboarding';
 const api = vi.hoisted(() => ({
   mintDraft: vi.fn(),
   mintInvite: vi.fn(),
+  mintSetup: vi.fn(),
+  listSetups: vi.fn(),
   redeem: vi.fn(),
   submit: vi.fn(),
   getSopVersion: vi.fn()
@@ -122,14 +124,15 @@ async function selectClient(wrapper: Awaited<ReturnType<typeof mountComposer>>) 
 describe('Onboarding composer', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    api.listSetups.mockResolvedValue(response({ setups: [], has_more: false, next_after_setup_id: null }));
     localStorage.clear();
     sessionStorage.clear();
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => jsonResponse(clientFixtures))
+      vi.fn(async () => jsonResponse([...clientFixtures, { ...clientFixtures[0], id: 'client-b', client_name: 'Client B' }]))
     );
-    useClientStore().clients = clientFixtures;
+    useClientStore().clients = [...clientFixtures, { ...clientFixtures[0], id: 'client-b', client_name: 'Client B' }];
   });
 
   it('T01 renders the closed client vocabulary and never the internal authoring names', async () => {
@@ -181,21 +184,112 @@ describe('Onboarding composer', () => {
   });
 
   it('T03 mints the short rescue link with the token only after the fragment', async () => {
-    api.mintInvite.mockResolvedValue(
-      response({ link: 'https://api.example.test/onboarding-invite#invite-token-9', expires_at: '2026-09-24T00:00:00Z', expires_days: 7 })
+    api.mintSetup.mockResolvedValue(
+      response({ setup_id: 'setup-a', link: 'https://api.example.test/onboarding-invite#invite-token-9', expires_at: '2026-09-24T00:00:00Z', expires_days: 7 })
     );
     const wrapper = await mountComposer();
     await selectClient(wrapper);
-    await wrapper.get('[data-test="composer-mint-invite"]').trigger('click');
+    await wrapper.get('[data-test="composer-new-setup"]').trigger('click');
     await flushPromises();
 
     const link = wrapper.get('[data-test="composer-invite-link"]').text();
     expect(link).toBe(`${window.location.origin}/o/client-a#invite-token-9`);
-    expect(JSON.stringify(api.mintInvite.mock.calls)).not.toContain('invite-token-9');
+    expect(api.mintSetup).toHaveBeenCalledWith('client-a', undefined);
+    expect(api.mintInvite).not.toHaveBeenCalled();
+    expect(JSON.stringify(api.mintSetup.mock.calls)).not.toContain('invite-token-9');
     expect(JSON.stringify(api.mintDraft.mock.calls)).not.toContain('invite-token-9');
     expect(window.location.href).not.toContain('invite-token-9');
     expect(JSON.stringify(Object.entries(localStorage))).not.toContain('invite-token-9');
     expect(JSON.stringify(Object.entries(sessionStorage))).not.toContain('invite-token-9');
+  });
+
+  it('lists metadata with no latest selection and renews only an explicit selection after returning', async () => {
+    api.listSetups.mockResolvedValue(response({ setups: [{ setup_id: 'setup-old', revision: 4, created_at: '2026-01-02T12:00:00Z', updated_at: '2026-02-03T13:00:00Z' }], has_more: false, next_after_setup_id: null }));
+    api.mintSetup.mockResolvedValue(response({ setup_id: 'setup-old', link: 'https://example.test/#synthetic-token', expires_at: '2026-09-24', expires_days: 7 }));
+    const first = await mountComposer(); await selectClient(first); first.unmount();
+    const wrapper = await mountComposer(); await selectClient(wrapper);
+    expect(api.listSetups).toHaveBeenCalledWith('client-a', undefined);
+    expect(wrapper.text()).not.toContain('setup-old');
+    expect(wrapper.text()).toContain('2026');
+    expect((wrapper.get('[data-test="composer-saved-setup"]').element as HTMLSelectElement).value).toBe('');
+    expect(wrapper.get('[data-test="composer-renew-setup"]').attributes('disabled')).toBeDefined();
+    expect(api.mintSetup).not.toHaveBeenCalled();
+    await wrapper.get('[data-test="composer-saved-setup"]').setValue('setup-old');
+    await wrapper.get('[data-test="composer-renew-setup"]').trigger('click'); await flushPromises();
+    expect(api.mintSetup).toHaveBeenCalledWith('client-a', 'setup-old');
+    expect(api.submit).not.toHaveBeenCalled();
+  });
+
+  it('loads further fixed-size pages only on request and clears selection on refresh', async () => {
+    api.listSetups.mockResolvedValueOnce(response({ setups: Array.from({ length: 25 }, (_, index) => ({ setup_id: index === 24 ? 'setup-first' : `setup-page-${index}`, revision: 1, created_at: '2026-01-01', updated_at: '2026-01-01' })), has_more: true, next_after_setup_id: 'setup-first' }))
+      .mockResolvedValueOnce(response({ setups: [{ setup_id: 'setup-second', revision: 2, created_at: '2026-01-02', updated_at: '2026-01-03' }], has_more: false, next_after_setup_id: null }));
+    const wrapper = await mountComposer(); await selectClient(wrapper);
+    expect(api.listSetups).toHaveBeenCalledTimes(1);
+    await wrapper.get('[data-test="composer-setups-more"]').trigger('click'); await flushPromises();
+    expect(api.listSetups.mock.calls[1]).toEqual(['client-a', 'setup-first']);
+    expect(wrapper.get('[data-test="composer-saved-setup"]').findAll('option')).toHaveLength(27);
+    await wrapper.get('[data-test="composer-saved-setup"]').setValue('setup-second');
+    await wrapper.get('[data-test="composer-setups-refresh"]').trigger('click'); await flushPromises();
+    expect(wrapper.get('[data-test="composer-renew-setup"]').attributes('disabled')).toBeDefined();
+    expect(api.listSetups.mock.calls[2]).toEqual(['client-a', undefined]);
+  });
+
+  it('ignores stale pages and clears old identities/links across clients, including foreign selection', async () => {
+    let resolve!: (value: unknown) => void;
+    api.listSetups.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    const wrapper = await mountComposer(); await selectClient(wrapper);
+    await wrapper.get('[data-test="composer-client"]').setValue('client-b'); await flushPromises();
+    expect(api.listSetups.mock.calls[1]).toEqual(['client-b', undefined]);
+    resolve(response({ setups: [{ setup_id: 'stale', revision: 1, created_at: '2026-01-01', updated_at: '2026-01-01' }], has_more: true, next_after_setup_id: 'stale' })); await flushPromises();
+    expect(wrapper.get('[data-test="composer-saved-setup"]').findAll('option')).toHaveLength(1);
+    const select = wrapper.get('[data-test="composer-saved-setup"]');
+    const forged = document.createElement('option'); forged.value = 'foreign'; select.element.appendChild(forged);
+    await select.setValue('foreign');
+    await wrapper.get('[data-test="composer-renew-setup"]').trigger('click'); await flushPromises();
+    expect(api.mintSetup).not.toHaveBeenCalled();
+  });
+
+  it('starting new setup is distinct from renewal and never sends the selected setup ID', async () => {
+    api.listSetups.mockResolvedValue(response({ setups: [{ setup_id: 'existing', revision: 2, created_at: '2026-01-01', updated_at: '2026-01-01' }], has_more: false, next_after_setup_id: null }));
+    api.mintSetup.mockResolvedValue(response({ setup_id: 'new', link: 'https://example.test/#synthetic-token', expires_at: '2026-09-24', expires_days: 7 }));
+    const wrapper = await mountComposer(); await selectClient(wrapper);
+    await wrapper.get('[data-test="composer-saved-setup"]').setValue('existing');
+    await wrapper.get('[data-test="composer-new-setup"]').trigger('click'); await flushPromises();
+    expect(api.mintSetup).toHaveBeenCalledWith('client-a', undefined);
+    expect((wrapper.get('[data-test="composer-saved-setup"]').element as HTMLSelectElement).value).toBe('existing');
+  });
+
+  it('ignores a minted link returning after the operator switches clients', async () => {
+    let resolve!: (value: unknown) => void;
+    api.mintSetup.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    const wrapper = await mountComposer(); await selectClient(wrapper);
+    await wrapper.get('[data-test="composer-new-setup"]').trigger('click'); await flushPromises();
+    await wrapper.get('[data-test="composer-client"]').setValue('client-b'); await flushPromises();
+    resolve(response({ setup_id: 'setup-a', link: 'https://example.test/#stale-token', expires_at: '2026-01-01', expires_days: 7 })); await flushPromises();
+    expect(wrapper.find('[data-test="composer-invite-link"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="composer-renew-setup"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.text()).not.toContain('stale-token');
+  });
+
+  it('shows list failure without fake metadata and retries only on explicit refresh', async () => {
+    api.listSetups.mockRejectedValueOnce(new Error('offline'));
+    const wrapper = await mountComposer(); await selectClient(wrapper);
+    expect(wrapper.get('[data-test="composer-setups-error"]').text()).toContain('could not be loaded');
+    expect(wrapper.get('[data-test="composer-renew-setup"]').attributes('disabled')).toBeDefined();
+    expect(api.listSetups).toHaveBeenCalledTimes(1);
+    await wrapper.get('[data-test="composer-setups-refresh"]').trigger('click'); await flushPromises();
+    expect(api.listSetups).toHaveBeenCalledTimes(2);
+    expect(wrapper.find('[data-test="composer-setups-error"]').exists()).toBe(false);
+  });
+
+  it('list transport sends only client and optional cursor with no invented page-size/progress fields', async () => {
+    const actual = await vi.importActual<typeof import('@/api/onboarding')>('@/api/onboarding');
+    const { fetchWrapper } = await import('@/utils/helpers/fetch-wrapper');
+    const post = vi.spyOn(fetchWrapper, 'post').mockResolvedValue(response({ setups: [], has_more: false, next_after_setup_id: null }));
+    await actual.onboardingApi.listSetups('client-a'); await actual.onboardingApi.listSetups('client-a', 'setup-cursor');
+    expect(post.mock.calls[0]).toEqual([expect.stringContaining('/workflow-builder/onboarding-invites/setup/list'), { client_id: 'client-a' }, { responseMode: 'metadata' }]);
+    expect(post.mock.calls[1][1]).toEqual({ client_id: 'client-a', after_setup_id: 'setup-cursor' });
+    post.mockRestore();
   });
 
   it('T12 blocks a contradictory include and exclude with a visible message', async () => {

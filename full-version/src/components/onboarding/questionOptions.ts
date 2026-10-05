@@ -10,6 +10,7 @@ export interface NormalizedQuestionOption {
   value: unknown;
   /** Client-facing label; always a non-empty plain string. */
   label: string;
+  summary?: string;
 }
 
 function plainText(value: unknown): string {
@@ -29,9 +30,9 @@ export function normalizeQuestionOptions(options: unknown): NormalizedQuestionOp
   return options
     .map((option) => {
       if (option !== null && typeof option === 'object' && !Array.isArray(option)) {
-        const record = option as { value?: unknown; label?: unknown };
+        const record = option as { value?: unknown; label?: unknown; summary?: unknown };
         const label = typeof record.label === 'string' && record.label.trim() ? record.label : plainText(record.value);
-        return { value: record.value, label };
+        return { value: record.value, label, ...(typeof record.summary === 'string' ? { summary: record.summary } : {}) };
       }
       return { value: option, label: plainText(option) };
     })

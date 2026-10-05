@@ -173,6 +173,7 @@ export interface OnboardingInviteLink {
 
 /** Contract 3: public redeem echo, closed vocabulary plus remaining lifetime. */
 export interface OnboardingRedemption {
+  setup_id?: string;
   client_id: string;
   purpose: string;
   expires_at: string;
@@ -218,6 +219,53 @@ export interface OnboardingSopProjection {
     created_at: string | null;
     receipt_created_at: string | null;
   };
+}
+
+export type ExtractionLastCheckSource = 'PLAN_VERIFICATION' | 'PATIENT_VERIFICATION' | 'FORM_UPLOAD_DATE';
+export type ExtractionWindowSettings = Partial<OnboardingWindowAnswers> & { policy_version?: string };
+export type ExtractionNoteSettings = Partial<OnboardingNoteReadingAnswers> & { note_reading_version?: string };
+export interface ExtractionInsuranceSettings {
+  last_check_source?: ExtractionLastCheckSource;
+  eligibility_only_carriers?: string[];
+}
+/** Mutable proposed settings, never a canonical submitted profile. */
+export interface ExtractionSettings {
+  practice_refs?: string[];
+  window?: ExtractionWindowSettings;
+  insurance?: ExtractionInsuranceSettings;
+  note_reading?: ExtractionNoteSettings;
+}
+export interface ExtractionSetupProgress {
+  setup_id: string;
+  client_id: string;
+  revision: number;
+  settings: ExtractionSettings;
+  created_at: string;
+  updated_at: string;
+}
+export interface ExtractionSetupQuestions extends Omit<OnboardingQuestionsResponse, 'activation'> {
+  setup_id: string;
+  client_name: string;
+  diagnostics: OnboardingDiagnostic[];
+  save_notice: string;
+}
+export interface ExtractionSetupInvite extends OnboardingInviteLink { setup_id: string }
+/** Authenticated metadata only: never settings or a public capability. */
+export interface ExtractionSetupMetadata {
+  setup_id: string;
+  revision: number;
+  created_at: string;
+  updated_at: string;
+}
+export interface ExtractionSetupList {
+  setups: ExtractionSetupMetadata[];
+  has_more: boolean;
+  next_after_setup_id: string | null;
+}
+export interface ExtractionSetupSaveRequest {
+  token: string;
+  expected_revision: number;
+  settings: ExtractionSettings;
 }
 
 /** Typed public rejection: closed code plus the server's client-facing message. */

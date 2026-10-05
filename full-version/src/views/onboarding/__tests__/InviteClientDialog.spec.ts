@@ -8,6 +8,7 @@ import { WorkflowBuilderHttpError } from '@/utils/helpers/fetch-wrapper';
 const api = vi.hoisted(() => ({
   mintDraft: vi.fn(),
   mintInvite: vi.fn(),
+  mintSetup: vi.fn(),
   redeem: vi.fn(),
   submit: vi.fn(),
   getSopVersion: vi.fn()
@@ -54,7 +55,7 @@ function mountDialog() {
 
 function inviteResponse(token: string, expiresDays = 7) {
   return {
-    data: { link: `https://api.example.test/onboarding-invite#${token}`, expires_at: '2026-09-24T00:00:00Z', expires_days: expiresDays },
+    data: { setup_id: 'setup-new', link: `https://api.example.test/onboarding-invite#${token}`, expires_at: '2026-09-24T00:00:00Z', expires_days: expiresDays },
     status: 201,
     etag: null,
     headers: new Headers()
@@ -72,7 +73,7 @@ async function submitInvite(wrapper: Dialog): Promise<void> {
 
 async function inviteOnce(wrapper: Dialog, token = TOKEN): Promise<void> {
   clientStore.createClient.mockResolvedValue({ id: 'client-new', client_name: 'Clinic One' });
-  api.mintInvite.mockResolvedValue(inviteResponse(token));
+  api.mintSetup.mockResolvedValue(inviteResponse(token));
   await fillInvite(wrapper);
   await submitInvite(wrapper);
 }
@@ -120,7 +121,7 @@ describe('Invite client dialog', () => {
     expect(wrapper.get('[data-test="invite-submit"]').attributes('disabled')).toBeDefined();
     await submitInvite(wrapper);
     expect(clientStore.createClient).not.toHaveBeenCalled();
-    expect(api.mintInvite).not.toHaveBeenCalled();
+    expect(api.mintSetup).not.toHaveBeenCalled();
 
     await wrapper.get('[data-test="invite-name"]').setValue('   ');
     expect(wrapper.get('[data-test="invite-name-message"]').text()).toContain('Enter the client name');
@@ -137,10 +138,11 @@ describe('Invite client dialog', () => {
 
     expect(clientStore.createClient).toHaveBeenCalledTimes(1);
     expect(clientStore.createClient).toHaveBeenCalledWith(SHELL_PAYLOAD);
-    expect(api.mintInvite).toHaveBeenCalledTimes(1);
-    expect(api.mintInvite.mock.calls[0][0]).toBe('client-new');
-    expect(clientStore.createClient.mock.invocationCallOrder[0]).toBeLessThan(api.mintInvite.mock.invocationCallOrder[0]);
-    expect(JSON.stringify(api.mintInvite.mock.calls)).not.toContain('Clinic One');
+    expect(api.mintSetup).toHaveBeenCalledTimes(1);
+    expect(api.mintSetup).toHaveBeenCalledWith('client-new');
+    expect(api.mintInvite).not.toHaveBeenCalled();
+    expect(clientStore.createClient.mock.invocationCallOrder[0]).toBeLessThan(api.mintSetup.mock.invocationCallOrder[0]);
+    expect(JSON.stringify(api.mintSetup.mock.calls)).not.toContain('Clinic One');
     expect(wrapper.get('[data-test="invite-link"]').text()).toContain('/o/client-new#');
   });
 
@@ -156,7 +158,7 @@ describe('Invite client dialog', () => {
     expect(link.split('#')[1]).toBe(TOKEN);
     expect(wrapper.get('[data-test="invite-expiry"]').text()).toContain('7 days');
     expect(wrapper.findAll('[data-test="invite-preview"] li')).toHaveLength(3);
-    expect(wrapper.get('[data-test="invite-ready"]').text()).toContain('Send it to the contact so they can define the workflow');
+    expect(wrapper.get('[data-test="invite-ready"]').text()).toContain('set up data extraction');
 
     await wrapper.get('[data-test="invite-copy"]').trigger('click');
     await flushPromises();
@@ -167,13 +169,13 @@ describe('Invite client dialog', () => {
     expect(window.location.pathname).not.toContain(TOKEN);
     expect(JSON.stringify([...Object.entries(localStorage), ...Object.entries(sessionStorage)])).not.toContain(TOKEN);
     expect(JSON.stringify(clientStore.createClient.mock.calls)).not.toContain(TOKEN);
-    expect(JSON.stringify(api.mintInvite.mock.calls)).not.toContain(TOKEN);
+    expect(JSON.stringify(api.mintSetup.mock.calls)).not.toContain(TOKEN);
     expect(JSON.stringify(consoleSpies.map((spy) => spy.mock.calls))).not.toContain(TOKEN);
   });
 
   it('T05 renders the closed diagnostic, keeps the entries and reuses the shell when minting fails', async () => {
     clientStore.createClient.mockResolvedValue({ id: 'client-new', client_name: 'Clinic One' });
-    api.mintInvite.mockRejectedValue(
+    api.mintSetup.mockRejectedValue(
       new WorkflowBuilderHttpError(404, { status: 'error', message: 'Resource not found' }, null, new Headers(), 'Resource not found')
     );
     const wrapper = mountDialog();
@@ -186,10 +188,10 @@ describe('Invite client dialog', () => {
     expect(textValue(wrapper, '[data-test="invite-name"]')).toBe('Clinic One');
     expect(clientStore.createClient).toHaveBeenCalledTimes(1);
 
-    api.mintInvite.mockResolvedValue(inviteResponse(TOKEN));
+    api.mintSetup.mockResolvedValue(inviteResponse(TOKEN));
     await submitInvite(wrapper);
     expect(clientStore.createClient).toHaveBeenCalledTimes(1);
-    expect(api.mintInvite).toHaveBeenCalledTimes(2);
+    expect(api.mintSetup).toHaveBeenCalledTimes(2);
     expect(wrapper.get('[data-test="invite-link"]').text()).toContain(`#${TOKEN}`);
   });
 
@@ -202,13 +204,13 @@ describe('Invite client dialog', () => {
     expect(wrapper.get('[data-test="invite-error"]').text()).toContain('could not be created');
     expect(wrapper.text()).not.toContain('Must be one of');
     expect(wrapper.text()).not.toContain('Lunna');
-    expect(api.mintInvite).not.toHaveBeenCalled();
+    expect(api.mintSetup).not.toHaveBeenCalled();
     expect(wrapper.find('[data-test="invite-link"]').exists()).toBe(false);
   });
 
   it('T09 reports the created client and the next step when the invite link is blocked', async () => {
     clientStore.createClient.mockResolvedValue({ id: 'client-new', client_name: 'Clinic One' });
-    api.mintInvite.mockRejectedValue(
+    api.mintSetup.mockRejectedValue(
       new WorkflowBuilderHttpError(
         409,
         { status: 'error', message: 'provider key missing', diagnostics: { code: 'od_customer_key_missing' } },
@@ -230,17 +232,17 @@ describe('Invite client dialog', () => {
     expect(wrapper.find('[data-test="invite-link"]').exists()).toBe(false);
     expect(textValue(wrapper, '[data-test="invite-name"]')).toBe('Clinic One');
 
-    api.mintInvite.mockResolvedValue(inviteResponse(TOKEN));
+    api.mintSetup.mockResolvedValue(inviteResponse(TOKEN));
     await submitInvite(wrapper);
     expect(clientStore.createClient).toHaveBeenCalledTimes(1);
-    expect(api.mintInvite).toHaveBeenCalledTimes(2);
-    expect(api.mintInvite.mock.calls[1][0]).toBe('client-new');
+    expect(api.mintSetup).toHaveBeenCalledTimes(2);
+    expect(api.mintSetup.mock.calls[1][0]).toBe('client-new');
     expect(wrapper.get('[data-test="invite-link"]').text()).toContain(`#${TOKEN}`);
   });
 
   it('T11 shows the server-carried reason when a 409 blocks the invite', async () => {
     clientStore.createClient.mockResolvedValue({ id: 'client-new', client_name: 'Clinic One' });
-    api.mintInvite.mockRejectedValue(
+    api.mintSetup.mockRejectedValue(
       new WorkflowBuilderHttpError(
         409,
         {
@@ -286,6 +288,19 @@ describe('Invite client dialog', () => {
     expect(message).not.toContain('CUSTOMER_KEY_VERIFIED');
     expect(message).not.toContain('409');
     expect(wrapper.find('[data-test="invite-link"]').exists()).toBe(false);
+  });
+
+  it('does not show a fake link for malformed mint success and retries without duplicating the client', async () => {
+    clientStore.createClient.mockResolvedValue({ id: 'client-new', client_name: 'Clinic One' });
+    api.mintSetup.mockResolvedValue({ data: { link: 'https://example.test/#token-without-setup' } });
+    const wrapper = mountDialog(); await fillInvite(wrapper); await submitInvite(wrapper);
+    expect(wrapper.get('[data-test="invite-error"]').text()).toContain('could not be created');
+    expect(wrapper.find('[data-test="invite-link"]').exists()).toBe(false);
+    api.mintSetup.mockResolvedValue(inviteResponse(TOKEN)); await submitInvite(wrapper);
+    expect(clientStore.createClient).toHaveBeenCalledTimes(1);
+    expect(api.mintSetup).toHaveBeenCalledTimes(2);
+    expect(wrapper.emitted('client-created')).toEqual([['client-new']]);
+    expect(api.submit).not.toHaveBeenCalled();
   });
 
   it('T10 keeps every state of the dialog copy free of internal authoring names', async () => {

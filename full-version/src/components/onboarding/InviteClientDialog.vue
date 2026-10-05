@@ -102,9 +102,10 @@ async function submit(): Promise<void> {
       createdClientId.value = clientId;
       emit('client-created', clientId);
     }
-    const response = await onboardingApi.mintInvite(clientId);
+    const response = await onboardingApi.mintSetup(clientId);
     if (requestEpoch !== epoch) return;
     const token = response.data.link.split('#')[1] ?? '';
+    if (!response.data.setup_id || !token) throw new Error('Invalid extraction setup link');
     inviteLink.value = `${window.location.origin}${INVITE_BASE_PATH}o/${clientId}#${token}`;
     expiresInDays.value = response.data.expires_days;
     copyState.value = 'idle';
@@ -135,14 +136,14 @@ async function copyLink(): Promise<void> {
       <v-card-text>
         <template v-if="inviteLink">
           <v-alert data-test="invite-ready" type="success" variant="tonal">
-            The invite link is ready. Send it to the contact so they can define the workflow.
+            The setup link is ready. Send it to the contact so they can set up data extraction.
           </v-alert>
           <div class="d-flex flex-wrap align-center ga-2 mt-4">
-            <code class="text-body-2" data-test="invite-link">{{ inviteLink }}</code>
+            <code class="text-body-2 text-break" data-test="invite-link">{{ inviteLink }}</code>
             <v-btn data-test="invite-copy" size="small" color="primary" variant="tonal" @click="copyLink">Copy link</v-btn>
           </div>
           <div class="text-body-2 mt-2" data-test="invite-expiry">
-            The link works for {{ expiresInDays }} days. After it expires, create a new one.
+            The link works for {{ expiresInDays }} days. After it expires, select this saved setup in the composer and renew its link to preserve progress.
           </div>
           <v-alert v-if="copyState === 'copied'" data-test="invite-copied" type="info" variant="tonal" class="mt-3">
             Link copied. Paste it in the message you send to the contact.
@@ -153,8 +154,8 @@ async function copyLink(): Promise<void> {
           <div class="text-subtitle-2 mt-4">What the contact will do</div>
           <ol class="text-body-2 pl-5" data-test="invite-preview">
             <li>The contact opens the link and confirms the client.</li>
-            <li>The contact chooses how the verifications work.</li>
-            <li>The contact sends the choices back for your review.</li>
+            <li>The contact chooses the practices, schedule, and insurance information sources.</li>
+            <li>The contact saves extraction settings. This does not submit the full setup or start services.</li>
           </ol>
         </template>
         <template v-else>
