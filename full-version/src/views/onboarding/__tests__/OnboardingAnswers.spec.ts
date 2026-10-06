@@ -257,4 +257,118 @@ describe('Guided extraction setup', () => {
     expect(JSON.stringify(useOnboardingAnswersStore().$state)).not.toContain(TOKEN);
     storage.mockRestore(); log.mockRestore();
   });
+
+  const unavailableMessage = 'Your save could not be confirmed. Your entries are still on this page. Please try again later.';
+  const undiagnosedFailures = [
+    { status: 500, body: JSON.stringify({ status: 'error', data: null, message: 'Internal server error' }) },
+    { status: 502, body: '' },
+    { status: 503, body: '<html><body>Service unavailable</body></html>' }
+  ];
+
+  it.each(undiagnosedFailures)(
+    'save transport classifies undiagnosed $status as service unavailable without replay',
+    async ({ status, body }) => {
+      // importActual bypasses the store's hoisted API mock without changing module isolation.
+      const actual = await vi.importActual<typeof import('@/api/onboarding')>('@/api/onboarding');
+      const transport = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, { status }));
+      const { fetchWrapper } = await import('@/utils/helpers/fetch-wrapper');
+      const post = vi.spyOn(fetchWrapper, 'post');
+      try {
+        await expect(
+          actual.onboardingApi.saveSetup({ token: TOKEN, expected_revision: 3, settings: { practice_refs: ['clinic-a:2'] } })
+        ).rejects.toMatchObject({
+          name: 'OnboardingPublicHttpError',
+          status,
+          code: 'ONBOARDING_SERVICE_UNAVAILABLE',
+          message: unavailableMessage
+        });
+        expect(transport).toHaveBeenCalledTimes(1);
+        expect(String(transport.mock.calls[0][0])).toContain('/onboarding-invites/setup/save');
+        expect(post).not.toHaveBeenCalled();
+      } finally {
+        transport.mockRestore();
+        post.mockRestore();
+      }
+    }
+  );
+
+  it.each([
+    { status: 401, code: 'INVITE_INVALID', message: 'This onboarding link cannot be used.' },
+    { status: 403, code: 'INVITE_SCOPE_MISMATCH', message: 'This link does not allow this setup.' },
+    { status: 409, code: 'EXTRACTION_SETUP_REVISION_CONFLICT', message: 'This setup changed. Reload it before saving again.' },
+    { status: 422, code: 'EXTRACTION_SETUP_SELECTION_INVALID', message: 'Choose practices and insurers offered for this setup.' },
+    { status: 503, code: 'EXTRACTION_SETUP_STORAGE_UNAVAILABLE', message: unavailableMessage }
+  ])('save transport preserves explicit $status diagnostic $code', async ({ status, code, message }) => {
+    const actual = await vi.importActual<typeof import('@/api/onboarding')>('@/api/onboarding');
+    const transport = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: 'error',
+          data: { diagnostics: [{ code, subject_kind: 'extraction_setup', message }] }
+        }),
+        { status }
+      )
+    );
+    try {
+      await expect(actual.onboardingApi.saveSetup({ token: TOKEN, expected_revision: 3, settings: {} })).rejects.toMatchObject({
+        name: 'OnboardingPublicHttpError',
+        status,
+        code,
+        message
+      });
+      expect(transport).toHaveBeenCalledTimes(1);
+      expect(String(transport.mock.calls[0][0])).toContain('/onboarding-invites/setup/save');
+    } finally {
+      transport.mockRestore();
+    }
+  });
+
+  it.each(undiagnosedFailures)(
+    'failed $status save retains entries and revision without renewal or automatic recovery',
+    async ({ status, body }) => {
+      const actual = await vi.importActual<typeof import('@/api/onboarding')>('@/api/onboarding');
+      const { wrapper } = await mountPage();
+      const store = useOnboardingAnswersStore();
+      store.setPractices(['clinic-a:2']);
+      store.setWindow('look_ahead_days', 12);
+      store.setWindow('timezone', 'America/Chicago');
+      store.setInsurance('last_check_source', 'PATIENT_VERIFICATION');
+      store.setCarriers(['Example Carrier B']);
+      store.setNoteReading('enabled', true);
+      const settings = JSON.parse(JSON.stringify(store.settings));
+      const previousProgress = JSON.parse(JSON.stringify(store.progress));
+      api.saveSetup.mockImplementation(actual.onboardingApi.saveSetup);
+      const transport = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(body, { status }));
+      const { fetchWrapper } = await import('@/utils/helpers/fetch-wrapper');
+      const post = vi.spyOn(fetchWrapper, 'post');
+      try {
+        await store.save();
+        await flushPromises();
+        expect(store.settings).toEqual(settings);
+        expect(store.progress).toEqual(previousProgress);
+        expect(store.progress?.revision).toBe(3);
+        expect(store.saved).toBe(false);
+        expect(store.saving).toBe(false);
+        expect(store.conflict).toBe(false);
+        expect(store.error).toBe(unavailableMessage);
+        expect(wrapper.get('[data-test="rescue-error"]').text()).toBe(unavailableMessage);
+        expect(wrapper.find('[data-test="renewal-needed"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="extraction-saved"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="setup-reload"]').exists()).toBe(false);
+        expect(wrapper.text()).not.toMatch(/cannot be used|new link|renewed/i);
+        expect(api.saveSetup).toHaveBeenCalledTimes(1);
+        expect(api.saveSetup).toHaveBeenCalledWith({ token: TOKEN, expected_revision: 3, settings });
+        expect(transport).toHaveBeenCalledTimes(1);
+        expect(String(transport.mock.calls[0][0])).toContain('/onboarding-invites/setup/save');
+        expect(api.readSetup).toHaveBeenCalledTimes(1);
+        expect(api.fetchSetupQuestions).toHaveBeenCalledTimes(1);
+        expect(api.redeem).toHaveBeenCalledTimes(1);
+        expect(api.submit).not.toHaveBeenCalled();
+        expect(post).not.toHaveBeenCalled();
+      } finally {
+        transport.mockRestore();
+        post.mockRestore();
+      }
+    }
+  );
 });

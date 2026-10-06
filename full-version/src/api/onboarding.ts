@@ -38,6 +38,15 @@ async function publicPost<T>(path: string, body: { token: string }): Promise<T> 
   } | null;
   const diagnostic = payload?.data?.diagnostics?.[0];
   if (!response.ok || payload?.status === 'error') {
+    if (response.status >= 500 && response.status < 600 && !diagnostic?.code) {
+      throw new OnboardingPublicHttpError(
+        response.status,
+        'ONBOARDING_SERVICE_UNAVAILABLE',
+        path === '/workflow-builder/onboarding-invites/setup/save'
+          ? 'Your save could not be confirmed. Your entries are still on this page. Please try again later.'
+          : 'We could not complete this request. Please try again later.'
+      );
+    }
     throw new OnboardingPublicHttpError(
       response.status,
       diagnostic?.code ?? 'INVITE_INVALID',
