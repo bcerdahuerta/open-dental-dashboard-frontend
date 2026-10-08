@@ -32,7 +32,6 @@ router.beforeEach(async (to, from, next) => {
   const getLandingPage = () => {
     if (!auth.user) return '/login';
     if (auth.hasProduct('writeback')) return '/dashboard/default';
-    if (auth.hasProduct('credit')) return '/credit';
     if (auth.hasProduct('extraction')) return '/main/extraction';
     return '/login'; // no products — shouldn't happen
   };

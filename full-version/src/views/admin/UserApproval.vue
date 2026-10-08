@@ -47,7 +47,6 @@ const snackbarColor = ref('success');
 
 // Available products for checkboxes
 const availableProducts = [
-  { value: 'credit', label: 'Credit' },
   { value: 'writeback', label: 'Insurance Verification' },
   { value: 'extraction', label: 'Extraction' }
 ];

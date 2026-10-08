@@ -4,7 +4,7 @@
 > **Built on**: Berry Vuetify Admin Template (v1.6.0)
 > **TypeScript**: `vue-tsc --noEmit` passes with 0 errors
 
-Dashboard UI for managing insurance verification writebacks and patient credit identification across multi-tenant dental practices.
+Dashboard UI for managing insurance verification writebacks and extraction across multi-tenant dental practices.
 
 > This README is the frontend entrypoint for local setup, architecture notes, and contributor workflow.
 > For the cross-repo architecture overview, see [`architecture_documentation.md`](./architecture_documentation.md).
@@ -15,8 +15,6 @@ Dashboard UI for managing insurance verification writebacks and patient credit i
 
 - **Operations Hub** — KPI cards, job status overview, recent activity feed
 - **Writeback Management** — Job queue with clinic-wise view, live activity monitoring, circuit breaker status
-- **Credit Dashboard** — Business intelligence with 4 KPI cards, aging/disposition/exception/type charts
-- **Extraction Robot Monitor** — `/main/extraction/robots` monitor with per-workstation **Deregister** action for admin/operator roles
 - **Admin Console** — Clients, clinics, users, pipelines, templates, system logs
 - **Client Automations Panel** — Internal client automation rule/run summaries embedded in Client Management without patient-level detail
 - **Profile Resolution** — Resolution hierarchy management with simulator, base profiles, client assignments, and clinic overrides
@@ -24,6 +22,10 @@ Dashboard UI for managing insurance verification writebacks and patient credit i
 - **Clinic Configuration** — Full config editor with tabs for credentials, benefit/frequency/age-limit mappings, fee schedules
 - **RBAC** — Role-aware navigation and actions (Superuser, Admin, Operator, Viewer)
 - **JWT Auth** — Access/refresh token flow with automatic refresh on 401
+
+### Credit and robot monitor source retirement
+
+The retirement candidate removes credit and robot-monitor navigation, routes, and their exclusive frontend stores, types, views, and implementation tests. This source retirement has **not been deployed**. Backend financial data is retained; this does not claim complete cleanup of dormant backend credit or robot code.
 
 ## Tech Stack
 
@@ -141,13 +143,11 @@ full-version/src/
 │   ├── clients.ts                 # Client CRUD operations
 │   ├── clientAutomations.ts       # Internal automation rule/run summaries
 │   ├── clinics.ts                 # Clinic CRUD + config tabs + enrollment
-│   ├── credit.ts                  # Credit module (summary, runs, records, clinics)
 │   ├── writeback.ts               # Job queue, stats, circuit breaker, live feed
 │   ├── profileResolution.ts       # Profile resolution state (bases, assignments, overrides)
 │   └── customizer.ts              # UI theme/layout preferences
 │
 ├── types/
-│   ├── credit.ts                  # CreditSummary, CreditRun, CreditRecord, etc.
 │   ├── writeback.ts               # WritebackJob, QueueStats, JobsPagination
 │   ├── profileResolution.ts       # ProfileResolution, ResolutionInput, ResolutionResult
 │   ├── clientAutomations.ts       # ClientAutomationRuleSummary, ClientAutomationRunSummary
@@ -168,11 +168,6 @@ full-version/src/
 │   ├── writeback/
 │   │   ├── JobQueue.vue           # Per-clinic job queue with filters
 │   │   └── LiveActivity.vue       # Real-time job monitoring + execute
-│   ├── credit/
-│   │   ├── CreditDashboard.vue    # BI dashboard (KPIs + 4 charts)
-│   │   ├── CreditRuns.vue         # Run history + manual trigger
-│   │   ├── CreditRecords.vue      # Paginated records table
-│   │   └── CreditRecordDetail.vue # Single record with exceptions
 │   └── profile/
 │       └── UserProfile.vue        # User settings
 │
@@ -225,25 +220,13 @@ All authenticated routes live under `MainRoutes.ts` with `meta: { requiresAuth: 
 | `/admin/workflow-builder` | WorkflowBuilder | Admin |
 | `/writeback/queue` | JobQueue | Writeback |
 | `/writeback/live` | LiveActivity | Writeback |
-| `/main/extraction/robots` | RobotMonitor | Extraction |
-| `/credit` | CreditDashboard | Credit |
-| `/credit/records` | CreditRecords | Credit |
-| `/credit/records/:id` | CreditRecordDetail | Credit |
-| `/credit/runs` | CreditRuns | Credit |
 | `/profile` | UserProfile | Profile |
 
-**Navigation guard** (`router/index.ts`): Redirects unauthenticated users to `/login`. Redirects authenticated users from `/login` to `/dashboard/default`.
+**Navigation guard** (`router/index.ts`): Redirects unauthenticated users from protected routes to `/login`. Authenticated users leaving `/login` land on `/dashboard/default` for writeback or `/main/extraction` for extraction; credit is no longer a landing-page option.
 
 ### Workflow Builder boundary
 
 `/admin/workflow-builder` renders only the server-returned closed catalog, materialization preview, and bounded version history. It does not calculate policy, canonical bytes, or digests in the browser, and it does not activate releases, bindings, providers, or clinical work. Backend authorization remains authoritative; inaccessible client data is treated as unavailable. The Clinic Exceptions panel blocks a sparse delta when the same optional atom is selected for both add and remove: Create is disabled and a warning alert names the overlapping atoms while preserving the operator's selections, and the server still rejects overlapping sets.
-
-**Robot Monitor deregistration semantics** (`/main/extraction/robots`):
-
-- The **Deregister** row action calls `DELETE /api/v1/robots/workstations/{workstation_id}`.
-- Successful delete removes the workstation from the table immediately and recomputes counts (no disabled-row fallback).
-- If the robot process is still running, a future valid heartbeat can auto-register the same workstation name again and the row can reappear as `HEALTHY`.
-- Delete authorization is enforced server-side for `admin` and `operator` roles.
 
 ### State Management (Pinia Stores)
 
@@ -256,7 +239,6 @@ Each module has its own Pinia store using the **Composition API** (`defineStore`
 | `clientAutomations` | `rules`, `runs`, `loading`, `error` | `fetchRules()`, `fetchRuns()`, `updateRuleEnabled()`, `createManualRun()` |
 | `clinics` | `clinics`, `selectedClinic`, `benefitMappings`, ... | `fetchClinics()`, `fetchClinicDetail()`, config CRUD |
 | `writeback` | `jobs`, `queueStats`, `clinicStatsMap`, `selectedJob` | `fetchJobs()`, `executeJob()`, `fetchQueueStats()` |
-| `credit` | `summary`, `runs`, `records`, `creditClinics` | `fetchSummary()`, `fetchRuns()`, `triggerRun()`, `fetchRecords()` |
 | `profileResolution` | `baseProfiles`, `clientAssignments`, `clinicOverrides` | `fetchBaseProfiles()`, `resolveProfile()`, `createAssignment()`, `updateOverride()` |
 
 ### HTTP Client (`fetchWrapper`)
@@ -278,24 +260,6 @@ export const fetchWrapper = {
 - **Auto-refresh on 401**: If a request gets a 401, it refreshes the token and retries once
 - Response unwrapping: Returns `data.data` if nested (backend envelope format)
 - On refresh failure: Logs out the user
-
-### Credit Dashboard
-
-The credit module provides actionable business intelligence:
-
-**KPI Cards** (4):
-1. **Total Credit Exposure** — Dollar amount with currency formatting
-2. **Patients Affected** — Count of patients with credit balances
-3. **Avg Credit Age** — Days since credit appeared (orange >90d warning)
-4. **Action Required** — Patients needing contact/refund/review
-
-**Charts** (4, all ApexCharts):
-1. **Aging Distribution** — Horizontal bar chart with color-coded buckets (green→red)
-2. **Recommended Actions** — Donut chart showing disposition breakdown with center total
-3. **Top Exceptions** — Data table with severity badges (High=red, Medium=orange, Low=green)
-4. **Credit by Type** — Vertical bar chart per credit classification
-
-> **Security**: No internal UUIDs are exposed in the UI. Clinic filter uses `clinic_name` from the API.
 
 ### Profile Resolution (`ProfileResolution.vue`)
 

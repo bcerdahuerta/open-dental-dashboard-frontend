@@ -12,9 +12,6 @@ import {
   TemplateIcon,
   UsersIcon,
   ClipboardListIcon,
-  CreditCardIcon,
-  ReportIcon,
-  ClockIcon,
   UserCheckIcon
 } from 'vue-tabler-icons';
 
@@ -42,16 +39,10 @@ const sidebarItem: menu[] = [
   { title: 'Live Activity', icon: ActivityIcon, to: '/writeback/live', requiredProduct: 'writeback' },
   { title: 'Job Queue', icon: ListCheckIcon, to: '/writeback/queue', chip: 'New', chipColor: 'primary', requiredProduct: 'writeback' },
 
-  { header: 'Credit', requiredProduct: 'credit' },
-  { title: 'Dashboard', icon: CreditCardIcon, to: '/credit', requiredProduct: 'credit' },
-  { title: 'Records', icon: ReportIcon, to: '/credit/records', requiredProduct: 'credit' },
-  { title: 'Run History', icon: ClockIcon, to: '/credit/runs', requiredProduct: 'credit' },
-
   { header: 'Extraction', requiredProduct: 'extraction' },
   { title: 'Dashboard', icon: DashboardIcon, to: '/main/extraction', requiredProduct: 'extraction' },
   { title: 'Runs', icon: ListIcon, to: '/main/extraction/runs', requiredProduct: 'extraction' },
   { title: 'Schedules', icon: SettingsIcon, to: '/main/extraction/schedules', requiredProduct: 'extraction' },
-  { title: 'Robot Monitor', icon: ActivityIcon, to: '/main/extraction/robots', requiredProduct: 'extraction' },
   { title: 'Insurance Enrichment', icon: SettingsIcon, to: '/main/extraction/insurance-enrichment', requiredProduct: 'extraction' },
   { title: 'Team Members', icon: UsersIcon, to: '/main/extraction/encargados', requiredProduct: 'extraction' },
 

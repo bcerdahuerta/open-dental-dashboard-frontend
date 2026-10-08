@@ -41,7 +41,10 @@ afterEach(() => wrapper?.unmount());
 describe('User approval product selection', () => {
   it('initializes the checkbox group as an explicit multiple array', async () => {
     const checkboxes = await openApproval();
-    expect(checkboxes).toHaveLength(3);
+    expect(checkboxes).toHaveLength(2);
+    expect(checkboxes.map((checkbox) => checkbox.props('value'))).toEqual(['writeback', 'extraction']);
+    expect(checkboxes.some((checkbox) => checkbox.props('value') === 'credit')).toBe(false);
+    expect(wrapper.text()).not.toContain('Credit');
     for (const checkbox of checkboxes) {
       expect(checkbox.props('modelValue')).toEqual([]);
       expect(checkbox.props('multiple')).toBe(true);
@@ -49,8 +52,8 @@ describe('User approval product selection', () => {
   });
 
   it.each([
-    ['writeback', 1],
-    ['extraction', 2]
+    ['writeback', 0],
+    ['extraction', 1]
   ] as const)('sends %s as a one-item array', async (product, index) => {
     const checkboxes = await openApproval();
     await checkboxes[index].find('input').setValue(true);
@@ -60,11 +63,11 @@ describe('User approval product selection', () => {
 
   it('preserves multiple selections and deselection', async () => {
     const checkboxes = await openApproval();
+    await checkboxes[0].find('input').setValue(true);
     await checkboxes[1].find('input').setValue(true);
-    await checkboxes[2].find('input').setValue(true);
     await approve();
     expect(api.post).toHaveBeenLastCalledWith(expect.any(String), { product_types: ['writeback', 'extraction'] });
-    await checkboxes[1].find('input').setValue(false);
+    await checkboxes[0].find('input').setValue(false);
     await approve();
     expect(api.post).toHaveBeenLastCalledWith(expect.any(String), { product_types: ['extraction'] });
   });
@@ -73,8 +76,8 @@ describe('User approval product selection', () => {
     const checkboxes = await openApproval();
     await approve();
     expect(api.post).toHaveBeenLastCalledWith(expect.any(String), {});
-    await checkboxes[1].find('input').setValue(true);
-    await checkboxes[1].find('input').setValue(false);
+    await checkboxes[0].find('input').setValue(true);
+    await checkboxes[0].find('input').setValue(false);
     await approve();
     expect(api.post).toHaveBeenLastCalledWith(expect.any(String), {});
   });

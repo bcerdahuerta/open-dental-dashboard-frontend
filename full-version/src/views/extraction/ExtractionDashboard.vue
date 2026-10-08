@@ -3,7 +3,6 @@ import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import UiParentCard from '@/components/shared/UiParentCard.vue';
 import { useExtractionStore } from '@/stores/extraction';
-import { useRobotStore } from '@/stores/robot';
 import { useClientStore } from '@/stores/clients';
 import { useClinicStore } from '@/stores/clinics';
 import {
@@ -14,20 +13,17 @@ import {
   SettingsIcon,
   CalendarStatsIcon,
   PlayerPlayIcon,
-  RefreshIcon,
+  RefreshIcon
 } from 'vue-tabler-icons';
 
 const extractionStore = useExtractionStore();
-const robotStore = useRobotStore();
 const clientStore = useClientStore();
 const clinicStore = useClinicStore();
 
 const { clinicNameMap, loading, error, events, schedules, runs, health } = storeToRefs(extractionStore);
-const { healthyCount: robotHealthyCount, staleCount: robotStaleCount, totalCount: robotTotalCount } = storeToRefs(robotStore);
 const { clients } = storeToRefs(clientStore);
 const { clinics } = storeToRefs(clinicStore);
 const { hydrateLookups, fetchRuns, fetchSchedules, fetchHealth, fetchEvents, triggerExtraction, statusColor } = extractionStore;
-const { fetchWorkstations } = robotStore;
 
 const triggerDialog = ref(false);
 const triggerLoading = ref(false);
@@ -38,25 +34,30 @@ const triggerForm = ref({
   clinic_id: '',
   run_type: 'NEW_DATE' as 'NEW_DATE' | 'REVIEW',
   date_from: '',
-  date_to: '',
+  date_to: ''
 });
 
 const snackbar = ref(false);
 const snackbarText = ref('');
 const snackbarColor = ref<'success' | 'error' | 'warning'>('success');
 
-const clientItems = computed(() => [{ value: '', title: 'All Clients' }, ...clients.value.map((client) => ({
-  value: client.id,
-  title: client.client_name,
-}))]);
+const clientItems = computed(() => [
+  { value: '', title: 'All Clients' },
+  ...clients.value.map((client) => ({
+    value: client.id,
+    title: client.client_name
+  }))
+]);
 
-const selectedClientClinicIds = computed(() => clinics.value
-  .filter((clinic) => !selectedClientId.value || clinic.client_id === selectedClientId.value)
-  .map((clinic) => clinic.id));
+const selectedClientClinicIds = computed(() =>
+  clinics.value.filter((clinic) => !selectedClientId.value || clinic.client_id === selectedClientId.value).map((clinic) => clinic.id)
+);
 
-const clinicItems = computed(() => clinics.value
-  .filter((clinic) => !selectedClientId.value || clinic.client_id === selectedClientId.value)
-  .map((clinic) => ({ value: clinic.id, title: clinic.clinic_name })));
+const clinicItems = computed(() =>
+  clinics.value
+    .filter((clinic) => !selectedClientId.value || clinic.client_id === selectedClientId.value)
+    .map((clinic) => ({ value: clinic.id, title: clinic.clinic_name }))
+);
 
 const filteredRuns = computed(() => {
   if (!selectedClientId.value) return runs.value;
@@ -90,7 +91,7 @@ const dashboardSummary = computed(() => {
     total_runs: totalRuns,
     success_rate: totalRuns > 0 ? Math.round((completedRuns / totalRuns) * 100) : 0,
     active_schedules: filteredSchedules.value.filter((schedule) => schedule.auto_extract_enabled).length,
-    appointments_today: filteredRuns.value.reduce((sum, run) => sum + (run.inserted_rows_count || 0), 0),
+    appointments_today: filteredRuns.value.reduce((sum, run) => sum + (run.inserted_rows_count || 0), 0)
   };
 });
 
@@ -98,11 +99,18 @@ const healthSummary = computed(() => ({
   healthy: filteredHealth.value.filter((item) => item.status === 'HEALTHY').length,
   degraded: filteredHealth.value.filter((item) => item.status === 'DEGRADED').length,
   down: filteredHealth.value.filter((item) => item.status === 'DOWN').length,
-  notification_backlog: filteredHealth.value.reduce((sum, item) => sum + item.pending_notification_count + item.failed_notification_count, 0),
+  notification_backlog: filteredHealth.value.reduce(
+    (sum, item) => sum + item.pending_notification_count + item.failed_notification_count,
+    0
+  )
 }));
 
-const slackConfiguredCount = computed(() => filteredSchedules.value.filter((item) => Boolean(item.effective_policy?.slack_webhook ?? item.slack_webhook)).length);
-const explicitWeekdayCount = computed(() => filteredSchedules.value.filter((item) => (item.effective_policy?.working_days ?? item.working_days ?? []).length > 0).length);
+const slackConfiguredCount = computed(
+  () => filteredSchedules.value.filter((item) => Boolean(item.effective_policy?.slack_webhook ?? item.slack_webhook)).length
+);
+const explicitWeekdayCount = computed(
+  () => filteredSchedules.value.filter((item) => (item.effective_policy?.working_days ?? item.working_days ?? []).length > 0).length
+);
 const policySnapshot = computed(() => filteredSchedules.value.slice(0, 5));
 const recentRunsScoped = computed(() => filteredRuns.value.slice(0, 10));
 
@@ -112,7 +120,7 @@ const headers = [
   { title: 'Status', key: 'status', sortable: false },
   { title: 'Target Date', key: 'target_date', sortable: false },
   { title: 'Rows', key: 'inserted_rows_count', align: 'end' as const },
-  { title: 'Started', key: 'started_at', sortable: false },
+  { title: 'Started', key: 'started_at', sortable: false }
 ];
 
 const eventHeaders = [
@@ -120,7 +128,7 @@ const eventHeaders = [
   { title: 'Severity', key: 'severity', sortable: false },
   { title: 'Event', key: 'event_type', sortable: false },
   { title: 'Message', key: 'message', sortable: false },
-  { title: 'At', key: 'created_at', sortable: false },
+  { title: 'At', key: 'created_at', sortable: false }
 ];
 
 function clinicName(clinicId: string): string {
@@ -133,21 +141,22 @@ function formatDate(iso: string | null): string {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit',
+    minute: '2-digit'
   });
 }
 
 async function refreshDashboard() {
   const clinicScope = selectedClientId.value
-    ? (selectedClientClinicIds.value.length > 0 ? selectedClientClinicIds.value : ['__no-clinics__'])
+    ? selectedClientClinicIds.value.length > 0
+      ? selectedClientClinicIds.value
+      : ['__no-clinics__']
     : [];
 
   await Promise.all([
     fetchRuns({ page: 1, per_page: 20, clinic_ids: clinicScope }),
     fetchSchedules(selectedClientId.value || undefined),
     fetchHealth(),
-    fetchEvents(undefined, selectedClientId.value ? 100 : 10),
-    fetchWorkstations(),
+    fetchEvents(undefined, selectedClientId.value ? 100 : 10)
   ]);
 }
 
@@ -192,7 +201,7 @@ function openTriggerDialog() {
     clinic_id: '',
     run_type: 'NEW_DATE',
     date_from: '',
-    date_to: '',
+    date_to: ''
   };
   triggerError.value = '';
   triggerDialog.value = true;
@@ -219,11 +228,10 @@ async function onTrigger() {
       triggerForm.value.clinic_id,
       triggerForm.value.run_type,
       triggerForm.value.date_from,
-      triggerForm.value.date_to,
+      triggerForm.value.date_to
     );
 
-    snackbarText.value =
-      result?.message || result?.data?.message || 'Extraction triggered successfully.';
+    snackbarText.value = result?.message || result?.data?.message || 'Extraction triggered successfully.';
     snackbarColor.value = 'success';
     triggerDialog.value = false;
     await refreshDashboard();
@@ -367,28 +375,6 @@ async function onClientChange() {
               </div>
             </UiParentCard>
           </v-col>
-          <v-col cols="12" md="6">
-            <UiParentCard title="Robot Health">
-              <div class="d-flex align-center justify-space-between ga-3">
-                <div class="d-flex align-center">
-                  <v-avatar size="44" class="bg-lightprimary mr-3" rounded>
-                    <ActivityIcon size="22" class="text-primary" stroke-width="1.5" />
-                  </v-avatar>
-                  <div>
-                    <h3 class="text-h5 font-weight-bold">
-                      {{ robotHealthyCount }}/{{ robotTotalCount }} online
-                    </h3>
-                    <span class="text-body-2 text-medium-emphasis">
-                      {{ robotStaleCount }} stale workstations
-                    </span>
-                  </div>
-                </div>
-                <v-btn color="primary" variant="tonal" to="/main/extraction/robots">
-                  View robots
-                </v-btn>
-              </div>
-            </UiParentCard>
-          </v-col>
         </v-row>
 
         <v-row>
@@ -427,9 +413,15 @@ async function onClientChange() {
                 <v-card v-for="schedule in policySnapshot" :key="schedule.id" variant="outlined">
                   <v-card-text class="py-3">
                     <div class="font-weight-medium mb-1">{{ clinicName(schedule.clinic_id) }}</div>
-                    <div class="text-body-2 mb-1">Slack target: {{ slackTargetText(schedule.effective_policy?.slack_webhook ?? schedule.slack_webhook) }}</div>
-                    <div class="text-body-2 mb-1">Mentions: {{ slackMentionsText(schedule.effective_policy?.slack_mentions ?? schedule.slack_mentions) }}</div>
-                    <div class="text-body-2">Working days: {{ workingDaysText(schedule.effective_policy?.working_days ?? schedule.working_days ?? []) }}</div>
+                    <div class="text-body-2 mb-1">
+                      Slack target: {{ slackTargetText(schedule.effective_policy?.slack_webhook ?? schedule.slack_webhook) }}
+                    </div>
+                    <div class="text-body-2 mb-1">
+                      Mentions: {{ slackMentionsText(schedule.effective_policy?.slack_mentions ?? schedule.slack_mentions) }}
+                    </div>
+                    <div class="text-body-2">
+                      Working days: {{ workingDaysText(schedule.effective_policy?.working_days ?? schedule.working_days ?? []) }}
+                    </div>
                   </v-card-text>
                 </v-card>
                 <div v-if="!policySnapshot.length" class="text-medium-emphasis">No schedule policies loaded yet.</div>
@@ -441,23 +433,11 @@ async function onClientChange() {
         <v-row>
           <v-col cols="12">
             <UiParentCard title="Recent Runs">
-              <v-alert
-                v-if="!loading && !recentRunsScoped.length"
-                type="info"
-                variant="tonal"
-                closable
-                class="mb-4"
-              >
+              <v-alert v-if="!loading && !recentRunsScoped.length" type="info" variant="tonal" closable class="mb-4">
                 No extraction runs found. Trigger a run to populate this table.
               </v-alert>
 
-              <v-data-table
-                :headers="headers"
-                :items="recentRunsScoped"
-                :loading="loading"
-                item-value="id"
-                density="comfortable"
-              >
+              <v-data-table :headers="headers" :items="recentRunsScoped" :loading="loading" item-value="id" density="comfortable">
                 <template #item.clinic_id="{ item }">
                   <span class="font-weight-medium">{{ clinicName(item.clinic_id) }}</span>
                 </template>
@@ -479,13 +459,7 @@ async function onClientChange() {
         <v-row>
           <v-col cols="12">
             <UiParentCard title="Recent Ops Events">
-              <v-data-table
-                :headers="eventHeaders"
-                :items="filteredEvents"
-                :loading="loading"
-                item-value="id"
-                density="comfortable"
-              >
+              <v-data-table :headers="eventHeaders" :items="filteredEvents" :loading="loading" item-value="id" density="comfortable">
                 <template #item.clinic_id="{ item }">
                   <span class="font-weight-medium">{{ clinicName(item.clinic_id) }}</span>
                 </template>
@@ -530,7 +504,10 @@ async function onClientChange() {
             <v-col cols="12" sm="6">
               <v-select
                 v-model="triggerForm.run_type"
-                :items="[{ title: 'New Date', value: 'NEW_DATE' }, { title: 'Review', value: 'REVIEW' }]"
+                :items="[
+                  { title: 'New Date', value: 'NEW_DATE' },
+                  { title: 'Review', value: 'REVIEW' }
+                ]"
                 item-title="title"
                 item-value="value"
                 label="Run Type"
@@ -540,23 +517,11 @@ async function onClientChange() {
             </v-col>
 
             <v-col cols="12" sm="6">
-              <v-text-field
-                v-model="triggerForm.date_from"
-                type="date"
-                label="Date From"
-                variant="outlined"
-                color="primary"
-              />
+              <v-text-field v-model="triggerForm.date_from" type="date" label="Date From" variant="outlined" color="primary" />
             </v-col>
 
             <v-col cols="12" sm="6">
-              <v-text-field
-                v-model="triggerForm.date_to"
-                type="date"
-                label="Date To"
-                variant="outlined"
-                color="primary"
-              />
+              <v-text-field v-model="triggerForm.date_to" type="date" label="Date To" variant="outlined" color="primary" />
             </v-col>
           </v-row>
         </v-form>
@@ -565,9 +530,7 @@ async function onClientChange() {
       <v-card-actions>
         <v-spacer />
         <v-btn variant="tonal" color="secondary" @click="triggerDialog = false">Cancel</v-btn>
-        <v-btn color="primary" variant="flat" :loading="triggerLoading" @click="onTrigger">
-          Trigger
-        </v-btn>
+        <v-btn color="primary" variant="flat" :loading="triggerLoading" @click="onTrigger"> Trigger </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

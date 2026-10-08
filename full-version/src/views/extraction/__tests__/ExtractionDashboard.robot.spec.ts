@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { flushPromises, mount } from '@vue/test-utils';
 
@@ -34,7 +34,10 @@ const stubs = {
   VSnackbar: { template: '<div />' }
 };
 
-describe('ExtractionDashboard robot summary', () => {
+let wrapper: ReturnType<typeof mount>;
+afterEach(() => wrapper?.unmount());
+
+describe('ExtractionDashboard robot retirement', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
@@ -72,16 +75,22 @@ describe('ExtractionDashboard robot summary', () => {
     });
   });
 
-  it('loads robot health counts into the extraction dashboard card', async () => {
-    const wrapper = mount(ExtractionDashboard, {
-      global: { stubs }
-    });
-
+  it('loads extraction without requesting retired robot health', async () => {
+    wrapper = mount(ExtractionDashboard, { global: { stubs } });
     await flushPromises();
 
-    expect(fetchWrapper.get).toHaveBeenCalledWith(expect.stringContaining('/robots/workstations'));
-    expect(wrapper.text()).toContain('Robot Health');
-    expect(wrapper.text()).toContain('1/2 online');
-    expect(wrapper.text()).toContain('1 stale workstations');
+    expect(fetchWrapper.get).toHaveBeenCalledWith(expect.stringContaining('/extractions/runs'));
+    expect(vi.mocked(fetchWrapper.get).mock.calls.filter(([url]) => String(url).includes('/robots'))).toEqual([]);
+  });
+
+  it('omits the robot widget and monitor link while keeping extraction controls', async () => {
+    wrapper = mount(ExtractionDashboard, { global: { stubs } });
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain('Robot Health');
+    expect(wrapper.text()).not.toContain('1/2 online');
+    expect(wrapper.text()).not.toContain('stale workstations');
+    expect(wrapper.find('[href="/main/extraction/robots"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Manual Trigger');
   });
 });
