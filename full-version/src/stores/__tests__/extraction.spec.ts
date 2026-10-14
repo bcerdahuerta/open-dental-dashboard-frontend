@@ -592,4 +592,49 @@ describe('extraction store clinic assignments', () => {
       }
     });
   });
+
+  it('sends only API-writable fields when saving the client config loaded from the effective config', async () => {
+    const store = useExtractionStore();
+    vi.mocked(fetchWrapper.patch).mockResolvedValue({
+      client_id: 'client-1',
+      client_name: 'Client One',
+      defaults: { enabled: true, application_mode: 'apply', gemini_enabled: false, gemini_model: 'gemini-3.1-flash-lite-preview', gemini_only_when_parser_incomplete: true, max_gemini_calls_per_run: 25, apply_only_when_carrier_generic: true, set_verification_type_on_enrichment: true, verification_type_value: 'FBD', update_filenames: true, fields_applied: { carrier_name: true }, document_file_naming: { form_with_print: true, short_form: true, effective_source: 'client_config' } },
+      effective_client_config: { enabled: true, application_mode: 'apply', gemini_enabled: false, gemini_model: 'gemini-3.1-flash-lite-preview', gemini_only_when_parser_incomplete: true, max_gemini_calls_per_run: 25, apply_only_when_carrier_generic: true, set_verification_type_on_enrichment: true, verification_type_value: 'FBD', update_filenames: true, fields_applied: { carrier_name: true }, document_file_naming: { form_with_print: true, short_form: true, effective_source: 'client_config' } },
+      clinics: [],
+      audit_trail: []
+    });
+
+    // InsuranceEnrichmentSettings.vue submits a deep copy of effective_client_config, which
+    // includes read-only fields the PATCH route rejects as unknown.
+    const clientForm = {
+      enabled: true,
+      application_mode: 'apply',
+      gemini_enabled: false,
+      gemini_model: 'gemini-3.1-flash-lite-preview',
+      gemini_only_when_parser_incomplete: true,
+      max_gemini_calls_per_run: 25,
+      apply_only_when_carrier_generic: true,
+      set_verification_type_on_enrichment: true,
+      verification_type_value: 'FBD',
+      update_filenames: true,
+      fields_applied: { carrier_name: true },
+      document_file_naming: { form_with_print: true, short_form: true, effective_source: 'client_config' }
+    };
+
+    await store.updateInsuranceEnrichmentClientConfig('client-1', clientForm);
+
+    expect(vi.mocked(fetchWrapper.patch).mock.calls[0]?.[1]).toEqual({
+      enabled: true,
+      application_mode: 'apply',
+      gemini_enabled: false,
+      gemini_only_when_parser_incomplete: true,
+      max_gemini_calls_per_run: 25,
+      apply_only_when_carrier_generic: true,
+      set_verification_type_on_enrichment: true,
+      verification_type_value: 'FBD',
+      update_filenames: true,
+      fields_applied: { carrier_name: true },
+      document_file_naming: { form_with_print: true, short_form: true }
+    });
+  });
 });

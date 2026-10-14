@@ -214,6 +214,9 @@ function buildDocumentFileNamingClinicPayload(value: unknown): Record<string, bo
 
 function buildInsuranceClientPatchPayload(data: Record<string, unknown>): Record<string, unknown> {
   const payload = { ...data };
+  // The settings view submits a copy of the loaded effective config, so read-only fields the
+  // PATCH route rejects as unknown must be dropped before sending.
+  delete payload.gemini_model;
   if ('document_file_naming' in payload) {
     payload.document_file_naming = buildDocumentFileNamingClientPayload(payload.document_file_naming);
   }
