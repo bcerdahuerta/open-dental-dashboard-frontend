@@ -68,6 +68,16 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function logout() {
+    // Revoke every outstanding token server-side before clearing local state.
+    // Best effort: the tokens may already be invalid, and logout must never
+    // block on the network.
+    if (access_token.value) {
+      void fetch(`${baseUrl}/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${access_token.value}` }
+      }).catch(() => undefined);
+    }
+
     user.value = null;
     access_token.value = null;
     refresh_token.value = null;

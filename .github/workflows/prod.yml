@@ -36,6 +36,7 @@ jobs:
         working-directory: full-version
         run: |
           npm ci
+          npm audit --audit-level=high
           npm test
           npm run build
 
@@ -57,5 +58,6 @@ jobs:
         working-directory: full-version
         run: |
           npm ci
+          npm audit --audit-level=high
           npm test
           npm run build
